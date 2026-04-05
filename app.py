@@ -436,6 +436,83 @@ def _fetch_finnhub_company_news(symbol: str, finnhub_key: str) -> list:
     except Exception:
         return []
 
+
+def _format_news_date(raw):
+    for fmt in ("%Y-%m-%dT%H:%M:%SZ", "%a, %d %b %Y %H:%M:%S %z",
+                "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(raw[:25], fmt).strftime("%d %b %Y")
+        except Exception:
+            continue
+    return raw[:10] if raw else ""
+
+def _dedup_news(articles):
+    seen, out = set(), []
+    for a in articles:
+        key = hashlib.md5(a.get("title","")[:60].encode()).hexdigest()
+        if key not in seen:
+            seen.add(key)
+            out.append(a)
+    return out
+
+def _fetch_indianapi_news(symbol):
+    key = st.secrets.get("INDIANAPI_KEY", "")
+    if not key:
+        return []
+    company_name, _, _ = _get_company_meta(symbol)
+    try:
+        r = requests.get("https://stock.indianapi.in/stock",
+            params={"name": company_name}, headers={"X-Api-Key": key}, timeout=8)
+        r.raise_for_status()
+        raw_news = r.json().get("recentNews", [])
+        return [{"title": n.get("title") or n.get("headline",""),
+                 "description": n.get("summary",""),
+                 "url": n.get("url") or n.get("link",""),
+                 "source": n.get("source","IndianAPI"),
+                 "published": n.get("date") or n.get("publishedAt","")}
+                for n in raw_news[:8] if n.get("title") or n.get("headline")]
+    except Exception:
+        return []
+
+def _fetch_gnews_news(symbol):
+    key = st.secrets.get("GNEWS_API_KEY", "")
+    if not key:
+        return []
+    company_name, _, extra = _get_company_meta(symbol)
+    extra_kw = " ".join(extra.split()[:2]) if extra else ""
+    query = '"' + company_name + '"' + (" " + extra_kw if extra_kw else "")
+    try:
+        r = requests.get("https://gnews.io/api/v4/search", params={
+            "q": query, "lang": "en", "country": "in",
+            "max": 8, "sortby": "publishedAt", "apikey": key}, timeout=8)
+        r.raise_for_status()
+        return [{"title": a.get("title",""), "description": a.get("description",""),
+                 "url": a.get("url",""), "source": a.get("source",{}).get("name",""),
+                 "published": a.get("publishedAt","")}
+                for a in r.json().get("articles",[])]
+    except Exception:
+        return []
+
+def _fetch_finnhub_company_news(symbol, finnhub_key):
+    if not finnhub_key:
+        return []
+    try:
+        to_dt   = datetime.now().strftime("%Y-%m-%d")
+        from_dt = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+        r = requests.get("https://finnhub.io/api/v1/company-news", params={
+            "symbol": "NSE:" + symbol, "from": from_dt, "to": to_dt,
+            "token": finnhub_key}, timeout=8)
+        news = r.json()
+        if not isinstance(news, list) or not news:
+            return []
+        return [{"title": n.get("headline",""), "description": n.get("summary",""),
+                 "url": n.get("url",""), "source": n.get("source","Finnhub"),
+                 "published": datetime.fromtimestamp(n.get("datetime",0)).strftime("%Y-%m-%dT%H:%M:%SZ")
+                              if n.get("datetime") else ""}
+                for n in news[:8]]
+    except Exception:
+        return []
+
 def _fetch_moneycontrol_rss(symbol: str) -> list:
     company_name, _, _ = _get_company_meta(symbol)
     try:
