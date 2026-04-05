@@ -7,6 +7,59 @@ from datetime import datetime, timedelta
 from anthropic import Anthropic
 
 # ── Page config ───────────────────────────────────────────────────────────────
+# ── NSE Symbol lookup ────────────────────────────────────────────────────
+NSE_LOOKUP = {
+    "reliance":"RELIANCE","reliance industries":"RELIANCE",
+    "tata consultancy":"TCS","tcs":"TCS","tata consultancy services":"TCS",
+    "hdfc bank":"HDFCBANK","hdfcbank":"HDFCBANK","hdfc":"HDFCBANK",
+    "infosys":"INFY","infy":"INFY",
+    "icici bank":"ICICIBANK","icici":"ICICIBANK",
+    "state bank":"SBIN","sbi":"SBIN","state bank of india":"SBIN",
+    "kotak":"KOTAKBANK","kotak mahindra":"KOTAKBANK","kotak bank":"KOTAKBANK",
+    "bharti airtel":"BHARTIARTL","airtel":"BHARTIARTL",
+    "hindustan unilever":"HINDUNILVR","hul":"HINDUNILVR",
+    "axis bank":"AXISBANK","axis":"AXISBANK",
+    "larsen":"LT","larsen toubro":"LT","l&t":"LT","l and t":"LT",
+    "maruti":"MARUTI","maruti suzuki":"MARUTI",
+    "hcl":"HCLTECH","hcl technologies":"HCLTECH","hcl tech":"HCLTECH",
+    "bajaj finance":"BAJFINANCE","bajaj fin":"BAJFINANCE",
+    "wipro":"WIPRO","titan":"TITAN","titan company":"TITAN",
+    "sun pharma":"SUNPHARMA","sun pharmaceutical":"SUNPHARMA",
+    "ntpc":"NTPC","tata motors":"TATAMOTORS","tata steel":"TATASTEEL",
+    "tech mahindra":"TECHM","cipla":"CIPLA",
+    "dr reddy":"DRREDDY","dr reddys":"DRREDDY",
+    "apollo hospitals":"APOLLOHOSP","apollo hospital":"APOLLOHOSP",
+    "bajaj finserv":"BAJAJFINSV","jsw steel":"JSWSTEEL","jsw":"JSWSTEEL",
+    "hindalco":"HINDALCO","nestle":"NESTLEIND","nestle india":"NESTLEIND",
+    "divis":"DIVISLAB","divis laboratories":"DIVISLAB",
+    "eicher":"EICHERMOT","eicher motors":"EICHERMOT","royal enfield":"EICHERMOT",
+    "bpcl":"BPCL","bharat petroleum":"BPCL","coal india":"COALINDIA",
+    "hero moto":"HEROMOTOCO","hero motocorp":"HEROMOTOCO",
+    "britannia":"BRITANNIA","indusind":"INDUSINDBK","indusind bank":"INDUSINDBK",
+    "tata consumer":"TATACONSUM","grasim":"GRASIM",
+    "asian paints":"ASIANPAINT","ultratech":"ULTRACEMCO","ultratech cement":"ULTRACEMCO",
+    "ongc":"ONGC","itc":"ITC","itc limited":"ITC",
+    "adani enterprises":"ADANIENT","adani ports":"ADANIPORTS",
+    "trent":"TRENT","zomato":"ZOMATO","bajaj auto":"BAJAJ-AUTO",
+    "shriram finance":"SHRIRAMFIN","bel":"BEL","bharat electronics":"BEL",
+    "power grid":"POWERGRID","nifty":"NIFTY50","nifty 50":"NIFTY50",
+    "bank nifty":"BANKNIFTY","sensex":"SENSEX",
+    "pidilite":"PIDILITIND","havells":"HAVELLS","siemens":"SIEMENS",
+    "abb":"ABB","polycab":"POLYCAB","dlf":"DLF",
+    "marico":"MARICO","pfc":"PFC","rec":"RECLTD",
+    "tata power":"TATAPOWER","bank of baroda":"BANKBARODA","bob":"BANKBARODA",
+    "lupin":"LUPIN","muthoot":"MUTHOOTFIN","muthoot finance":"MUTHOOTFIN",
+    "naukri":"NAUKRI","info edge":"NAUKRI","bosch":"BOSCHLTD",
+}
+def resolve_symbol(raw):
+    cleaned = raw.strip().lower()
+    if cleaned in NSE_LOOKUP:
+        return NSE_LOOKUP[cleaned]
+    for key, ticker in NSE_LOOKUP.items():
+        if cleaned in key or key in cleaned:
+            return ticker
+    return raw.strip().upper()
+
 st.set_page_config(
     page_title="NiftySniper AI Lab",
     page_icon="🎯",
@@ -477,7 +530,7 @@ st.markdown("""
 col_inp, col_btn = st.columns([5, 1])
 with col_inp:
     symbol = st.text_input(
-        "", placeholder="Enter NSE symbol (e.g. RELIANCE, TCS, INFY, HDFCBANK)...",
+        "", placeholder="Symbol (RELIANCE) or name (State Bank of India, Infosys)...",
         label_visibility="collapsed",
         key="symbol_input",
     ).upper().strip()
@@ -494,6 +547,7 @@ st.markdown(
 
 # ── Analysis ──────────────────────────────────────────────────────────────────
 if analyse and symbol:
+    symbol = resolve_symbol(symbol)
     st.divider()
 
     with st.spinner(f"Fetching data for {symbol}..."):
@@ -518,15 +572,17 @@ if analyse and symbol:
     chg_sym = "▲" if chg >= 0 else "▼"
 
     # ── Stock Header ──────────────────────────────────────────────────────────
+    company_name = quote.get('name', symbol) or symbol
     st.markdown(f"""
-<div class="section-card" style="margin-bottom:20px;">
+<div class="section-card" style="margin-bottom:20px; border-top:2px solid #ff6600;">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
     <div>
-      <div style="color:#f9fafb; font-size:1.6rem; font-weight:700;">{symbol}</div>
-      <div style="color:#555555; font-size:0.875rem;">{quote.get('name', symbol)} · NSE</div>
+      <div style="color:#ff6600; font-size:0.7rem; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; font-family:'JetBrains Mono',monospace; margin-bottom:2px;">NSE · EQUITY</div>
+      <div style="color:#ffffff; font-size:1.8rem; font-weight:700; font-family:'JetBrains Mono',monospace; letter-spacing:0.05em; line-height:1.1;">{symbol}</div>
+      <div style="color:#aaaaaa; font-size:0.95rem; margin-top:3px;">{company_name}</div>
     </div>
     <div style="text-align:right;">
-      <div style="color:#f9fafb; font-size:2rem; font-weight:700;">₹{cp:,.2f}</div>
+      <div style="color:#ffffff; font-size:2.2rem; font-weight:700; font-family:'JetBrains Mono',monospace;">&#8377;{cp:,.2f}</div>
       <div style="color:{chg_col}; font-size:1rem; font-weight:600;">{chg_sym} {abs(chg):.2f}%</div>
     </div>
   </div>
