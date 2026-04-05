@@ -456,6 +456,7 @@ def _dedup_news(articles):
     return out
 
 def _fetch_indianapi_news(symbol):
+    """Fetch NSE corporate filings + announcements from IndianAPI."""
     key = st.secrets.get("INDIANAPI_KEY", "")
     if not key:
         return []
@@ -464,13 +465,39 @@ def _fetch_indianapi_news(symbol):
         r = requests.get("https://stock.indianapi.in/stock",
             params={"name": company_name}, headers={"X-Api-Key": key}, timeout=8)
         r.raise_for_status()
-        raw_news = r.json().get("recentNews", [])
-        return [{"title": n.get("title") or n.get("headline",""),
-                 "description": n.get("summary",""),
-                 "url": n.get("url") or n.get("link",""),
-                 "source": n.get("source","IndianAPI"),
-                 "published": n.get("date") or n.get("publishedAt","")}
-                for n in raw_news[:8] if n.get("title") or n.get("headline")]
+        data = r.json()
+
+        results = []
+
+        # 1. Corporate actions — dividends, splits, bonus, buybacks
+        for item in (data.get("stockCorporateActionData") or [])[:6]:
+            action = item.get("subject") or item.get("action") or item.get("purpose","")
+            date   = item.get("exDate") or item.get("recordDate") or item.get("date","")
+            if not action:
+                continue
+            results.append({
+                "title":       action,
+                "description": f"Ex-date: {date}" if date else "",
+                "url":         "",
+                "source":      "NSE Filing",
+                "published":   date,
+            })
+
+        # 2. Board meeting / results announcements from initialStockFinancialData
+        fin = data.get("initialStockFinancialData") or {}
+        for item in (fin.get("boardMeetings") or fin.get("corporateAnnouncements") or [])[:4]:
+            title = item.get("bm_purpose") or item.get("description","")
+            date  = item.get("bm_date") or item.get("date","")
+            if title:
+                results.append({
+                    "title":       title,
+                    "description": "",
+                    "url":         item.get("url",""),
+                    "source":      "Board Meeting",
+                    "published":   date,
+                })
+
+        return results[:6]
     except Exception:
         return []
 
@@ -916,7 +943,7 @@ if analyse and symbol:
     with left:
         # News
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown(f'<div class="section-title">📰 Recent News — {_get_company_meta(symbol)[0]}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="section-title">📋 Filings & Corporate Actions — {_get_company_meta(symbol)[0]}</div>', unsafe_allow_html=True)
         if news:
             for n in news:
                 headline = n.get("title") or n.get("headline","")
@@ -938,7 +965,7 @@ if analyse and symbol:
   </div>
 </div>""", unsafe_allow_html=True)
         else:
-            st.markdown(f'<div style="color:#555555; font-size:0.875rem; padding:8px 0; line-height:1.7;">No company-specific news found for <strong style="color:#888">{_get_company_meta(symbol)[0]}</strong>.<br>Add <code>INDIANAPI_KEY</code> or <code>GNEWS_API_KEY</code> to Streamlit secrets.</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="color:#555555; font-size:0.875rem; padding:8px 0; line-height:1.7;">No filings found for <strong style="color:#888">{_get_company_meta(symbol)[0]}</strong>.<br>Add <code>INDIANAPI_KEY</code> to Streamlit secrets for NSE corporate actions & announcements.</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
         # Price chart
