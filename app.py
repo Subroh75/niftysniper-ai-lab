@@ -5,6 +5,8 @@ import requests
 import json
 from datetime import datetime, timedelta
 from anthropic import Anthropic
+import hashlib
+import xml.etree.ElementTree as ET
 
 # ── Page config ───────────────────────────────────────────────────────────────
 # ── NSE Symbol lookup ────────────────────────────────────────────────────
@@ -276,28 +278,212 @@ def fetch_quote(symbol: str) -> dict:
     except Exception:
         return {}
 
-@st.cache_data(ttl=600, show_spinner=False)
-def fetch_news(symbol: str, finnhub_key: str) -> list:
-    """Fetch company news from Finnhub."""
+
+# ── Company metadata ──────────────────────────────────────────────────────────
+COMPANY_META = {
+    "HINDALCO":   ("Hindalco Industries",      "Metals",       "Novelis aluminium copper"),
+    "TATASTEEL":  ("Tata Steel",               "Metals",       "steel Europe"),
+    "JSWSTEEL":   ("JSW Steel",                "Metals",       "JSW steel"),
+    "COALINDIA":  ("Coal India",               "Energy",       "coal mining CIL"),
+    "ONGC":       ("ONGC",                     "Energy",       "oil gas upstream"),
+    "RELIANCE":   ("Reliance Industries",      "Conglomerate", "Jio retail RIL"),
+    "INFY":       ("Infosys",                  "IT",           "IT services"),
+    "TCS":        ("Tata Consultancy Services","IT",           "TCS IT"),
+    "HDFCBANK":   ("HDFC Bank",               "Banking",       "HDFC private bank"),
+    "ICICIBANK":  ("ICICI Bank",              "Banking",       "ICICI private bank"),
+    "AXISBANK":   ("Axis Bank",               "Banking",       "Axis private bank"),
+    "SBIN":       ("State Bank of India",     "Banking",       "SBI public sector"),
+    "BAJFINANCE": ("Bajaj Finance",           "NBFC",          "Bajaj NBFC lending"),
+    "MARUTI":     ("Maruti Suzuki",           "Auto",          "Maruti passenger vehicles"),
+    "TATAMOTORS": ("Tata Motors",             "Auto",          "Tata EV Jaguar JLR"),
+    "WIPRO":      ("Wipro",                   "IT",            "Wipro IT services"),
+    "HCLTECH":    ("HCL Technologies",        "IT",            "HCL IT"),
+    "SUNPHARMA":  ("Sun Pharmaceutical",      "Pharma",        "Sun Pharma USFDA"),
+    "DRREDDY":    ("Dr Reddy's Laboratories", "Pharma",        "Dr Reddy generics"),
+    "CIPLA":      ("Cipla",                   "Pharma",        "Cipla drugs"),
+    "ADANIENT":   ("Adani Enterprises",       "Conglomerate",  "Adani group"),
+    "ADANIPORTS": ("Adani Ports",             "Infrastructure","Adani ports logistics"),
+    "LT":         ("Larsen & Toubro",         "Infrastructure","L&T engineering"),
+    "ULTRACEMCO": ("UltraTech Cement",        "Cement",        "UltraTech cement"),
+    "ASIANPAINT": ("Asian Paints",            "Consumer",      "Asian Paints decorative"),
+    "TITAN":      ("Titan Company",           "Consumer",      "Titan Tanishq jewellery"),
+    "NESTLEIND":  ("Nestle India",            "FMCG",          "Nestle FMCG"),
+    "HINDUNILVR": ("Hindustan Unilever",      "FMCG",          "HUL FMCG"),
+    "ITC":        ("ITC Limited",             "FMCG",          "ITC cigarettes hotels"),
+    "POWERGRID":  ("Power Grid Corporation",  "Utilities",     "Power Grid transmission"),
+    "NTPC":       ("NTPC",                    "Utilities",     "NTPC power generation"),
+    "TECHM":      ("Tech Mahindra",           "IT",            "Tech Mahindra telecom"),
+    "KOTAKBANK":  ("Kotak Mahindra Bank",     "Banking",       "Kotak private bank"),
+    "BAJAJFINSV": ("Bajaj Finserv",           "NBFC",          "Bajaj Finserv insurance"),
+    "VEDL":       ("Vedanta",                 "Metals",        "Vedanta zinc aluminium"),
+    "INDUSINDBK": ("IndusInd Bank",           "Banking",       "IndusInd private bank"),
+    "HEROMOTOCO": ("Hero MotoCorp",           "Auto",          "Hero two-wheeler"),
+    "BRITANNIA":  ("Britannia Industries",    "FMCG",          "Britannia biscuits"),
+    "DIVISLAB":   ("Divi's Laboratories",     "Pharma",        "Divi's API pharma"),
+    "EICHERMOT":  ("Eicher Motors",           "Auto",          "Royal Enfield"),
+    "GRASIM":     ("Grasim Industries",       "Conglomerate",  "Grasim cement Birla"),
+    "BPCL":       ("Bharat Petroleum",        "Energy",        "BPCL refining fuel"),
+    "APOLLOHOSP": ("Apollo Hospitals",        "Healthcare",    "Apollo hospital healthcare"),
+    "BHARTIARTL": ("Bharti Airtel",           "Telecom",       "Airtel telecom"),
+    "ZOMATO":     ("Zomato",                  "Consumer Tech", "Zomato food delivery"),
+    "TRENT":      ("Trent",                   "Retail",        "Trent Westside Zudio"),
+}
+
+def _get_company_meta(symbol: str) -> tuple:
+    clean = symbol.upper().replace(".NS","").replace(".BO","")
+    return COMPANY_META.get(clean, (clean.title(), "Equity", ""))
+
+def _tag_article(title: str, description: str) -> tuple:
+    text = (title + " " + description).lower()
+    rules = [
+        (["result","profit","revenue","earnings","ebitda","q1","q2","q3","q4",
+          "quarterly","annual report"],                                 "Result",      "#1e3a2f","#34d399"),
+        (["capex","expansion","plant","capacity","acquisition","merger",
+          "stake","buyout","deal","jv","joint venture"],               "Corporate",   "#1e2a3a","#60a5fa"),
+        (["ipo","fpo","buyback","dividend","bonus","split","listing",
+          "qip","ncd","rights issue"],                                 "Corp action", "#2a1e3a","#a78bfa"),
+        (["upgrade","downgrade","target price","analyst","brokerage",
+          "overweight","underweight"],                                 "Analyst",     "#3a2a1e","#fb923c"),
+        (["sebi","regulatory","compliance","fine","penalty",
+          "notice","investigation"],                                   "Regulatory",  "#3a1e1e","#f87171"),
+        (["lme","aluminium","aluminum","copper","zinc","steel",
+          "iron ore","commodity","crude","coal price"],                "Commodity",   "#2a2a1e","#facc15"),
+        (["sector","industry","peers","competition"],                  "Sector",      "#1e2a2a","#67e8f9"),
+    ]
+    for keywords, label, bg, fg in rules:
+        if any(k in text for k in keywords):
+            return label, bg, fg
+    return "News", "#1f1f1f", "#9ca3af"
+
+def _format_news_date(raw: str) -> str:
+    for fmt in ("%Y-%m-%dT%H:%M:%SZ", "%a, %d %b %Y %H:%M:%S %z",
+                "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(raw[:25], fmt).strftime("%d %b %Y")
+        except Exception:
+            continue
+    return raw[:10] if raw else ""
+
+def _dedup_news(articles: list) -> list:
+    seen, out = set(), []
+    for a in articles:
+        key = hashlib.md5(a.get("title","")[:60].encode()).hexdigest()
+        if key not in seen:
+            seen.add(key)
+            out.append(a)
+    return out
+
+def _fetch_indianapi_news(symbol: str) -> list:
+    key = st.secrets.get("INDIANAPI_KEY", "")
+    if not key:
+        return []
+    company_name, _, _ = _get_company_meta(symbol)
+    try:
+        r = requests.get(
+            "https://stock.indianapi.in/stock",
+            params={"name": company_name},
+            headers={"X-Api-Key": key},
+            timeout=8,
+        )
+        r.raise_for_status()
+        raw_news = r.json().get("recentNews", [])
+        return [{"title": n.get("title") or n.get("headline",""),
+                 "description": n.get("summary",""),
+                 "url": n.get("url") or n.get("link",""),
+                 "source": n.get("source","IndianAPI"),
+                 "published": n.get("date") or n.get("publishedAt","")}
+                for n in raw_news[:8] if n.get("title") or n.get("headline")]
+    except Exception:
+        return []
+
+def _fetch_gnews_news(symbol: str) -> list:
+    key = st.secrets.get("GNEWS_API_KEY", "")
+    if not key:
+        return []
+    company_name, _, extra = _get_company_meta(symbol)
+    extra_kw = " ".join(extra.split()[:2]) if extra else ""
+    query = f'"{company_name}"' + (f" {extra_kw}" if extra_kw else "")
+    try:
+        r = requests.get("https://gnews.io/api/v4/search", params={
+            "q": query, "lang": "en", "country": "in",
+            "max": 8, "sortby": "publishedAt", "apikey": key,
+        }, timeout=8)
+        r.raise_for_status()
+        return [{"title": a.get("title",""), "description": a.get("description",""),
+                 "url": a.get("url",""), "source": a.get("source",{}).get("name",""),
+                 "published": a.get("publishedAt","")}
+                for a in r.json().get("articles",[])]
+    except Exception:
+        return []
+
+def _fetch_finnhub_company_news(symbol: str, finnhub_key: str) -> list:
     if not finnhub_key:
         return []
     try:
         to_dt   = datetime.now().strftime("%Y-%m-%d")
         from_dt = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
-        # Finnhub uses exchange-qualified symbol: NSE:RELIANCE format
-        fh_sym = f"NSE:{symbol}"
-        url = f"https://finnhub.io/api/v1/company-news?symbol={fh_sym}&from={from_dt}&to={to_dt}&token={finnhub_key}"
-        r   = requests.get(url, timeout=8)
+        r = requests.get("https://finnhub.io/api/v1/company-news", params={
+            "symbol": f"NSE:{symbol}", "from": from_dt, "to": to_dt, "token": finnhub_key,
+        }, timeout=8)
         news = r.json()
-        if isinstance(news, list) and len(news) > 0:
-            return news[:8]
-        # Fallback: general market news
-        url_gen = f"https://finnhub.io/api/v1/news?category=general&token={finnhub_key}"
-        r2 = requests.get(url_gen, timeout=8)
-        gen_news = r2.json() if r2.status_code == 200 else []
-        return gen_news[:6] if isinstance(gen_news, list) else []
+        if not isinstance(news, list) or not news:
+            return []
+        return [{"title": n.get("headline",""), "description": n.get("summary",""),
+                 "url": n.get("url",""), "source": n.get("source","Finnhub"),
+                 "published": datetime.fromtimestamp(n.get("datetime",0)).strftime("%Y-%m-%dT%H:%M:%SZ")
+                              if n.get("datetime") else ""}
+                for n in news[:8]]
     except Exception:
         return []
+
+def _fetch_moneycontrol_rss(symbol: str) -> list:
+    company_name, _, _ = _get_company_meta(symbol)
+    try:
+        r = requests.get("https://www.moneycontrol.com/rss/results.xml",
+                         timeout=8, headers={"User-Agent": "Mozilla/5.0"})
+        r.raise_for_status()
+        root = ET.fromstring(r.content)
+        name_lower = company_name.lower()
+        items = []
+        for item in root.findall(".//item"):
+            title = (item.findtext("title") or "").strip()
+            desc  = (item.findtext("description") or "").strip()
+            if name_lower not in (title + desc).lower():
+                continue
+            items.append({"title": title, "description": desc,
+                          "url": (item.findtext("link") or "").strip(),
+                          "source": "Moneycontrol",
+                          "published": (item.findtext("pubDate") or "").strip()})
+            if len(items) >= 6:
+                break
+        return items
+    except Exception:
+        return []
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def fetch_news(symbol: str, finnhub_key: str) -> list:
+    """Stock-specific news. Chain: IndianAPI → GNews → Finnhub → Moneycontrol RSS."""
+    raw: list = []
+    for fetcher in [
+        lambda: _fetch_indianapi_news(symbol),
+        lambda: _fetch_gnews_news(symbol),
+        lambda: _fetch_finnhub_company_news(symbol, finnhub_key),
+        lambda: _fetch_moneycontrol_rss(symbol),
+    ]:
+        raw = fetcher()
+        if raw:
+            break
+    raw = _dedup_news(raw)[:6]
+    company_name, _, _ = _get_company_meta(symbol)
+    enriched = []
+    for a in raw:
+        tag_label, tag_bg, tag_fg = _tag_article(a.get("title",""), a.get("description",""))
+        enriched.append({**a,
+            "published":  _format_news_date(a.get("published","")),
+            "tag_label":  tag_label, "tag_bg": tag_bg, "tag_fg": tag_fg,
+            "company":    company_name,
+        })
+    return enriched
 
 @st.cache_data(ttl=600, show_spinner=False)
 def fetch_recommendation(symbol: str, finnhub_key: str) -> dict:
@@ -470,7 +656,7 @@ def compute_indicators(df: pd.DataFrame) -> dict:
 
 # ── AI Agents ─────────────────────────────────────────────────────────────────
 def build_context(symbol, ind, quote, news, rec) -> str:
-    news_txt = "\n".join([f"- {n.get('headline','')}" for n in news[:4]]) or "No recent news"
+    news_txt = "\n".join([f"- {n.get('title', n.get('headline',''))}" for n in news[:4]]) or "No recent news"
     rec_txt  = f"Buy:{rec.get('buy',0)} Hold:{rec.get('hold',0)} Sell:{rec.get('sell',0)}" if rec else "N/A"
     return f"""
 Stock: {symbol}.NS | Price: ₹{ind.get('price',0)} ({ind.get('change_pct',0):+.2f}%)
@@ -653,7 +839,7 @@ if analyse and symbol:
     with left:
         # News
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">📰 Recent News & Filings</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="section-title">📰 Recent News — {_get_company_meta(symbol)[0]}</div>', unsafe_allow_html=True)
         if news:
             for n in news[:5]:
                 ts = datetime.fromtimestamp(n.get("datetime", 0)).strftime("%d %b") if n.get("datetime") else ""
@@ -815,7 +1001,7 @@ if analyse and symbol:
     _news_rows = ""
     if news:
         for _n2 in news[:5]:
-            _nh2 = _n2.get('headline','')[:85]
+            _nh2 = (_n2.get('title') or _n2.get('headline',''))[:85]
             _ns2 = datetime.fromtimestamp(_n2.get('datetime',0)).strftime('%d %b') if _n2.get('datetime') else ''
             _news_rows += f"<tr><td style='padding:5px 12px;color:#ccc;font-size:11px;border-bottom:1px solid #1e1e1e;'>{_nh2}</td><td style='padding:5px 12px;color:#666;font-size:11px;border-bottom:1px solid #1e1e1e;white-space:nowrap;'>{_n2.get('source','')} · {_ns2}</td></tr>"
     if not _news_rows:
