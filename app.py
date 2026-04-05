@@ -5,11 +5,6 @@ import requests
 import json
 from datetime import datetime, timedelta
 from anthropic import Anthropic
-try:
-    import plotly.graph_objects as go
-    PLOTLY_OK = True
-except ImportError:
-    PLOTLY_OK = False
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -595,28 +590,44 @@ if analyse and symbol:
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.markdown('<div class="section-title">📊 Price Chart — Last 90 Days</div>', unsafe_allow_html=True)
         chart_data = df.tail(90)
-        if PLOTLY_OK:
-            fig = go.Figure(data=[go.Candlestick(
-                x=chart_data["date"],
-                open=chart_data["Open"],
-                high=chart_data["High"],
-                low=chart_data["Low"],
-                close=chart_data["Close"],
-                increasing=dict(line=dict(color="#ff6600", width=1), fillcolor="#ff660099"),
-                decreasing=dict(line=dict(color="#cc3300", width=1), fillcolor="#cc330099"),
-                name=symbol,
-            )])
-            ma20_vals = [float(np.mean(df["Close"].values[max(0,i-20):i])) for i in range(max(20,len(df)-90),len(df))]
-            fig.add_trace(go.Scatter(x=chart_data["date"], y=ma20_vals, mode="lines", name="MA20",
-                                     line=dict(color="#ff8800", width=1.5, dash="dot")))
-            fig.update_layout(paper_bgcolor="#111111", plot_bgcolor="#0d0d0d",
-                font=dict(color="#888888", size=11), margin=dict(l=0,r=0,t=4,b=0), height=260,
-                xaxis=dict(gridcolor="#1a1a1a", rangeslider=dict(visible=False)),
-                yaxis=dict(gridcolor="#1a1a1a", tickprefix="₹"),
-                legend=dict(bgcolor="rgba(0,0,0,0)"), showlegend=True)
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
-        else:
-            st.line_chart(df.tail(90)[["date","Close"]].set_index("date"), color=["#ff6600"], height=220)
+        # Candlestick via HTML5 canvas — zero dependency
+        candle_df = chart_data.reset_index(drop=True)
+        import json as _json
+        _candles = []
+        for _, _r in candle_df.iterrows():
+            _candles.append({"d":str(_r["date"])[:10],"o":round(float(_r["Open"]),2),
+                             "h":round(float(_r["High"]),2),"l":round(float(_r["Low"]),2),
+                             "c":round(float(_r["Close"]),2)})
+        _cj = _json.dumps(_candles)
+        st.components.v1.html(f"""<canvas id='cv' width='900' height='260'
+          style='width:100%;background:#0d0d0d;border-radius:6px;display:block'></canvas>
+<script>(function(){{
+  const D={_cj},cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+  const W=cv.width,H=cv.height,pl=55,pr=10,pt=15,pb=28,cW=W-pl-pr,cH=H-pt-pb,n=D.length;
+  const hi=Math.max(...D.map(d=>d.h)),lo=Math.min(...D.map(d=>d.l)),rng=hi-lo||1;
+  const Y=p=>pt+cH-((p-lo)/rng*cH),bw=Math.max(2,cW/n*0.55);
+  ctx.fillStyle='#0d0d0d';ctx.fillRect(0,0,W,H);
+  // Grid
+  for(let i=0;i<=4;i++){{const y=pt+cH*i/4;ctx.strokeStyle='#1a1a1a';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(pl,y);ctx.lineTo(W-pr,y);ctx.stroke();
+    ctx.fillStyle='#555';ctx.font='10px monospace';ctx.textAlign='right';
+    ctx.fillText('₹'+(hi-rng*i/4).toFixed(0),pl-3,y+3);}}
+  // MA20
+  ctx.strokeStyle='#ff8800';ctx.lineWidth=1.5;ctx.setLineDash([3,3]);ctx.beginPath();
+  D.forEach((d,i)=>{{const s=Math.max(0,i-19),ma=D.slice(s,i+1).reduce((a,x)=>a+x.c,0)/(i-s+1);
+    const x=pl+(i+0.5)*cW/n;i===0?ctx.moveTo(x,Y(ma)):ctx.lineTo(x,Y(ma));}});
+  ctx.stroke();ctx.setLineDash([]);
+  // Candles
+  D.forEach((d,i)=>{{const x=pl+(i+0.5)*cW/n,up=d.c>=d.o,col=up?'#ff6600':'#cc3300';
+    ctx.strokeStyle=col;ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(x,Y(d.h));ctx.lineTo(x,Y(d.l));ctx.stroke();
+    const y1=Y(Math.max(d.o,d.c)),bh=Math.max(1,Y(Math.min(d.o,d.c))-y1);
+    ctx.fillStyle=up?col:col+'88';ctx.fillRect(x-bw/2,y1,bw,bh);
+    if(!up){{ctx.strokeRect(x-bw/2,y1,bw,bh);}}}});
+  // X labels
+  ctx.fillStyle='#555';ctx.font='9px monospace';ctx.textAlign='center';
+  D.forEach((d,i)=>{{if(i%15===0)ctx.fillText(d.d.slice(5),pl+(i+0.5)*cW/n,H-6);}});
+}})();</script>""", height=270)
         st.markdown('</div>', unsafe_allow_html=True)
 
     with right:
