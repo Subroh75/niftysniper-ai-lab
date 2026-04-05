@@ -49,9 +49,9 @@ st.markdown("""
 .metric-value { font-size: 1.4rem; font-weight: 700; color: #ffffff; font-family: 'JetBrains Mono', monospace; }
 .metric-sub { color: #666; font-size: 0.72rem; margin-top: 4px; }
 
-.signal-bull { color: #ff6600 !important; }
-.signal-bear { color: #cc3300 !important; }
-.signal-neutral { color: #ff8800 !important; }
+.signal-bull { color: #00c851 !important; }
+.signal-bear { color: #ff4444 !important; }
+.signal-neutral { color: #ffaa00 !important; }
 
 .section-card { background: #111; border: 1px solid #1a1a1a; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
 .section-title {
@@ -72,11 +72,11 @@ st.markdown("""
     text-transform: uppercase; margin-bottom: 6px;
     font-family: 'JetBrains Mono', monospace;
 }
-.agent-bull .agent-msg  { border-left-color: #ff6600; }
-.agent-bear .agent-msg  { border-left-color: #cc3300; }
-.agent-trader .agent-msg{ border-left-color: #ff8800; }
-.agent-risk .agent-msg  { border-left-color: #ff4400; }
-.agent-fund .agent-msg  { border-left-color: #cc5500; }
+.agent-bull .agent-msg  { border-left-color: #00c851; }
+.agent-bear .agent-msg  { border-left-color: #ff4444; }
+.agent-trader .agent-msg{ border-left-color: #ffaa00; }
+.agent-risk .agent-msg  { border-left-color: #3399ff; }
+.agent-fund .agent-msg  { border-left-color: #aa88ff; }
 
 .news-item {
     background: #0d0d0d; border: 1px solid #1a1a1a;
@@ -419,11 +419,11 @@ DISCLAIMER: This is for educational purposes only. Not SEBI registered. Not fina
 """
 
 AGENTS = [
-    ("📈 Bull Analyst",    "bull",    "#ff6600", "You are an optimistic equity analyst. Find compelling bullish reasons to buy this stock based on the data. Be specific about price targets and catalysts. 3-4 sentences."),
-    ("📉 Bear Analyst",    "bear",    "#cc3300", "You are a cautious short-seller. Identify the key risks, red flags and reasons to avoid this stock right now. Be specific. 3-4 sentences."),
-    ("⚡ Swing Trader",    "trader",  "#ff8800", "You are an experienced NSE swing trader. Give a concrete trading plan: entry zone, stop loss, target, and timeframe. Be very specific with numbers. 3-4 sentences."),
-    ("🛡️ Risk Manager",   "risk",    "#ff4400", "You are a portfolio risk manager. Assess the risk/reward, suggest position sizing as % of portfolio, and key levels to watch. 3-4 sentences."),
-    ("🏛️ Fundamentalist", "fund",    "#cc5500", "You are a fundamental analyst. Comment on valuation context, sector dynamics, and whether the technical picture aligns with fundamentals. 3-4 sentences."),
+    ("📈 Bull Analyst",    "bull",    "#00c851", "You are an optimistic equity analyst. Find compelling bullish reasons to buy this stock based on the data. Be specific about price targets and catalysts. 3-4 sentences."),
+    ("📉 Bear Analyst",    "bear",    "#ff4444", "You are a cautious short-seller. Identify the key risks, red flags and reasons to avoid this stock right now. Be specific. 3-4 sentences."),
+    ("⚡ Swing Trader",    "trader",  "#ffaa00", "You are an experienced NSE swing trader. Give a concrete trading plan: entry zone, stop loss, target, and timeframe. Be very specific with numbers. 3-4 sentences."),
+    ("🛡️ Risk Manager",   "risk",    "#3399ff", "You are a portfolio risk manager. Assess the risk/reward, suggest position sizing as % of portfolio, and key levels to watch. 3-4 sentences."),
+    ("🏛️ Fundamentalist", "fund",    "#aa88ff", "You are a fundamental analyst. Comment on valuation context, sector dynamics, and whether the technical picture aligns with fundamentals. 3-4 sentences."),
 ]
 
 def stream_agent(client, agent_name, persona, context, placeholder):
@@ -458,7 +458,7 @@ def render_metric(label, value, sub="", css_class=""):
   {"<div class='metric-sub'>" + sub + "</div>" if sub else ""}
 </div>"""
 
-def score_bar(val, max_val=10, color="#ff6600"):
+def score_bar(val, max_val=10, color="#00c851"):
     pct = int(val / max_val * 100)
     return f"""
 <div class="score-bar-bg">
@@ -514,7 +514,7 @@ if analyse and symbol:
 
     cp      = ind["price"]
     chg     = ind["change_pct"]
-    chg_col = "#ff6600" if chg >= 0 else "#cc3300"
+    chg_col = "#00c851" if chg >= 0 else "#ff4444"
     chg_sym = "▲" if chg >= 0 else "▼"
 
     # ── Stock Header ──────────────────────────────────────────────────────────
@@ -557,9 +557,9 @@ if analyse and symbol:
 
     # ── Second metrics row ────────────────────────────────────────────────────
     c6, c7, c8, c9, c10 = st.columns(5)
-    c6.markdown(render_metric("MA 20", f"₹{ind['ma20']:,}", "Above ✓" if cp > ind['ma20'] else "Below"), unsafe_allow_html=True)
-    c7.markdown(render_metric("MA 50", f"₹{ind['ma50_display']:,}", "Above ✓" if cp > ind['ma50_display'] else "Below"), unsafe_allow_html=True)
-    c8.markdown(render_metric("MA 200", f"₹{ind['ma200']:,}", "Above ✓" if cp > ind['ma200'] else "Below"), unsafe_allow_html=True)
+    c6.markdown(render_metric("MA 20", f"₹{ind['ma20']:,}", "<span style='color:#00c851'>▲ Above</span>" if cp > ind['ma20'] else "<span style='color:#ff4444'>▼ Below</span>"), unsafe_allow_html=True)
+    c7.markdown(render_metric("MA 50", f"₹{ind['ma50_display']:,}", "<span style='color:#00c851'>▲ Above</span>" if cp > ind['ma50_display'] else "<span style='color:#ff4444'>▼ Below</span>"), unsafe_allow_html=True)
+    c8.markdown(render_metric("MA 200", f"₹{ind['ma200']:,}", "<span style='color:#00c851'>▲ Above</span>" if cp > ind['ma200'] else "<span style='color:#ff4444'>▼ Below</span>"), unsafe_allow_html=True)
     c9.markdown(render_metric("Weekly Trend", ind.get("weekly_trend","—"), f"{ind.get('weekly_chg',0):+.2f}% this week", weekly_c), unsafe_allow_html=True)
     c10.markdown(render_metric("52W Position", f"{ind['wk52_pct']}%", f"H:{ind['wk52_high']} L:{ind['wk52_low']}"), unsafe_allow_html=True)
 
@@ -613,16 +613,16 @@ if analyse and symbol:
     ctx.fillStyle='#555';ctx.font='10px monospace';ctx.textAlign='right';
     ctx.fillText('₹'+(hi-rng*i/4).toFixed(0),pl-3,y+3);}}
   // MA20
-  ctx.strokeStyle='#ff8800';ctx.lineWidth=1.5;ctx.setLineDash([3,3]);ctx.beginPath();
+  ctx.strokeStyle='#ffaa00';ctx.lineWidth=1.5;ctx.setLineDash([3,3]);ctx.beginPath();
   D.forEach((d,i)=>{{const s=Math.max(0,i-19),ma=D.slice(s,i+1).reduce((a,x)=>a+x.c,0)/(i-s+1);
     const x=pl+(i+0.5)*cW/n;i===0?ctx.moveTo(x,Y(ma)):ctx.lineTo(x,Y(ma));}});
   ctx.stroke();ctx.setLineDash([]);
   // Candles
-  D.forEach((d,i)=>{{const x=pl+(i+0.5)*cW/n,up=d.c>=d.o,col=up?'#ff6600':'#cc3300';
+  D.forEach((d,i)=>{{const x=pl+(i+0.5)*cW/n,up=d.c>=d.o,col=up?'#00c851':'#ff4444';
     ctx.strokeStyle=col;ctx.lineWidth=1;
     ctx.beginPath();ctx.moveTo(x,Y(d.h));ctx.lineTo(x,Y(d.l));ctx.stroke();
     const y1=Y(Math.max(d.o,d.c)),bh=Math.max(1,Y(Math.min(d.o,d.c))-y1);
-    ctx.fillStyle=up?col:col+'88';ctx.fillRect(x-bw/2,y1,bw,bh);
+    ctx.fillStyle=up?col:col+'99';ctx.fillRect(x-bw/2,y1,bw,bh);
     if(!up){{ctx.strokeRect(x-bw/2,y1,bw,bh);}}}});
   // X labels
   ctx.fillStyle='#555';ctx.font='9px monospace';ctx.textAlign='center';
@@ -646,7 +646,7 @@ if analyse and symbol:
         ]
         bull_count = sum(1 for _, _, b in signals if b)
         for label, val, bull in signals:
-            col_s = "#ff6600" if bull else "#cc3300" if "❌" in val else "#ff8800"
+            col_s = "#00c851" if bull else "#ff4444" if "❌" in val else "#ff8800"
             st.markdown(f"""
 <div style="display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid #1a1a1a;">
   <span style="color:#9ca3af; font-size:0.8rem;">{label}</span>
@@ -675,7 +675,7 @@ if analyse and symbol:
         # Verdict
         bull_signals = bull_count
         verdict = "STRONG BUY" if bull_signals >= 6 else "BUY" if bull_signals >= 5 else "HOLD" if bull_signals >= 3 else "AVOID"
-        v_col   = "#ff6600" if "BUY" in verdict else "#cc3300" if verdict == "AVOID" else "#ff8800"
+        v_col   = "#00c851" if "BUY" in verdict else "#ff4444" if verdict == "AVOID" else "#ffaa00"
         st.markdown(f"""
 <div class="verdict-box">
   <div class="verdict-label">AI Technical Verdict</div>
