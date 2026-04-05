@@ -918,17 +918,27 @@ if analyse and symbol:
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.markdown(f'<div class="section-title">📰 Recent News — {_get_company_meta(symbol)[0]}</div>', unsafe_allow_html=True)
         if news:
-            for n in news[:5]:
-                ts = datetime.fromtimestamp(n.get("datetime", 0)).strftime("%d %b") if n.get("datetime") else ""
-                sentiment = n.get("sentiment", "")
-                s_col = "#ff6600" if sentiment == "positive" else "#cc3300" if sentiment == "negative" else "#555555"
+            for n in news:
+                headline = n.get("title") or n.get("headline","")
+                url      = n.get("url","")
+                source   = n.get("source","")
+                pub      = n.get("published","")
+                tag_bg   = n.get("tag_bg","#1f1f1f")
+                tag_fg   = n.get("tag_fg","#9ca3af")
+                tag_lbl  = n.get("tag_label","News")
+                headline = (headline[:100] + "…") if len(headline) > 100 else headline
+                link_open  = f'<a href="{url}" target="_blank" style="text-decoration:none;color:#e2e8f0;">' if url else '<span style="color:#e2e8f0;">'
+                link_close = '</a>' if url else '</span>'
                 st.markdown(f"""
 <div class="news-item">
-  <div class="news-headline">{n.get('headline','')}</div>
-  <div class="news-meta">{n.get('source','')} · {ts} <span style="color:{s_col}">●</span></div>
+  <div class="news-headline">{link_open}{headline}{link_close}</div>
+  <div class="news-meta">
+    <span style="font-size:9px;padding:2px 6px;border-radius:3px;font-weight:600;text-transform:uppercase;background:{tag_bg};color:{tag_fg};">{tag_lbl}</span>
+    <span style="margin-left:6px;">{source}{' · ' + pub if pub else ''}</span>
+  </div>
 </div>""", unsafe_allow_html=True)
         else:
-            st.markdown('<div style="color:#555555; font-size:0.875rem; padding:8px 0;">Add FINNHUB_API_KEY to secrets for live news & filings.</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="color:#555555; font-size:0.875rem; padding:8px 0; line-height:1.7;">No company-specific news found for <strong style="color:#888">{_get_company_meta(symbol)[0]}</strong>.<br>Add <code>INDIANAPI_KEY</code> or <code>GNEWS_API_KEY</code> to Streamlit secrets.</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
         # Price chart
