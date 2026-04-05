@@ -456,50 +456,71 @@ def _dedup_news(articles):
     return out
 
 def _fetch_indianapi_news(symbol):
-    """Fetch NSE corporate filings + announcements from IndianAPI."""
-    key = st.secrets.get("INDIANAPI_KEY", "")
-    if not key:
-        return []
-    company_name, _, _ = _get_company_meta(symbol)
+    """
+    Fetch NSE corporate filings via NSE's public API — no key needed.
+    Returns board meetings, corporate actions (dividends, splits, bonus).
+    """
+    ticker = symbol.upper().replace(".NS","").replace(".BO","")
+    results = []
+
+    # NSE corporate actions endpoint (dividends, splits, bonus, rights)
     try:
-        r = requests.get("https://stock.indianapi.in/stock",
-            params={"name": company_name}, headers={"X-Api-Key": key}, timeout=8)
-        r.raise_for_status()
-        data = r.json()
-
-        results = []
-
-        # 1. Corporate actions — dividends, splits, bonus, buybacks
-        for item in (data.get("stockCorporateActionData") or [])[:6]:
-            action = item.get("subject") or item.get("action") or item.get("purpose","")
-            date   = item.get("exDate") or item.get("recordDate") or item.get("date","")
-            if not action:
-                continue
-            results.append({
-                "title":       action,
-                "description": f"Ex-date: {date}" if date else "",
-                "url":         "",
-                "source":      "NSE Filing",
-                "published":   date,
-            })
-
-        # 2. Board meeting / results announcements from initialStockFinancialData
-        fin = data.get("initialStockFinancialData") or {}
-        for item in (fin.get("boardMeetings") or fin.get("corporateAnnouncements") or [])[:4]:
-            title = item.get("bm_purpose") or item.get("description","")
-            date  = item.get("bm_date") or item.get("date","")
-            if title:
-                results.append({
-                    "title":       title,
-                    "description": "",
-                    "url":         item.get("url",""),
-                    "source":      "Board Meeting",
-                    "published":   date,
-                })
-
-        return results[:6]
+        session = requests.Session()
+        session.get("https://www.nseindia.com", headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
+        r = session.get(
+            f"https://www.nseindia.com/api/corporates-corporateActions?index=equities&symbol={ticker}",
+            headers={
+                "User-Agent": "Mozilla/5.0",
+                "Accept": "application/json",
+                "Referer": "https://www.nseindia.com",
+            },
+            timeout=8,
+        )
+        if r.status_code == 200:
+            for item in r.json()[:6]:
+                subject = item.get("subject","").strip()
+                ex_date = item.get("exDate","") or item.get("recDate","")
+                if subject:
+                    results.append({
+                        "title":       subject,
+                        "description": f"Ex-date: {ex_date}" if ex_date else "",
+                        "url":         "",
+                        "source":      "NSE Corporate Action",
+                        "published":   ex_date,
+                    })
     except Exception:
-        return []
+        pass
+
+    # NSE board meetings endpoint
+    if len(results) < 6:
+        try:
+            session2 = requests.Session()
+            session2.get("https://www.nseindia.com", headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
+            r2 = session2.get(
+                f"https://www.nseindia.com/api/corporates-boardMeetings?index=equities&symbol={ticker}",
+                headers={
+                    "User-Agent": "Mozilla/5.0",
+                    "Accept": "application/json",
+                    "Referer": "https://www.nseindia.com",
+                },
+                timeout=8,
+            )
+            if r2.status_code == 200:
+                for item in r2.json()[:4]:
+                    purpose = item.get("purpose","").strip()
+                    bm_date = item.get("meetingDate","") or item.get("bm_date","")
+                    if purpose:
+                        results.append({
+                            "title":       purpose,
+                            "description": "",
+                            "url":         "",
+                            "source":      "NSE Board Meeting",
+                            "published":   bm_date,
+                        })
+        except Exception:
+            pass
+
+    return results[:6]
 
 def _fetch_gnews_news(symbol):
     key = st.secrets.get("GNEWS_API_KEY", "")
