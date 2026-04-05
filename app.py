@@ -174,6 +174,23 @@ st.markdown("""
     -webkit-text-fill-color: #555 !important;
 }
 
+.stDownloadButton > button {
+    background: #ff6600 !important;
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+    font-weight: 700 !important;
+    border: none !important;
+    border-radius: 6px !important;
+    padding: 14px 24px !important;
+    font-size: 0.9rem !important;
+    width: 100% !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    transition: background 0.2s !important;
+}
+.stDownloadButton > button:hover { background: #ff8800 !important; }
+.stDownloadButton > button p { color: #000 !important; -webkit-text-fill-color: #000 !important; }
 .stButton > button {
     background: #ff6600 !important;
     color: #000000 !important;
@@ -266,13 +283,19 @@ def fetch_news(symbol: str, finnhub_key: str) -> list:
         return []
     try:
         to_dt   = datetime.now().strftime("%Y-%m-%d")
-        from_dt = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+        from_dt = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
         # Finnhub uses exchange-qualified symbol: NSE:RELIANCE format
         fh_sym = f"NSE:{symbol}"
         url = f"https://finnhub.io/api/v1/company-news?symbol={fh_sym}&from={from_dt}&to={to_dt}&token={finnhub_key}"
         r   = requests.get(url, timeout=8)
         news = r.json()
-        return news[:6] if isinstance(news, list) else []
+        if isinstance(news, list) and len(news) > 0:
+            return news[:8]
+        # Fallback: general market news
+        url_gen = f"https://finnhub.io/api/v1/news?category=general&token={finnhub_key}"
+        r2 = requests.get(url_gen, timeout=8)
+        gen_news = r2.json() if r2.status_code == 200 else []
+        return gen_news[:6] if isinstance(gen_news, list) else []
     except Exception:
         return []
 
@@ -282,8 +305,11 @@ def fetch_recommendation(symbol: str, finnhub_key: str) -> dict:
     if not finnhub_key:
         return {}
     try:
-        fh_sym2 = f"NSE:{symbol}"
-        url = f"https://finnhub.io/api/v1/stock/recommendation?symbol={fh_sym2}&token={finnhub_key}"
+        # Try NSE: prefix first, then plain symbol
+        url = f"https://finnhub.io/api/v1/stock/recommendation?symbol=NSE:{symbol}&token={finnhub_key}"
+        r_chk = requests.get(url, timeout=8)
+        if r_chk.status_code != 200 or not r_chk.json():
+            url = f"https://finnhub.io/api/v1/stock/recommendation?symbol={symbol}&token={finnhub_key}"
         r   = requests.get(url, timeout=8)
         recs = r.json()
         return recs[0] if recs and isinstance(recs, list) else {}
@@ -767,41 +793,102 @@ if analyse and symbol:
 </div>""", unsafe_allow_html=True)
 
 
-    # ── Download Report ─────────────────────────────────────
+    # ── PDF Report ────────────────────────────────────────────────────────
     st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
-    _report = "\n".join([
-        "NIFTYSNIPER AI LAB - ANALYSIS REPORT",
-        "="*50,
-        f"Stock: {symbol} | Price: Rs.{cp:,.2f} ({chg:+.2f}%)",
-        f"Miro Score: {ind['miro_score']}/10 | Trend: {ind['trend']}",
-        f"Weekly: {ind.get('weekly_trend','n/a')} ({ind.get('weekly_chg',0):+.2f}%)",
-        f"RSI: {ind['rsi']} | Z-Score: {ind['z_score']} | IBS: {ind['ibs']}",
-        f"MA20: Rs.{ind['ma20']:,} | MA50: Rs.{ind['ma50_display']:,} | MA200: Rs.{ind['ma200']:,}",
-        f"Verdict: {verdict} ({bull_signals}/7 signals)",
-        "="*50,
-        "Not SEBI registered. Not financial advice.",
-    ])
+    _vc = "#00c851" if "BUY" in verdict else "#ff4444" if verdict == "AVOID" else "#ffaa00"
+    _cc = "#00c851" if chg >= 0 else "#ff4444"
+    _co = quote.get('name', symbol) or symbol
+    _dt = datetime.now().strftime('%d %B %Y, %H:%M IST')
+    _sl_rows = ""
+    for _sln,_slv,_slb in [
+        ("HP Filter","Above Trend" if ind["hp_above"] else "Below Trend",ind["hp_above"]),
+        ("MA Alignment","Bullish" if cp>ind["ma50_display"]>ind["ma200"] else "Bearish",cp>ind["ma50_display"]>ind["ma200"]),
+        ("RSI (14)",f"{ind['rsi']} — Buy Zone" if ind['rsi']<40 else f"{ind['rsi']} — Hot" if ind['rsi']>65 else f"{ind['rsi']} — Neutral",ind['rsi']<40),
+        ("Z-Score",f"{ind['z_score']} — Oversold" if ind['z_score']<-0.5 else f"{ind['z_score']} — Extended" if ind['z_score']>1.5 else f"{ind['z_score']} — Neutral",ind['z_score']<-0.5),
+        ("IBS",f"{ind['ibs']} — Buy" if ind['ibs']<0.3 else f"{ind['ibs']} — Sell" if ind['ibs']>0.75 else f"{ind['ibs']} — Neutral",ind['ibs']<0.3),
+        ("Donchian","Near High" if cp>ind['don_high']*0.97 else "Mid Range",cp>ind['don_high']*0.97),
+        ("MACD","Positive" if ind['macd']>0 else "Negative",ind['macd']>0),
+        ("Volume",f"{ind['vol_ratio']}x Surge" if ind['vol_ratio']>1.5 else f"{ind['vol_ratio']}x Normal",ind['vol_ratio']>1.5),
+    ]:
+        _sc2 = "#00c851" if _slb else "#ff4444"
+        _sl_rows += f"<tr><td style='padding:6px 12px;color:#888;font-size:12px;border-bottom:1px solid #1e1e1e;'>{_sln}</td><td style='padding:6px 12px;color:{_sc2};font-size:12px;font-weight:600;border-bottom:1px solid #1e1e1e;'>{'✓' if _slb else '✗'} {_slv}</td></tr>"
+    _news_rows = ""
+    if news:
+        for _n2 in news[:5]:
+            _nh2 = _n2.get('headline','')[:85]
+            _ns2 = datetime.fromtimestamp(_n2.get('datetime',0)).strftime('%d %b') if _n2.get('datetime') else ''
+            _news_rows += f"<tr><td style='padding:5px 12px;color:#ccc;font-size:11px;border-bottom:1px solid #1e1e1e;'>{_nh2}</td><td style='padding:5px 12px;color:#666;font-size:11px;border-bottom:1px solid #1e1e1e;white-space:nowrap;'>{_n2.get('source','')} · {_ns2}</td></tr>"
+    if not _news_rows:
+        _news_rows = "<tr><td colspan='2' style='padding:8px 12px;color:#555;font-size:11px;'>No news data — add FINNHUB_API_KEY to Streamlit secrets</td></tr>"
+    _miro_w = int(ind['miro_score']/10*100)
+    _pdf = f"""<!DOCTYPE html><html><head><meta charset='UTF-8'><title>NiftySniper — {symbol}</title>
+<link href='https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap' rel='stylesheet'>
+<style>*{{margin:0;padding:0;box-sizing:border-box}}body{{background:#080808;color:#ccc;font-family:Inter,sans-serif;padding:32px;max-width:900px;margin:0 auto}}
+@media print{{body{{padding:16px;background:#000}}@page{{size:A4;margin:12mm;background:#000}}.no-print{{display:none}}}}
+.btn{{background:#ff6600;color:#000;border:none;padding:11px 28px;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;letter-spacing:.08em;font-family:'JetBrains Mono',monospace;margin-bottom:24px;}}
+.btn:hover{{background:#ff8800}}
+.hdr{{background:#0f0f0f;border-top:3px solid #ff6600;border-radius:8px;padding:22px 24px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:flex-start}}
+.logo{{color:#ff6600;font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:700;letter-spacing:.1em}}
+.logo-sub{{color:#555;font-size:9px;letter-spacing:.15em;margin-top:3px}}
+.sym{{color:#fff;font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:700;text-align:right}}
+.co{{color:#aaa;font-size:12px;margin-top:2px;text-align:right}}
+.px{{color:#fff;font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;text-align:right;margin-top:3px}}
+.vbox{{background:#0f0f0f;border:1px solid {_vc}44;border-left:4px solid {_vc};border-radius:8px;padding:14px 20px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center}}
+.vlbl{{color:#666;font-size:9px;letter-spacing:.1em;text-transform:uppercase;font-family:'JetBrains Mono',monospace}}
+.vval{{color:{_vc};font-size:26px;font-weight:700;font-family:'JetBrains Mono',monospace}}
+.vsub{{color:#888;font-size:11px;margin-top:2px}}
+.grid{{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}}
+.sec{{background:#0f0f0f;border:1px solid #1e1e1e;border-radius:8px;overflow:hidden}}
+.stitle{{background:#141414;color:#ff6600;font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:7px 12px;font-family:'JetBrains Mono',monospace;border-bottom:1px solid #1e1e1e}}
+table{{width:100%;border-collapse:collapse}}
+.mbar{{height:3px;background:#1a1a1a;border-radius:2px;margin-top:3px}}.mfill{{height:3px;background:#00c851;border-radius:2px;width:{_miro_w}%}}
+.green{{color:#00c851}}.red{{color:#ff4444}}.amber{{color:#ffaa00}}.white{{color:#fff}}.mono{{font-family:'JetBrains Mono',monospace;font-weight:600}}
+.disc{{color:#444;font-size:9px;text-align:center;margin-top:18px;padding-top:12px;border-top:1px solid #1a1a1a;line-height:1.7}}
+</style></head><body>
+<button class='btn no-print' onclick='window.print()'>⬇ SAVE AS PDF (Ctrl+P)</button>
+<div class='hdr'>
+  <div><div class='logo'>⚡ NIFTYSNIPER AI LAB</div><div class='logo-sub'>SINGLE-STOCK INTELLIGENCE REPORT</div></div>
+  <div><div class='sym'>{symbol}</div><div class='co'>{_co}</div><div class='px'>₹{cp:,.2f} <span style='color:{_cc};font-size:13px;'>{'+' if chg>=0 else ''}{chg:.2f}%</span></div><div class='logo-sub' style='text-align:right;margin-top:3px;'>NSE · {_dt}</div></div>
+</div>
+<div class='vbox'>
+  <div><div class='vlbl'>AI Technical Verdict</div><div class='vsub'>{bull_signals}/8 signals · Miro Score {ind['miro_score']}/10</div></div>
+  <div class='vval'>{verdict}</div>
+</div>
+<div class='grid'>
+<div class='sec'><div class='stitle'>📊 Technical Indicators</div><table>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>Miro Score</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono {"green" if ind["miro_score"]>=6.5 else "red" if ind["miro_score"]<4 else "amber"}'>{ind['miro_score']}/10</span><div class='mbar'><div class='mfill'></div></div></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>Trend</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono {"green" if "Up" in ind["trend"] else "red" if "Down" in ind["trend"] else "amber"}'>{ind['trend']}</span> <span style='color:#555;font-size:10px;'>ADX {ind['adx']}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>Weekly Trend</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono {"green" if ind.get("weekly_chg",0)>0.5 else "red" if ind.get("weekly_chg",0)<-0.5 else "amber"}'>{ind.get("weekly_trend","—")} ({ind.get("weekly_chg",0):+.2f}%)</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>RSI (14)</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono {"green" if ind["rsi"]<40 else "red" if ind["rsi"]>65 else "amber"}'>{ind['rsi']}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>Z-Score</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono {"green" if ind["z_score"]<-0.5 else "red" if ind["z_score"]>1.5 else "amber"}'>{ind['z_score']}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>IBS</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono'>{ind['ibs']}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>MACD</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono {"green" if ind["macd"]>0 else "red"}'>{ind['macd']:+.2f}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;'>Volume Ratio</td><td style='padding:6px 12px;'><span class='mono {"green" if ind["vol_ratio"]>1.5 else "white"}'>{ind['vol_ratio']}x avg</span></td></tr>
+</table></div>
+<div class='sec'><div class='stitle'>📈 Moving Averages & Key Levels</div><table>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>MA 20</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>₹{ind['ma20']:,}</span> <span style='color:{"#00c851" if cp>ind["ma20"] else "#ff4444"};font-size:10px;'>{"▲" if cp>ind["ma20"] else "▼"}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>MA 50</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>₹{ind['ma50_display']:,}</span> <span style='color:{"#00c851" if cp>ind["ma50_display"] else "#ff4444"};font-size:10px;'>{"▲" if cp>ind["ma50_display"] else "▼"}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>MA 200</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>₹{ind['ma200']:,}</span> <span style='color:{"#00c851" if cp>ind["ma200"] else "#ff4444"};font-size:10px;'>{"▲" if cp>ind["ma200"] else "▼"}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>Donchian</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>₹{ind['don_low']:,} — ₹{ind['don_high']:,}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>Bollinger Bands</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>₹{ind['bb_dn']:,} — ₹{ind['bb_up']:,}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>ATR (14)</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>₹{ind['atr']}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>52-Week Range</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>₹{ind['wk52_low']:,} — ₹{ind['wk52_high']:,}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;'>52W Position</td><td style='padding:6px 12px;'><span class='mono white'>{ind['wk52_pct']}% of range</span></td></tr>
+</table></div>
+</div>
+<div class='grid'>
+<div class='sec'><div class='stitle'>🎯 Signal Checklist</div><table>{_sl_rows}</table></div>
+<div class='sec'><div class='stitle'>📰 Recent News & Filings</div><table>{_news_rows}</table></div>
+</div>
+<div class='disc'>⚠️ NiftySniper AI Lab — For educational purposes only. Not registered with SEBI. Not financial advice. Always conduct your own research. · niftysniper-ai-lab.streamlit.app</div>
+</body></html>"""
     _col1, _col2, _col3 = st.columns([1,2,1])
     with _col2:
         st.download_button(
-            label="⬇️  DOWNLOAD REPORT",
-            data=_report,
-            file_name=f"NiftySniper_{symbol}_{datetime.now().strftime('%Y%m%d')}.txt",
-            mime="text/plain",
+            label="⬇️  DOWNLOAD REPORT (PDF)",
+            data=_pdf,
+            file_name=f"NiftySniper_{symbol}_{datetime.now().strftime('%Y%m%d')}.html",
+            mime="text/html",
             use_container_width=True,
         )
-
-elif not symbol and not analyse:
-    # Landing state
-    st.markdown("""
-<div style="text-align:center; padding:60px 20px; color:#333333;">
-  <div style="font-size:3rem; margin-bottom:16px;">🎯</div>
-  <div style="color:#555555; font-size:1rem; margin-bottom:32px;">Type any NSE symbol above and click Analyse</div>
-  <div style="display:flex; justify-content:center; gap:24px; flex-wrap:wrap; font-size:0.8rem;">
-    <div style="color:#555555;">✅ Live NSE data via Yahoo Finance</div>
-    <div style="color:#555555;">✅ 7 technical indicators</div>
-    <div style="color:#555555;">✅ 5 AI trading agents</div>
-    <div style="color:#555555;">✅ News & analyst data</div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
+    st.caption("Opens in browser → click **⬇ SAVE AS PDF** inside → Print → Save as PDF")
