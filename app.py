@@ -20,8 +20,13 @@ st.markdown("""
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
 * { font-family: 'Inter', sans-serif; }
 .main { background: #080808; }
-.stApp { background: #080808; }
+.stApp { background: #080808; color: #cccccc; }
 #MainMenu, footer, header { visibility: hidden; }
+
+/* Force all Streamlit default text to be readable */
+.stApp p, .stApp span, .stApp div, .stApp label { color: #cccccc; }
+.stMarkdown { color: #cccccc; }
+
 .hero {
     background: linear-gradient(135deg, #0a0500 0%, #111111 60%, #0a0500 100%);
     border: 1px solid #ff660022; border-top: 2px solid #ff6600;
@@ -33,37 +38,107 @@ st.markdown("""
     letter-spacing: 0.1em; text-transform: uppercase;
     margin: 0 0 8px 0; font-family: 'JetBrains Mono', monospace;
 }
-.hero p { color: #555; font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin: 0; }
-.metric-card { background: #111; border: 1px solid #222; border-radius: 8px; padding: 14px; text-align: center; transition: border-color 0.2s; }
+.hero p { color: #999999; font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin: 0; }
+
+.metric-card {
+    background: #111; border: 1px solid #222; border-radius: 8px;
+    padding: 14px; text-align: center; transition: border-color 0.2s;
+}
 .metric-card:hover { border-color: #ff660055; }
-.metric-label { color: #555; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
-.metric-value { font-size: 1.4rem; font-weight: 700; color: #e2e8f0; font-family: 'JetBrains Mono', monospace; }
-.metric-sub { color: #444; font-size: 0.72rem; margin-top: 4px; }
+.metric-label { color: #777; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+.metric-value { font-size: 1.4rem; font-weight: 700; color: #ffffff; font-family: 'JetBrains Mono', monospace; }
+.metric-sub { color: #666; font-size: 0.72rem; margin-top: 4px; }
+
 .signal-bull { color: #ff6600 !important; }
 .signal-bear { color: #cc3300 !important; }
 .signal-neutral { color: #ff8800 !important; }
+
 .section-card { background: #111; border: 1px solid #1a1a1a; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
-.section-title { color: #ff6600; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #ff660022; font-family: 'JetBrains Mono', monospace; }
-.agent-msg { background: #0d0d0d; border-left: 3px solid #ff6600; border-radius: 0 6px 6px 0; padding: 12px 16px; margin-bottom: 10px; color: #888; font-size: 0.875rem; line-height: 1.7; }
-.agent-name { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; font-family: 'JetBrains Mono', monospace; }
+.section-title {
+    color: #ff6600; font-size: 0.72rem; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    margin-bottom: 14px; padding-bottom: 10px;
+    border-bottom: 1px solid #ff660022;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.agent-msg {
+    background: #0d0d0d; border-left: 3px solid #ff6600;
+    border-radius: 0 6px 6px 0; padding: 12px 16px;
+    margin-bottom: 10px; color: #cccccc; font-size: 0.875rem; line-height: 1.7;
+}
+.agent-name {
+    font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; margin-bottom: 6px;
+    font-family: 'JetBrains Mono', monospace;
+}
 .agent-bull .agent-msg  { border-left-color: #ff6600; }
 .agent-bear .agent-msg  { border-left-color: #cc3300; }
 .agent-trader .agent-msg{ border-left-color: #ff8800; }
 .agent-risk .agent-msg  { border-left-color: #ff4400; }
 .agent-fund .agent-msg  { border-left-color: #cc5500; }
-.news-item { background: #0d0d0d; border: 1px solid #1a1a1a; border-left: 2px solid #ff660044; border-radius: 0 6px 6px 0; padding: 12px; margin-bottom: 8px; }
-.news-headline { color: #ccc; font-size: 0.875rem; font-weight: 500; }
-.news-meta { color: #444; font-size: 0.75rem; margin-top: 4px; }
+
+.news-item {
+    background: #0d0d0d; border: 1px solid #1a1a1a;
+    border-left: 2px solid #ff660044;
+    border-radius: 0 6px 6px 0; padding: 12px; margin-bottom: 8px;
+}
+.news-headline { color: #e2e8f0; font-size: 0.875rem; font-weight: 500; }
+.news-meta { color: #666; font-size: 0.75rem; margin-top: 4px; }
+
 .score-bar-bg { background: #1a1a1a; border-radius: 2px; height: 4px; margin-top: 8px; }
 .score-bar-fill { border-radius: 2px; height: 4px; }
-.verdict-box { background: linear-gradient(135deg, #0a0500, #111); border: 1px solid #ff660033; border-top: 2px solid #ff6600; border-radius: 8px; padding: 20px; text-align: center; margin-top: 8px; box-shadow: 0 0 20px #ff660011; }
-.verdict-label { color: #555; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px; font-family: 'JetBrains Mono', monospace; }
+
+.verdict-box {
+    background: linear-gradient(135deg, #0a0500, #111);
+    border: 1px solid #ff660033; border-top: 2px solid #ff6600;
+    border-radius: 8px; padding: 20px; text-align: center;
+    margin-top: 8px; box-shadow: 0 0 20px #ff660011;
+}
+.verdict-label { color: #777; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px; font-family: 'JetBrains Mono', monospace; }
 .verdict-text { font-size: 1.8rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.05em; }
-[data-testid="stTextInput"] input { background: #111 !important; border: 1px solid #333 !important; border-radius: 6px !important; color: #e2e8f0 !important; font-size: 1rem !important; padding: 12px 16px !important; font-family: 'JetBrains Mono', monospace !important; }
-[data-testid="stTextInput"] input:focus { border-color: #ff6600 !important; box-shadow: 0 0 0 2px #ff660022 !important; }
-[data-testid="stTextInput"] input::placeholder { color: #333 !important; }
-.stButton button { background: #ff6600 !important; color: #000 !important; font-weight: 700 !important; border: none !important; border-radius: 6px !important; padding: 12px 24px !important; font-size: 0.85rem !important; width: 100% !important; letter-spacing: 0.08em !important; text-transform: uppercase !important; font-family: 'JetBrains Mono', monospace !important; }
-.stButton button:hover { background: #ff8800 !important; }
+
+/* ── INPUT: force white text ────────────────────────────── */
+[data-testid="stTextInput"] > div > div > input {
+    background-color: #1a1a1a !important;
+    border: 1px solid #ff660066 !important;
+    border-radius: 6px !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    caret-color: #ff6600 !important;
+    font-size: 1rem !important;
+    padding: 12px 16px !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    box-shadow: none !important;
+}
+[data-testid="stTextInput"] > div > div > input:focus {
+    border-color: #ff6600 !important;
+    box-shadow: 0 0 0 2px #ff660033 !important;
+    outline: none !important;
+}
+[data-testid="stTextInput"] > div > div > input::placeholder {
+    color: #555 !important;
+    -webkit-text-fill-color: #555 !important;
+}
+
+.stButton > button {
+    background: #ff6600 !important;
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+    font-weight: 700 !important;
+    border: none !important;
+    border-radius: 6px !important;
+    padding: 12px 24px !important;
+    font-size: 0.85rem !important;
+    width: 100% !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    transition: background 0.2s !important;
+}
+.stButton > button:hover { background: #ff8800 !important; }
+.stButton > button p { color: #000000 !important; -webkit-text-fill-color: #000000 !important; }
+
 hr { border-color: #1a1a1a !important; }
 div[data-testid="stHorizontalBlock"] { gap: 10px; }
 </style>
