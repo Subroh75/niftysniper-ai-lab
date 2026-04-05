@@ -5,6 +5,11 @@ import requests
 import json
 from datetime import datetime, timedelta
 from anthropic import Anthropic
+try:
+    import plotly.graph_objects as go
+    PLOTLY_OK = True
+except ImportError:
+    PLOTLY_OK = False
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -214,7 +219,9 @@ def fetch_news(symbol: str, finnhub_key: str) -> list:
     try:
         to_dt   = datetime.now().strftime("%Y-%m-%d")
         from_dt = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
-        url = f"https://finnhub.io/api/v1/company-news?symbol={symbol}.NS&from={from_dt}&to={to_dt}&token={finnhub_key}"
+        # Finnhub uses exchange-qualified symbol: NSE:RELIANCE format
+        fh_sym = f"NSE:{symbol}"
+        url = f"https://finnhub.io/api/v1/company-news?symbol={fh_sym}&from={from_dt}&to={to_dt}&token={finnhub_key}"
         r   = requests.get(url, timeout=8)
         news = r.json()
         return news[:6] if isinstance(news, list) else []
@@ -227,7 +234,8 @@ def fetch_recommendation(symbol: str, finnhub_key: str) -> dict:
     if not finnhub_key:
         return {}
     try:
-        url = f"https://finnhub.io/api/v1/stock/recommendation?symbol={symbol}.NS&token={finnhub_key}"
+        fh_sym2 = f"NSE:{symbol}"
+        url = f"https://finnhub.io/api/v1/stock/recommendation?symbol={fh_sym2}&token={finnhub_key}"
         r   = requests.get(url, timeout=8)
         recs = r.json()
         return recs[0] if recs and isinstance(recs, list) else {}
@@ -250,6 +258,13 @@ def compute_indicators(df: pd.DataFrame) -> dict:
     ma50  = np.mean(close[-50:])  if n >= 50  else np.mean(close)
     ma200 = np.mean(close[-200:]) if n >= 200 else np.mean(close)
     cp    = close[-1]
+    # Weekly candle (last 5 trading days)
+    wk_open  = close[-6] if n >= 6 else close[0]
+    wk_close = close[-1]
+    wk_high  = np.max(high[-5:])  if n >= 5 else high[-1]
+    wk_low   = np.min(low[-5:])   if n >= 5 else low[-1]
+    wk_chg   = (wk_close - wk_open) / wk_open * 100 if wk_open else 0
+    weekly_trend = "Bullish" if wk_chg > 0.5 else "Bearish" if wk_chg < -0.5 else "Flat"
 
     # RSI 14
     deltas = np.diff(close[-15:])
@@ -374,6 +389,9 @@ def compute_indicators(df: pd.DataFrame) -> dict:
         "wk52_pct":   round(wk52_pct, 1),
         "wk52_high":  round(wk52_high, 2),
         "wk52_low":   round(wk52_low, 2),
+        "weekly_trend": weekly_trend,
+        "weekly_chg":   round(wk_chg, 2),
+        "ma50_display": round(ma50, 2),
     }
 
 # ── AI Agents ─────────────────────────────────────────────────────────────────
@@ -413,7 +431,7 @@ AGENTS = [
     ("🏛️ Fundamentalist", "fund",    "#cc5500", "You are a fundamental analyst. Comment on valuation context, sector dynamics, and whether the technical picture aligns with fundamentals. 3-4 sentences."),
 ]
 
-def stream_agent(client, agent_name, persona, context, placeholder, border_color="#ff6600"):
+def stream_agent(client, agent_name, persona, context, placeholder):
     msgs = [{"role": "user", "content": f"{context}\n\nYour role: {persona}\nAnalyse this stock now."}]
     full = ""
     try:
@@ -425,16 +443,10 @@ def stream_agent(client, agent_name, persona, context, placeholder, border_color
         ) as stream:
             for text in stream.text_stream:
                 full += text
-                placeholder.markdown(
-                    f'<div style="background:#0d0d0d;border-left:3px solid {border_color};border-radius:0 6px 6px 0;padding:12px 16px;color:#cccccc;font-size:0.875rem;line-height:1.7;">{full}▌</div>',
-                    unsafe_allow_html=True
-                )
-        placeholder.markdown(
-            f'<div style="background:#0d0d0d;border-left:3px solid {border_color};border-radius:0 6px 6px 0;padding:12px 16px;color:#cccccc;font-size:0.875rem;line-height:1.7;">{full}</div>',
-            unsafe_allow_html=True
-        )
+                placeholder.markdown(full + "▌")
+        placeholder.markdown(full)
     except Exception as e:
-        placeholder.markdown(f'<div style="color:#cc3300;font-size:0.875rem;">Analysis unavailable: {e}</div>', unsafe_allow_html=True)
+        placeholder.markdown(f"*Analysis unavailable: {e}*")
     return full
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -529,6 +541,7 @@ if analyse and symbol:
     # ── Key Metrics Row ───────────────────────────────────────────────────────
     miro  = ind["miro_score"]
     miro_c = "signal-bull" if miro >= 6.5 else "signal-bear" if miro < 4 else "signal-neutral"
+    weekly_c = "signal-bull" if ind.get("weekly_chg",0) > 0.5 else "signal-bear" if ind.get("weekly_chg",0) < -0.5 else "signal-neutral"
     rsi    = ind["rsi"]
     rsi_c  = "signal-bull" if rsi < 40 else "signal-bear" if rsi > 65 else "signal-neutral"
     z      = ind["z_score"]
@@ -549,10 +562,10 @@ if analyse and symbol:
 
     # ── Second metrics row ────────────────────────────────────────────────────
     c6, c7, c8, c9, c10 = st.columns(5)
-    c6.markdown(render_metric("MA 20", f"₹{ind['ma20']:,}", "Above" if cp > ind['ma20'] else "Below"), unsafe_allow_html=True)
-    c7.markdown(render_metric("MA 200", f"₹{ind['ma200']:,}", "Above" if cp > ind['ma200'] else "Below"), unsafe_allow_html=True)
-    c8.markdown(render_metric("ATR (14)", f"₹{ind['atr']}", "Daily range est."), unsafe_allow_html=True)
-    c9.markdown(render_metric("Volume", f"{ind['vol_ratio']}x", "vs 20D avg"), unsafe_allow_html=True)
+    c6.markdown(render_metric("MA 20", f"₹{ind['ma20']:,}", "Above ✓" if cp > ind['ma20'] else "Below"), unsafe_allow_html=True)
+    c7.markdown(render_metric("MA 50", f"₹{ind['ma50_display']:,}", "Above ✓" if cp > ind['ma50_display'] else "Below"), unsafe_allow_html=True)
+    c8.markdown(render_metric("MA 200", f"₹{ind['ma200']:,}", "Above ✓" if cp > ind['ma200'] else "Below"), unsafe_allow_html=True)
+    c9.markdown(render_metric("Weekly Trend", ind.get("weekly_trend","—"), f"{ind.get('weekly_chg',0):+.2f}% this week", weekly_c), unsafe_allow_html=True)
     c10.markdown(render_metric("52W Position", f"{ind['wk52_pct']}%", f"H:{ind['wk52_high']} L:{ind['wk52_low']}"), unsafe_allow_html=True)
 
     st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
@@ -580,9 +593,26 @@ if analyse and symbol:
 
         # Price chart
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">📊 Price Chart (200D)</div>', unsafe_allow_html=True)
-        chart_df = df[["date","Close","Open"]].tail(200).set_index("date")
-        st.line_chart(chart_df, color=["#ff6600","#333333"], height=200)
+        st.markdown('<div class="section-title">📊 Price Chart — Last 90 Days</div>', unsafe_allow_html=True)
+        chart_data = df.tail(90)
+        if PLOTLY_OK:
+            fig = go.Figure(data=[go.Candlestick(
+                x=chart_data["date"], open=chart_data["Open"],
+                high=chart_data["High"], low=chart_data["Low"], close=chart_data["Close"],
+                increasing_line_color="#ff6600", decreasing_line_color="#cc3300",
+                increasing_fillcolor="#ff660077", decreasing_fillcolor="#cc330077", name=symbol,
+            )])
+            ma20_vals = [float(np.mean(df["Close"].values[max(0,i-20):i])) for i in range(max(20,len(df)-90),len(df))]
+            fig.add_trace(go.Scatter(x=chart_data["date"], y=ma20_vals, mode="lines", name="MA20",
+                                     line=dict(color="#ff8800", width=1.5, dash="dot")))
+            fig.update_layout(paper_bgcolor="#111111", plot_bgcolor="#0d0d0d",
+                font=dict(color="#888888", size=11), margin=dict(l=0,r=0,t=4,b=0), height=260,
+                xaxis=dict(gridcolor="#1a1a1a", rangeslider=dict(visible=False)),
+                yaxis=dict(gridcolor="#1a1a1a", tickprefix="₹"),
+                legend=dict(bgcolor="rgba(0,0,0,0)"), showlegend=True)
+            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
+        else:
+            st.line_chart(df.tail(90)[["date","Close"]].set_index("date"), color=["#ff6600"], height=220)
         st.markdown('</div>', unsafe_allow_html=True)
 
     with right:
@@ -649,13 +679,13 @@ if analyse and symbol:
     else:
         context = build_context(symbol, ind, quote, news, rec)
         for agent_name, agent_key, color, persona in AGENTS:
-            st.markdown(f'<div class="agent-name" style="color:{color};font-size:0.75rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px;margin-top:12px;font-family:JetBrains Mono,monospace;">{agent_name}</div>', unsafe_allow_html=True)
+            st.markdown(f"""
+<div class="agent-{agent_key}">
+  <div class="agent-name" style="color:{color};">{agent_name}</div>
+</div>""", unsafe_allow_html=True)
             placeholder = st.empty()
-            # Pass border color per agent
-            border_colors = {"bull":"#ff6600","bear":"#cc3300","trader":"#ff8800","risk":"#ff4400","fund":"#cc5500"}
-            bc = border_colors.get(agent_key, "#ff6600")
-            stream_agent(client, agent_name, persona, context, placeholder, border_color=bc)
-            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+            stream_agent(client, agent_name, persona, context, placeholder)
+            st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -664,6 +694,31 @@ if analyse and symbol:
 <div style="text-align:center; color:#333333; font-size:0.75rem; margin-top:24px; padding:12px; border-top:1px solid #1a1a1a;">
 ⚠️ Not SEBI registered. Not financial advice. For educational purposes only. Always do your own research.
 </div>""", unsafe_allow_html=True)
+
+
+    # ── Download Report ─────────────────────────────────────
+    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+    _report = "\n".join([
+        "NIFTYSNIPER AI LAB - ANALYSIS REPORT",
+        "="*50,
+        f"Stock: {symbol} | Price: Rs.{cp:,.2f} ({chg:+.2f}%)",
+        f"Miro Score: {ind['miro_score']}/10 | Trend: {ind['trend']}",
+        f"Weekly: {ind.get('weekly_trend','n/a')} ({ind.get('weekly_chg',0):+.2f}%)",
+        f"RSI: {ind['rsi']} | Z-Score: {ind['z_score']} | IBS: {ind['ibs']}",
+        f"MA20: Rs.{ind['ma20']:,} | MA50: Rs.{ind['ma50_display']:,} | MA200: Rs.{ind['ma200']:,}",
+        f"Verdict: {verdict} ({bull_signals}/7 signals)",
+        "="*50,
+        "Not SEBI registered. Not financial advice.",
+    ])
+    _col1, _col2, _col3 = st.columns([1,2,1])
+    with _col2:
+        st.download_button(
+            label="⬇️  DOWNLOAD REPORT",
+            data=_report,
+            file_name=f"NiftySniper_{symbol}_{datetime.now().strftime('%Y%m%d')}.txt",
+            mime="text/plain",
+            use_container_width=True,
+        )
 
 elif not symbol and not analyse:
     # Landing state
