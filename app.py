@@ -457,68 +457,85 @@ def _dedup_news(articles):
 
 def _fetch_indianapi_news(symbol):
     """
-    Fetch NSE corporate filings via NSE's public API — no key needed.
-    Returns board meetings, corporate actions (dividends, splits, bonus).
+    Fetch stock-specific filings and news via yfinance — no API key needed.
+    Returns: Yahoo Finance news feed + upcoming corporate calendar events.
     """
-    ticker = symbol.upper().replace(".NS","").replace(".BO","")
+    import yfinance as yf
+    ticker_sym = symbol.upper().strip() + ".NS"
     results = []
-
-    # NSE corporate actions endpoint (dividends, splits, bonus, rights)
     try:
-        session = requests.Session()
-        session.get("https://www.nseindia.com", headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
-        r = session.get(
-            f"https://www.nseindia.com/api/corporates-corporateActions?index=equities&symbol={ticker}",
-            headers={
-                "User-Agent": "Mozilla/5.0",
-                "Accept": "application/json",
-                "Referer": "https://www.nseindia.com",
-            },
-            timeout=8,
-        )
-        if r.status_code == 200:
-            for item in r.json()[:6]:
-                subject = item.get("subject","").strip()
-                ex_date = item.get("exDate","") or item.get("recDate","")
-                if subject:
-                    results.append({
-                        "title":       subject,
-                        "description": f"Ex-date: {ex_date}" if ex_date else "",
-                        "url":         "",
-                        "source":      "NSE Corporate Action",
-                        "published":   ex_date,
-                    })
-    except Exception:
-        pass
+        tk = yf.Ticker(ticker_sym)
 
-    # NSE board meetings endpoint
-    if len(results) < 6:
+        # 1. Yahoo Finance news — stock-specific articles
+        news_items = tk.news or []
+        for n in news_items[:5]:
+            content = n.get("content", {})
+            title   = content.get("title","") or n.get("title","")
+            url     = content.get("canonicalUrl",{}).get("url","") or n.get("link","")
+            source  = content.get("provider",{}).get("displayName","") or n.get("publisher","")
+            pub_ts  = n.get("providerPublishTime") or 0
+            pub_dt  = datetime.fromtimestamp(pub_ts).strftime("%d %b %Y") if pub_ts else ""
+            if title:
+                results.append({
+                    "title":       title,
+                    "description": "",
+                    "url":         url,
+                    "source":      source or "Yahoo Finance",
+                    "published":   pub_dt,
+                })
+
+        # 2. Calendar — earnings date, ex-dividend date
         try:
-            session2 = requests.Session()
-            session2.get("https://www.nseindia.com", headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
-            r2 = session2.get(
-                f"https://www.nseindia.com/api/corporates-boardMeetings?index=equities&symbol={ticker}",
-                headers={
-                    "User-Agent": "Mozilla/5.0",
-                    "Accept": "application/json",
-                    "Referer": "https://www.nseindia.com",
-                },
-                timeout=8,
-            )
-            if r2.status_code == 200:
-                for item in r2.json()[:4]:
-                    purpose = item.get("purpose","").strip()
-                    bm_date = item.get("meetingDate","") or item.get("bm_date","")
-                    if purpose:
+            cal = tk.calendar
+            if isinstance(cal, dict):
+                earn_date = cal.get("Earnings Date")
+                ex_div    = cal.get("Ex-Dividend Date")
+                if earn_date:
+                    d = earn_date[0] if isinstance(earn_date, list) else earn_date
+                    results.append({
+                        "title":       f"Earnings Date: {str(d)[:10]}",
+                        "description": "",
+                        "url":         "",
+                        "source":      "NSE Calendar",
+                        "published":   str(d)[:10],
+                    })
+                if ex_div:
+                    results.append({
+                        "title":       f"Ex-Dividend Date: {str(ex_div)[:10]}",
+                        "description": "",
+                        "url":         "",
+                        "source":      "NSE Calendar",
+                        "published":   str(ex_div)[:10],
+                    })
+        except Exception:
+            pass
+
+        # 3. Recent dividends/splits from actions
+        try:
+            actions = tk.actions
+            if actions is not None and not actions.empty:
+                for date, row in actions.tail(3).iloc[::-1].iterrows():
+                    if row.get("Dividends", 0) > 0:
                         results.append({
-                            "title":       purpose,
+                            "title":       f"Dividend: ₹{row['Dividends']:.2f} per share",
                             "description": "",
                             "url":         "",
-                            "source":      "NSE Board Meeting",
-                            "published":   bm_date,
+                            "source":      "NSE Corporate Action",
+                            "published":   str(date)[:10],
+                        })
+                    if row.get("Stock Splits", 0) > 0:
+                        results.append({
+                            "title":       f"Stock Split: {row['Stock Splits']}:1",
+                            "description": "",
+                            "url":         "",
+                            "source":      "NSE Corporate Action",
+                            "published":   str(date)[:10],
                         })
         except Exception:
             pass
+
+    except Exception:
+        pass
 
     return results[:6]
 
