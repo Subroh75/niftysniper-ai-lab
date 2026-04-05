@@ -597,10 +597,14 @@ if analyse and symbol:
         chart_data = df.tail(90)
         if PLOTLY_OK:
             fig = go.Figure(data=[go.Candlestick(
-                x=chart_data["date"], open=chart_data["Open"],
-                high=chart_data["High"], low=chart_data["Low"], close=chart_data["Close"],
-                increasing_line_color="#ff6600", decreasing_line_color="#cc3300",
-                increasing_fillcolor="#ff660077", decreasing_fillcolor="#cc330077", name=symbol,
+                x=chart_data["date"],
+                open=chart_data["Open"],
+                high=chart_data["High"],
+                low=chart_data["Low"],
+                close=chart_data["Close"],
+                increasing=dict(line=dict(color="#ff6600", width=1), fillcolor="#ff660099"),
+                decreasing=dict(line=dict(color="#cc3300", width=1), fillcolor="#cc330099"),
+                name=symbol,
             )])
             ma20_vals = [float(np.mean(df["Close"].values[max(0,i-20):i])) for i in range(max(20,len(df)-90),len(df))]
             fig.add_trace(go.Scatter(x=chart_data["date"], y=ma20_vals, mode="lines", name="MA20",
