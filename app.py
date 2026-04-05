@@ -17,135 +17,55 @@ st.set_page_config(
 # ── Styling ───────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
 * { font-family: 'Inter', sans-serif; }
-.main { background: #0a0a0f; }
-.stApp { background: #0a0a0f; }
-
+.main { background: #080808; }
+.stApp { background: #080808; }
+#MainMenu, footer, header { visibility: hidden; }
 .hero {
-    background: linear-gradient(135deg, #0a0a0f 0%, #0d1117 50%, #0a0a0f 100%);
-    border: 1px solid #1a1a2e;
-    border-radius: 16px;
-    padding: 32px;
-    margin-bottom: 24px;
-    text-align: center;
+    background: linear-gradient(135deg, #0a0500 0%, #111111 60%, #0a0500 100%);
+    border: 1px solid #ff660022; border-top: 2px solid #ff6600;
+    border-radius: 10px; padding: 32px; margin-bottom: 24px;
+    text-align: center; box-shadow: 0 0 40px #ff660011;
 }
 .hero h1 {
-    font-size: 2.4rem;
-    font-weight: 700;
-    background: linear-gradient(135deg, #00d4aa, #7c3aed);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin: 0 0 8px 0;
+    font-size: 2rem; font-weight: 700; color: #ff6600;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    margin: 0 0 8px 0; font-family: 'JetBrains Mono', monospace;
 }
-.hero p { color: #6b7280; font-size: 1rem; margin: 0; }
-
-.metric-card {
-    background: #0d1117;
-    border: 1px solid #1a1a2e;
-    border-radius: 12px;
-    padding: 16px;
-    text-align: center;
-    transition: border-color 0.2s;
-}
-.metric-card:hover { border-color: #00d4aa44; }
-.metric-label { color: #6b7280; font-size: 0.75rem; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 6px; }
-.metric-value { font-size: 1.6rem; font-weight: 700; color: #f9fafb; }
-.metric-sub { color: #6b7280; font-size: 0.8rem; margin-top: 4px; }
-
-.signal-bull { color: #00d4aa !important; }
-.signal-bear { color: #f87171 !important; }
-.signal-neutral { color: #fbbf24 !important; }
-
-.section-card {
-    background: #0d1117;
-    border: 1px solid #1a1a2e;
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 16px;
-}
-.section-title {
-    color: #f9fafb;
-    font-size: 0.85rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    margin-bottom: 14px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #1a1a2e;
-}
-
-.agent-msg {
-    background: #111827;
-    border-left: 3px solid #7c3aed;
-    border-radius: 0 8px 8px 0;
-    padding: 12px 16px;
-    margin-bottom: 10px;
-    color: #d1d5db;
-    font-size: 0.875rem;
-    line-height: 1.6;
-}
-.agent-name {
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    margin-bottom: 6px;
-}
-.agent-bull .agent-msg { border-left-color: #00d4aa; }
-.agent-bear .agent-msg { border-left-color: #f87171; }
-.agent-trader .agent-msg { border-left-color: #fbbf24; }
-.agent-risk .agent-msg { border-left-color: #60a5fa; }
-.agent-fund .agent-msg { border-left-color: #a78bfa; }
-
-.news-item {
-    background: #111827;
-    border: 1px solid #1a1a2e;
-    border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 8px;
-}
-.news-headline { color: #e5e7eb; font-size: 0.875rem; font-weight: 500; }
-.news-meta { color: #4b5563; font-size: 0.75rem; margin-top: 4px; }
-
-.score-bar-bg { background: #1a1a2e; border-radius: 4px; height: 6px; margin-top: 8px; }
-.score-bar-fill { border-radius: 4px; height: 6px; }
-
-.verdict-box {
-    background: linear-gradient(135deg, #0d1117, #111827);
-    border: 1px solid #00d4aa33;
-    border-radius: 12px;
-    padding: 20px;
-    text-align: center;
-    margin-top: 8px;
-}
-.verdict-label { color: #6b7280; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; }
-.verdict-text { font-size: 1.8rem; font-weight: 700; }
-
-[data-testid="stTextInput"] input {
-    background: #111827 !important;
-    border: 1px solid #374151 !important;
-    border-radius: 10px !important;
-    color: #f9fafb !important;
-    font-size: 1.1rem !important;
-    padding: 12px 16px !important;
-}
-[data-testid="stTextInput"] input:focus {
-    border-color: #00d4aa !important;
-    box-shadow: 0 0 0 2px #00d4aa22 !important;
-}
-.stButton button {
-    background: linear-gradient(135deg, #00d4aa, #059669) !important;
-    color: #000 !important;
-    font-weight: 700 !important;
-    border: none !important;
-    border-radius: 10px !important;
-    padding: 12px 24px !important;
-    font-size: 1rem !important;
-    width: 100% !important;
-}
-.stButton button:hover { opacity: 0.9 !important; }
-div[data-testid="stHorizontalBlock"] { gap: 12px; }
+.hero p { color: #555; font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin: 0; }
+.metric-card { background: #111; border: 1px solid #222; border-radius: 8px; padding: 14px; text-align: center; transition: border-color 0.2s; }
+.metric-card:hover { border-color: #ff660055; }
+.metric-label { color: #555; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+.metric-value { font-size: 1.4rem; font-weight: 700; color: #e2e8f0; font-family: 'JetBrains Mono', monospace; }
+.metric-sub { color: #444; font-size: 0.72rem; margin-top: 4px; }
+.signal-bull { color: #ff6600 !important; }
+.signal-bear { color: #cc3300 !important; }
+.signal-neutral { color: #ff8800 !important; }
+.section-card { background: #111; border: 1px solid #1a1a1a; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+.section-title { color: #ff6600; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #ff660022; font-family: 'JetBrains Mono', monospace; }
+.agent-msg { background: #0d0d0d; border-left: 3px solid #ff6600; border-radius: 0 6px 6px 0; padding: 12px 16px; margin-bottom: 10px; color: #888; font-size: 0.875rem; line-height: 1.7; }
+.agent-name { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; font-family: 'JetBrains Mono', monospace; }
+.agent-bull .agent-msg  { border-left-color: #ff6600; }
+.agent-bear .agent-msg  { border-left-color: #cc3300; }
+.agent-trader .agent-msg{ border-left-color: #ff8800; }
+.agent-risk .agent-msg  { border-left-color: #ff4400; }
+.agent-fund .agent-msg  { border-left-color: #cc5500; }
+.news-item { background: #0d0d0d; border: 1px solid #1a1a1a; border-left: 2px solid #ff660044; border-radius: 0 6px 6px 0; padding: 12px; margin-bottom: 8px; }
+.news-headline { color: #ccc; font-size: 0.875rem; font-weight: 500; }
+.news-meta { color: #444; font-size: 0.75rem; margin-top: 4px; }
+.score-bar-bg { background: #1a1a1a; border-radius: 2px; height: 4px; margin-top: 8px; }
+.score-bar-fill { border-radius: 2px; height: 4px; }
+.verdict-box { background: linear-gradient(135deg, #0a0500, #111); border: 1px solid #ff660033; border-top: 2px solid #ff6600; border-radius: 8px; padding: 20px; text-align: center; margin-top: 8px; box-shadow: 0 0 20px #ff660011; }
+.verdict-label { color: #555; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px; font-family: 'JetBrains Mono', monospace; }
+.verdict-text { font-size: 1.8rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.05em; }
+[data-testid="stTextInput"] input { background: #111 !important; border: 1px solid #333 !important; border-radius: 6px !important; color: #e2e8f0 !important; font-size: 1rem !important; padding: 12px 16px !important; font-family: 'JetBrains Mono', monospace !important; }
+[data-testid="stTextInput"] input:focus { border-color: #ff6600 !important; box-shadow: 0 0 0 2px #ff660022 !important; }
+[data-testid="stTextInput"] input::placeholder { color: #333 !important; }
+.stButton button { background: #ff6600 !important; color: #000 !important; font-weight: 700 !important; border: none !important; border-radius: 6px !important; padding: 12px 24px !important; font-size: 0.85rem !important; width: 100% !important; letter-spacing: 0.08em !important; text-transform: uppercase !important; font-family: 'JetBrains Mono', monospace !important; }
+.stButton button:hover { background: #ff8800 !important; }
+hr { border-color: #1a1a1a !important; }
+div[data-testid="stHorizontalBlock"] { gap: 10px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -411,11 +331,11 @@ DISCLAIMER: This is for educational purposes only. Not SEBI registered. Not fina
 """
 
 AGENTS = [
-    ("📈 Bull Analyst",    "bull",    "#00d4aa", "You are an optimistic equity analyst. Find compelling bullish reasons to buy this stock based on the data. Be specific about price targets and catalysts. 3-4 sentences."),
-    ("📉 Bear Analyst",    "bear",    "#f87171", "You are a cautious short-seller. Identify the key risks, red flags and reasons to avoid this stock right now. Be specific. 3-4 sentences."),
-    ("⚡ Swing Trader",    "trader",  "#fbbf24", "You are an experienced NSE swing trader. Give a concrete trading plan: entry zone, stop loss, target, and timeframe. Be very specific with numbers. 3-4 sentences."),
-    ("🛡️ Risk Manager",   "risk",    "#60a5fa", "You are a portfolio risk manager. Assess the risk/reward, suggest position sizing as % of portfolio, and key levels to watch. 3-4 sentences."),
-    ("🏛️ Fundamentalist", "fund",    "#a78bfa", "You are a fundamental analyst. Comment on valuation context, sector dynamics, and whether the technical picture aligns with fundamentals. 3-4 sentences."),
+    ("📈 Bull Analyst",    "bull",    "#ff6600", "You are an optimistic equity analyst. Find compelling bullish reasons to buy this stock based on the data. Be specific about price targets and catalysts. 3-4 sentences."),
+    ("📉 Bear Analyst",    "bear",    "#cc3300", "You are a cautious short-seller. Identify the key risks, red flags and reasons to avoid this stock right now. Be specific. 3-4 sentences."),
+    ("⚡ Swing Trader",    "trader",  "#ff8800", "You are an experienced NSE swing trader. Give a concrete trading plan: entry zone, stop loss, target, and timeframe. Be very specific with numbers. 3-4 sentences."),
+    ("🛡️ Risk Manager",   "risk",    "#ff4400", "You are a portfolio risk manager. Assess the risk/reward, suggest position sizing as % of portfolio, and key levels to watch. 3-4 sentences."),
+    ("🏛️ Fundamentalist", "fund",    "#cc5500", "You are a fundamental analyst. Comment on valuation context, sector dynamics, and whether the technical picture aligns with fundamentals. 3-4 sentences."),
 ]
 
 def stream_agent(client, agent_name, persona, context, placeholder):
@@ -450,7 +370,7 @@ def render_metric(label, value, sub="", css_class=""):
   {"<div class='metric-sub'>" + sub + "</div>" if sub else ""}
 </div>"""
 
-def score_bar(val, max_val=10, color="#00d4aa"):
+def score_bar(val, max_val=10, color="#ff6600"):
     pct = int(val / max_val * 100)
     return f"""
 <div class="score-bar-bg">
@@ -460,8 +380,8 @@ def score_bar(val, max_val=10, color="#00d4aa"):
 # ── Main UI ───────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="hero">
-  <h1>🎯 NiftySniper AI Lab</h1>
-  <p>Single-stock deep analysis powered by AI agents · NSE India</p>
+  <h1>⚡ NIFTYSNIPER AI LAB</h1>
+  <p>Single-stock intelligence terminal · NSE India · Powered by AI agents</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -478,8 +398,8 @@ with col_btn:
 
 # Popular picks
 st.markdown(
-    "<div style='text-align:center; color:#4b5563; font-size:0.8rem; margin: -8px 0 16px'>Quick picks: "
-    + " · ".join([f"<span style='color:#6b7280; cursor:pointer'>{s}</span>"
+    "<div style='text-align:center; color:#555555; font-size:0.8rem; margin: -8px 0 16px'>Quick picks: "
+    + " · ".join([f"<span style='color:#555555; cursor:pointer'>{s}</span>"
                   for s in ["RELIANCE","TCS","HDFCBANK","INFY","SBIN","TITAN","BAJFINANCE","NIFTY50"]])
     + "</div>", unsafe_allow_html=True
 )
@@ -506,7 +426,7 @@ if analyse and symbol:
 
     cp      = ind["price"]
     chg     = ind["change_pct"]
-    chg_col = "#00d4aa" if chg >= 0 else "#f87171"
+    chg_col = "#ff6600" if chg >= 0 else "#cc3300"
     chg_sym = "▲" if chg >= 0 else "▼"
 
     # ── Stock Header ──────────────────────────────────────────────────────────
@@ -515,7 +435,7 @@ if analyse and symbol:
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
     <div>
       <div style="color:#f9fafb; font-size:1.6rem; font-weight:700;">{symbol}</div>
-      <div style="color:#6b7280; font-size:0.875rem;">{quote.get('name', symbol)} · NSE</div>
+      <div style="color:#555555; font-size:0.875rem;">{quote.get('name', symbol)} · NSE</div>
     </div>
     <div style="text-align:right;">
       <div style="color:#f9fafb; font-size:2rem; font-weight:700;">₹{cp:,.2f}</div>
@@ -567,21 +487,21 @@ if analyse and symbol:
             for n in news[:5]:
                 ts = datetime.fromtimestamp(n.get("datetime", 0)).strftime("%d %b") if n.get("datetime") else ""
                 sentiment = n.get("sentiment", "")
-                s_col = "#00d4aa" if sentiment == "positive" else "#f87171" if sentiment == "negative" else "#6b7280"
+                s_col = "#ff6600" if sentiment == "positive" else "#cc3300" if sentiment == "negative" else "#555555"
                 st.markdown(f"""
 <div class="news-item">
   <div class="news-headline">{n.get('headline','')}</div>
   <div class="news-meta">{n.get('source','')} · {ts} <span style="color:{s_col}">●</span></div>
 </div>""", unsafe_allow_html=True)
         else:
-            st.markdown('<div style="color:#4b5563; font-size:0.875rem; padding:8px 0;">Add FINNHUB_API_KEY to secrets for live news & filings.</div>', unsafe_allow_html=True)
+            st.markdown('<div style="color:#555555; font-size:0.875rem; padding:8px 0;">Add FINNHUB_API_KEY to secrets for live news & filings.</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
         # Price chart
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.markdown('<div class="section-title">📊 Price Chart (200D)</div>', unsafe_allow_html=True)
         chart_df = df[["date","Close","Open"]].tail(200).set_index("date")
-        st.line_chart(chart_df, color=["#00d4aa","#374151"], height=200)
+        st.line_chart(chart_df, color=["#ff6600","#333333"], height=200)
         st.markdown('</div>', unsafe_allow_html=True)
 
     with right:
@@ -600,9 +520,9 @@ if analyse and symbol:
         ]
         bull_count = sum(1 for _, _, b in signals if b)
         for label, val, bull in signals:
-            col_s = "#00d4aa" if bull else "#f87171" if "❌" in val else "#fbbf24"
+            col_s = "#ff6600" if bull else "#cc3300" if "❌" in val else "#ff8800"
             st.markdown(f"""
-<div style="display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid #1a1a2e;">
+<div style="display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid #1a1a1a;">
   <span style="color:#9ca3af; font-size:0.8rem;">{label}</span>
   <span style="color:{col_s}; font-size:0.8rem; font-weight:600;">{val}</span>
 </div>""", unsafe_allow_html=True)
@@ -613,13 +533,13 @@ if analyse and symbol:
             st.markdown('<div class="section-card">', unsafe_allow_html=True)
             st.markdown('<div class="section-title">🏦 Analyst Consensus</div>', unsafe_allow_html=True)
             total = (rec.get("buy",0) + rec.get("hold",0) + rec.get("sell",0) + rec.get("strongBuy",0) + rec.get("strongSell",0)) or 1
-            for label, key, col in [("Strong Buy","strongBuy","#00d4aa"),("Buy","buy","#34d399"),("Hold","hold","#fbbf24"),("Sell","sell","#f87171"),("Strong Sell","strongSell","#dc2626")]:
+            for label, key, col in [("Strong Buy","strongBuy","#ff6600"),("Buy","buy","#ff8800"),("Hold","hold","#ff8800"),("Sell","sell","#cc3300"),("Strong Sell","strongSell","#991100")]:
                 n_rec = rec.get(key, 0)
                 pct   = int(n_rec / total * 100)
                 st.markdown(f"""
 <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
   <span style="color:#9ca3af; font-size:0.75rem; width:70px;">{label}</span>
-  <div style="flex:1; background:#1a1a2e; border-radius:3px; height:6px;">
+  <div style="flex:1; background:#1a1a1a; border-radius:3px; height:6px;">
     <div style="width:{pct}%; background:{col}; border-radius:3px; height:6px;"></div>
   </div>
   <span style="color:{col}; font-size:0.75rem; width:20px;">{n_rec}</span>
@@ -629,12 +549,12 @@ if analyse and symbol:
         # Verdict
         bull_signals = bull_count
         verdict = "STRONG BUY" if bull_signals >= 6 else "BUY" if bull_signals >= 5 else "HOLD" if bull_signals >= 3 else "AVOID"
-        v_col   = "#00d4aa" if "BUY" in verdict else "#f87171" if verdict == "AVOID" else "#fbbf24"
+        v_col   = "#ff6600" if "BUY" in verdict else "#cc3300" if verdict == "AVOID" else "#ff8800"
         st.markdown(f"""
 <div class="verdict-box">
   <div class="verdict-label">AI Technical Verdict</div>
   <div class="verdict-text" style="color:{v_col};">{verdict}</div>
-  <div style="color:#4b5563; font-size:0.75rem; margin-top:6px;">{bull_signals}/7 bullish signals</div>
+  <div style="color:#555555; font-size:0.75rem; margin-top:6px;">{bull_signals}/7 bullish signals</div>
 </div>""", unsafe_allow_html=True)
 
     # ── AI Agent Debate ───────────────────────────────────────────────────────
@@ -660,21 +580,21 @@ if analyse and symbol:
 
     # Disclaimer
     st.markdown("""
-<div style="text-align:center; color:#374151; font-size:0.75rem; margin-top:24px; padding:12px; border-top:1px solid #1a1a2e;">
+<div style="text-align:center; color:#333333; font-size:0.75rem; margin-top:24px; padding:12px; border-top:1px solid #1a1a1a;">
 ⚠️ Not SEBI registered. Not financial advice. For educational purposes only. Always do your own research.
 </div>""", unsafe_allow_html=True)
 
 elif not symbol and not analyse:
     # Landing state
     st.markdown("""
-<div style="text-align:center; padding:60px 20px; color:#374151;">
+<div style="text-align:center; padding:60px 20px; color:#333333;">
   <div style="font-size:3rem; margin-bottom:16px;">🎯</div>
-  <div style="color:#6b7280; font-size:1rem; margin-bottom:32px;">Type any NSE symbol above and click Analyse</div>
+  <div style="color:#555555; font-size:1rem; margin-bottom:32px;">Type any NSE symbol above and click Analyse</div>
   <div style="display:flex; justify-content:center; gap:24px; flex-wrap:wrap; font-size:0.8rem;">
-    <div style="color:#4b5563;">✅ Live NSE data via Yahoo Finance</div>
-    <div style="color:#4b5563;">✅ 7 technical indicators</div>
-    <div style="color:#4b5563;">✅ 5 AI trading agents</div>
-    <div style="color:#4b5563;">✅ News & analyst data</div>
+    <div style="color:#555555;">✅ Live NSE data via Yahoo Finance</div>
+    <div style="color:#555555;">✅ 7 technical indicators</div>
+    <div style="color:#555555;">✅ 5 AI trading agents</div>
+    <div style="color:#555555;">✅ News & analyst data</div>
   </div>
 </div>
 """, unsafe_allow_html=True)
