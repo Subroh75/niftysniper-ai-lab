@@ -413,7 +413,7 @@ AGENTS = [
     ("🏛️ Fundamentalist", "fund",    "#cc5500", "You are a fundamental analyst. Comment on valuation context, sector dynamics, and whether the technical picture aligns with fundamentals. 3-4 sentences."),
 ]
 
-def stream_agent(client, agent_name, persona, context, placeholder):
+def stream_agent(client, agent_name, persona, context, placeholder, border_color="#ff6600"):
     msgs = [{"role": "user", "content": f"{context}\n\nYour role: {persona}\nAnalyse this stock now."}]
     full = ""
     try:
@@ -425,10 +425,16 @@ def stream_agent(client, agent_name, persona, context, placeholder):
         ) as stream:
             for text in stream.text_stream:
                 full += text
-                placeholder.markdown(full + "▌")
-        placeholder.markdown(full)
+                placeholder.markdown(
+                    f'<div style="background:#0d0d0d;border-left:3px solid {border_color};border-radius:0 6px 6px 0;padding:12px 16px;color:#cccccc;font-size:0.875rem;line-height:1.7;">{full}▌</div>',
+                    unsafe_allow_html=True
+                )
+        placeholder.markdown(
+            f'<div style="background:#0d0d0d;border-left:3px solid {border_color};border-radius:0 6px 6px 0;padding:12px 16px;color:#cccccc;font-size:0.875rem;line-height:1.7;">{full}</div>',
+            unsafe_allow_html=True
+        )
     except Exception as e:
-        placeholder.markdown(f"*Analysis unavailable: {e}*")
+        placeholder.markdown(f'<div style="color:#cc3300;font-size:0.875rem;">Analysis unavailable: {e}</div>', unsafe_allow_html=True)
     return full
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -643,13 +649,13 @@ if analyse and symbol:
     else:
         context = build_context(symbol, ind, quote, news, rec)
         for agent_name, agent_key, color, persona in AGENTS:
-            st.markdown(f"""
-<div class="agent-{agent_key}">
-  <div class="agent-name" style="color:{color};">{agent_name}</div>
-</div>""", unsafe_allow_html=True)
+            st.markdown(f'<div class="agent-name" style="color:{color};font-size:0.75rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px;margin-top:12px;font-family:JetBrains Mono,monospace;">{agent_name}</div>', unsafe_allow_html=True)
             placeholder = st.empty()
-            stream_agent(client, agent_name, persona, context, placeholder)
-            st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+            # Pass border color per agent
+            border_colors = {"bull":"#ff6600","bear":"#cc3300","trader":"#ff8800","risk":"#ff4400","fund":"#cc5500"}
+            bc = border_colors.get(agent_key, "#ff6600")
+            stream_agent(client, agent_name, persona, context, placeholder, border_color=bc)
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
