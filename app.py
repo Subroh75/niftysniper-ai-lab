@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from anthropic import Anthropic
 import hashlib
 import xml.etree.ElementTree as ET
+import yfinance as yf
 
 # ── Page config ───────────────────────────────────────────────────────────────
 # ── NSE Symbol lookup ────────────────────────────────────────────────────
@@ -460,7 +461,6 @@ def _fetch_indianapi_news(symbol):
     Fetch stock-specific filings and news via yfinance — no API key needed.
     Returns: Yahoo Finance news feed + upcoming corporate calendar events.
     """
-    import yfinance as yf
     ticker_sym = symbol.upper().strip() + ".NS"
     results = []
     try:
