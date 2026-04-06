@@ -602,7 +602,7 @@ def _fetch_moneycontrol_rss(symbol: str) -> list:
     except Exception:
         return []
 
-@st.cache_data(ttl=1800, show_spinner=False)
+@st.cache_data(ttl=1802, show_spinner=False)
 def fetch_news(symbol: str, finnhub_key: str) -> list:
     """Stock-specific news. Chain: IndianAPI → GNews → Finnhub → Moneycontrol RSS."""
     raw: list = []
