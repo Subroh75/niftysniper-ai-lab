@@ -64,7 +64,7 @@ def resolve_symbol(raw):
     return raw.strip().upper()
 
 st.set_page_config(
-    page_title="NiftySniper AI Lab",
+    page_title="Nifty Sniper",
     page_icon="🎯",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -875,8 +875,8 @@ def score_bar(val, max_val=10, color="#00c851"):
 # ── Main UI ───────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="hero">
-  <h1>⚡ NIFTYSNIPER AI LAB</h1>
-  <p>Single-stock intelligence terminal · NSE India · Powered by AI agents</p>
+  <h1>⚡ NIFTY SNIPER</h1>
+  <p>Stock intelligence terminal · NSE India · Powered by AI agents</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -1185,7 +1185,7 @@ table{{width:100%;border-collapse:collapse}}
 </style></head><body>
 <button class='btn no-print' onclick='window.print()'>⬇ SAVE AS PDF (Ctrl+P)</button>
 <div class='hdr'>
-  <div><div class='logo'>⚡ NIFTYSNIPER AI LAB</div><div class='logo-sub'>SINGLE-STOCK INTELLIGENCE REPORT</div></div>
+  <div><div class='logo'>⚡ NIFTY SNIPER</div><div class='logo-sub'>SINGLE-STOCK INTELLIGENCE REPORT</div></div>
   <div><div class='sym'>{symbol}</div><div class='co'>{_co}</div><div class='px'>₹{cp:,.2f} <span style='color:{_cc};font-size:13px;'>{'+' if chg>=0 else ''}{chg:.2f}%</span></div><div class='logo-sub' style='text-align:right;margin-top:3px;'>NSE · {_dt}</div></div>
 </div>
 <div class='vbox'>
@@ -1218,7 +1218,7 @@ table{{width:100%;border-collapse:collapse}}
 <div class='sec'><div class='stitle'>🎯 Signal Checklist</div><table>{_sl_rows}</table></div>
 <div class='sec'><div class='stitle'>📰 Recent News & Filings</div><table>{_news_rows}</table></div>
 </div>
-<div class='disc'>⚠️ NiftySniper AI Lab — For educational purposes only. Not registered with SEBI. Not financial advice. Always conduct your own research. · niftysniper-ai-lab.streamlit.app</div>
+<div class='disc'>⚠️ Nifty Sniper — For educational purposes only. Not registered with SEBI. Not financial advice. Always conduct your own research. · niftysniper-ai-lab.streamlit.app</div>
 </body></html>"""
     _col1, _col2, _col3 = st.columns([1,2,1])
     with _col2:
