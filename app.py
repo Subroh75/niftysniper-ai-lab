@@ -142,6 +142,22 @@ st.markdown("""
 .news-headline { color: #e2e8f0; font-size: 0.875rem; font-weight: 500; }
 .news-meta { color: #666; font-size: 0.75rem; margin-top: 4px; }
 
+.news-tag { font-size: 9px; padding: 2px 7px; border-radius: 3px; font-weight: 600; text-transform: uppercase; }
+.news-sentiment-pos { background: #00c85122; color: #00c851; border: 1px solid #00c85133; }
+.news-sentiment-neg { background: #ff444422; color: #ff4444; border: 1px solid #ff444433; }
+.news-sentiment-neu { background: #1f1f1f; color: #9ca3af; border: 1px solid #2a2a2a; }
+.news-source { color: #666; }
+.news-time { color: #555; }
+
+.fund-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+.fund-item { background: #0d0d0d; border: 1px solid #1a1a1a; border-radius: 6px; padding: 10px 12px; }
+.fund-label { color: #555; font-size: 0.62rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; font-family: 'JetBrains Mono',monospace; }
+.fund-value { color: #e2e8f0; font-size: 1rem; font-weight: 600; font-family: 'JetBrains Mono',monospace; }
+.fund-value.good { color: #00c851; }
+.fund-value.warn { color: #ffaa00; }
+.fund-value.bad  { color: #ff4444; }
+.fund-section-head { color: #444; font-size: 0.62rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; margin: 12px 0 7px; font-family: 'JetBrains Mono',monospace; border-top: 1px solid #1a1a1a; padding-top: 10px; }
+
 .score-bar-bg { background: #1a1a1a; border-radius: 2px; height: 4px; margin-top: 8px; }
 .score-bar-fill { border-radius: 2px; height: 4px; }
 
@@ -979,77 +995,51 @@ if analyse and symbol:
     left, right = st.columns([3, 2])
 
     with left:
-        # News
+        # ── Fundamentals Panel ───────────────────────────────────────
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown(f'<div class="section-title">📋 Filings & Corporate Actions — {_get_company_meta(symbol)[0]}</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">📐 Fundamentals</div>', unsafe_allow_html=True)
+        render_fundamentals(fund, symbol)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # ── News & Corporate Actions ──────────────────────────────
+        st.markdown('<div class="section-card">', unsafe_allow_html=True)
+        st.markdown(f'<div class="section-title">📋 News & Corporate Actions — {_get_company_meta(symbol)[0]}</div>', unsafe_allow_html=True)
         if news:
             for n in news:
                 headline = n.get("title") or n.get("headline","")
                 url      = n.get("url","")
                 source   = n.get("source","")
-                pub      = n.get("published","")
-                tag_bg   = n.get("tag_bg","#1f1f1f")
-                tag_fg   = n.get("tag_fg","#9ca3af")
-                tag_lbl  = n.get("tag_label","News")
-                headline = (headline[:100] + "…") if len(headline) > 100 else headline
-                link_open  = f'<a href="{url}" target="_blank" style="text-decoration:none;color:#e2e8f0;">' if url else '<span style="color:#e2e8f0;">'
-                link_close = '</a>' if url else '</span>'
-                st.markdown(f"""
-<div class="news-item">
-  <div class="news-headline">{link_open}{headline}{link_close}</div>
-  <div class="news-meta">
-    <span style="font-size:9px;padding:2px 6px;border-radius:3px;font-weight:600;text-transform:uppercase;background:{tag_bg};color:{tag_fg};">{tag_lbl}</span>
-    <span style="margin-left:6px;">{source}{' · ' + pub if pub else ''}</span>
+                pub_str  = n.get("published","")
+                headline = (headline[:110] + "…") if len(headline) > 110 else headline
+                rel_time = ""
+                try:
+                    if pub_str and len(pub_str) >= 10:
+                        pub_dt = datetime.strptime(pub_str[:10], "%Y-%m-%d")
+                        diff = (datetime.now() - pub_dt).days
+                        rel_time = "Today" if diff == 0 else f"{diff}d ago" if diff < 30 else pub_str[:10]
+                except Exception:
+                    rel_time = pub_str[:10] if pub_str else ""
+                hl = headline.lower()
+                pos_kw = ["surge","rally","profit","growth","beat","upgrade","record","strong","gain","rise","bullish","outperform","dividend","bonus"]
+                neg_kw = ["fall","crash","loss","miss","downgrade","weak","decline","cut","bearish","sell","fraud","penalty","default","concern"]
+                ph = sum(1 for w in pos_kw if w in hl)
+                nh = sum(1 for w in neg_kw if w in hl)
+                if ph > nh: sc,sl = "news-sentiment-pos","▲ Positive"
+                elif nh > ph: sc,sl = "news-sentiment-neg","▼ Negative"
+                else: sc,sl = "news-sentiment-neu","● Neutral"
+                lo = f'<a href="{url}" target="_blank" style="text-decoration:none;color:#e2e8f0;">' if url else '<span style="color:#e2e8f0;">'
+                lc = '</a>' if url else '</span>'
+                st_tag = f'<span class="news-source">{source}</span>' if source else ''
+                tm_tag = f'<span class="news-time"> · {rel_time}</span>' if rel_time else ''
+                st.markdown(f"""<div class="news-item">
+  <div class="news-headline">{lo}{headline}{lc}</div>
+  <div class="news-meta" style="display:flex;align-items:center;gap:6px;margin-top:5px;">
+    <span class="news-tag {sc}">{sl}</span>{st_tag}{tm_tag}
   </div>
 </div>""", unsafe_allow_html=True)
         else:
-            st.markdown(f'<div style="color:#555555; font-size:0.875rem; padding:8px 0; line-height:1.7;">No filings found for <strong style="color:#888">{_get_company_meta(symbol)[0]}</strong>.<br>Add <code>INDIANAPI_KEY</code> to Streamlit secrets for NSE corporate actions & announcements.</div>', unsafe_allow_html=True)
+            st.markdown('<div style="color:#555;font-size:0.875rem;padding:8px 0;">No recent news found.</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
-
-        # Price chart
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">📊 Price Chart — Last 90 Days</div>', unsafe_allow_html=True)
-        chart_data = df.tail(90)
-        # Candlestick via HTML5 canvas — zero dependency
-        candle_df = chart_data.reset_index(drop=True)
-        import json as _json
-        _candles = []
-        for _, _r in candle_df.iterrows():
-            _candles.append({"d":str(_r["date"])[:10],"o":round(float(_r["Open"]),2),
-                             "h":round(float(_r["High"]),2),"l":round(float(_r["Low"]),2),
-                             "c":round(float(_r["Close"]),2)})
-        _cj = _json.dumps(_candles)
-        st.components.v1.html(f"""<canvas id='cv' width='900' height='260'
-          style='width:100%;background:#0d0d0d;border-radius:6px;display:block'></canvas>
-<script>(function(){{
-  const D={_cj},cv=document.getElementById('cv'),ctx=cv.getContext('2d');
-  const W=cv.width,H=cv.height,pl=55,pr=10,pt=15,pb=28,cW=W-pl-pr,cH=H-pt-pb,n=D.length;
-  const hi=Math.max(...D.map(d=>d.h)),lo=Math.min(...D.map(d=>d.l)),rng=hi-lo||1;
-  const Y=p=>pt+cH-((p-lo)/rng*cH),bw=Math.max(2,cW/n*0.55);
-  ctx.fillStyle='#0d0d0d';ctx.fillRect(0,0,W,H);
-  // Grid
-  for(let i=0;i<=4;i++){{const y=pt+cH*i/4;ctx.strokeStyle='#1a1a1a';ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(pl,y);ctx.lineTo(W-pr,y);ctx.stroke();
-    ctx.fillStyle='#555';ctx.font='10px monospace';ctx.textAlign='right';
-    ctx.fillText('₹'+(hi-rng*i/4).toFixed(0),pl-3,y+3);}}
-  // MA20
-  ctx.strokeStyle='#ffaa00';ctx.lineWidth=1.5;ctx.setLineDash([3,3]);ctx.beginPath();
-  D.forEach((d,i)=>{{const s=Math.max(0,i-19),ma=D.slice(s,i+1).reduce((a,x)=>a+x.c,0)/(i-s+1);
-    const x=pl+(i+0.5)*cW/n;i===0?ctx.moveTo(x,Y(ma)):ctx.lineTo(x,Y(ma));}});
-  ctx.stroke();ctx.setLineDash([]);
-  // Candles
-  D.forEach((d,i)=>{{const x=pl+(i+0.5)*cW/n,up=d.c>=d.o,col=up?'#00c851':'#ff4444';
-    ctx.strokeStyle=col;ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(x,Y(d.h));ctx.lineTo(x,Y(d.l));ctx.stroke();
-    const y1=Y(Math.max(d.o,d.c)),bh=Math.max(1,Y(Math.min(d.o,d.c))-y1);
-    ctx.fillStyle=up?col:col+'99';ctx.fillRect(x-bw/2,y1,bw,bh);
-    if(!up){{ctx.strokeRect(x-bw/2,y1,bw,bh);}}}});
-  // X labels
-  ctx.fillStyle='#555';ctx.font='9px monospace';ctx.textAlign='center';
-  D.forEach((d,i)=>{{if(i%15===0)ctx.fillText(d.d.slice(5),pl+(i+0.5)*cW/n,H-6);}});
-}})();</script>""", height=270)
-        st.markdown('</div>', unsafe_allow_html=True)
-
     with right:
         # Signal summary
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
@@ -1230,3 +1220,81 @@ table{{width:100%;border-collapse:collapse}}
             use_container_width=True,
         )
     st.caption("Opens in browser → click **⬇ SAVE AS PDF** inside → Print → Save as PDF")
+
+@st.cache_data(ttl=3600)
+def fetch_fundamentals(symbol: str) -> dict:
+    """Pull key fundamental metrics from yfinance ticker.info."""
+    try:
+        tk = yf.Ticker(symbol.upper().strip() + ".NS")
+        info = tk.info or {}
+        def _pct(v): return f"{v*100:.1f}%" if v is not None else "—"
+        def _x(v,d=1): return f"{v:.{d}f}x" if v is not None else "—"
+        def _n(v,d=1): return f"{v:.{d}f}" if v is not None else "—"
+        def _cr(v): return f"₹{v/1e7:,.0f} Cr" if v is not None else "—"
+        return {
+            "pe":          _n(info.get("trailingPE"),1),
+            "fwd_pe":      _n(info.get("forwardPE"),1),
+            "ev_ebitda":   _x(info.get("enterpriseToEbitda")),
+            "pb":          _x(info.get("priceToBook")),
+            "ps":          _x(info.get("priceToSalesTrailing12Months")),
+            "revenue":     _cr(info.get("totalRevenue")),
+            "net_income":  _cr(info.get("netIncomeToCommon")),
+            "profit_margin": _pct(info.get("profitMargins")),
+            "roe":         _pct(info.get("returnOnEquity")),
+            "debt_equity": _n(info.get("debtToEquity"),1),
+            "current_ratio": _n(info.get("currentRatio"),2),
+            "promoter":    _pct(info.get("heldPercentInsiders")),
+            "inst_hold":   _pct(info.get("heldPercentInstitutions")),
+            "div_yield":   _pct(info.get("dividendYield")),
+            "payout":      _pct(info.get("payoutRatio")),
+            "sector":      info.get("sector") or info.get("industry") or "—",
+            "employees":   f"{info.get('fullTimeEmployees',0):,}" if info.get("fullTimeEmployees") else "—",
+            "_pe_raw":     info.get("trailingPE"),
+            "_de_raw":     info.get("debtToEquity"),
+            "_pm_raw":     info.get("profitMargins"),
+            "_roe_raw":    info.get("returnOnEquity"),
+        }
+    except Exception:
+        return {}
+
+def render_fundamentals(fund: dict, symbol: str):
+    if not fund:
+        st.markdown('<div style="color:#555;font-size:0.85rem;padding:8px 0;">Fundamentals unavailable.</div>', unsafe_allow_html=True)
+        return
+    def pe_c(v): return "good" if v and v<20 else "warn" if v and v<35 else "bad" if v else ""
+    def de_c(v): return "good" if v and v<0.5 else "warn" if v and v<1.5 else "bad" if v else ""
+    def pm_c(v): return "good" if v and v>0.15 else "warn" if v and v>0.05 else "bad" if v else ""
+    def roe_c(v): return "good" if v and v>0.15 else "warn" if v and v>0.08 else "bad" if v else ""
+    def fi(lbl,val,cls=""):
+        return f'<div class="fund-item"><div class="fund-label">{lbl}</div><div class="fund-value {cls}">{val}</div></div>'
+    html = (
+        '<div class="fund-section-head" style="margin-top:0;border-top:none;padding-top:0;">Valuation</div>'
+        '<div class="fund-grid">'
+        + fi("P/E (TTM)", fund.get("pe","—"), pe_c(fund.get("_pe_raw")))
+        + fi("Forward P/E", fund.get("fwd_pe","—"), pe_c(fund.get("_pe_raw")))
+        + fi("EV / EBITDA", fund.get("ev_ebitda","—"))
+        + fi("Price / Book", fund.get("pb","—"))
+        + fi("Price / Sales", fund.get("ps","—"))
+        + fi("Sector", fund.get("sector","—"))
+        + '</div>'
+        + '<div class="fund-section-head">Financials</div>'
+        + '<div class="fund-grid">'
+        + fi("Revenue", fund.get("revenue","—"))
+        + fi("Net Income", fund.get("net_income","—"), pm_c(fund.get("_pm_raw")))
+        + fi("Profit Margin", fund.get("profit_margin","—"), pm_c(fund.get("_pm_raw")))
+        + fi("ROE", fund.get("roe","—"), roe_c(fund.get("_roe_raw")))
+        + fi("Debt / Equity", fund.get("debt_equity","—"), de_c(fund.get("_de_raw")))
+        + fi("Current Ratio", fund.get("current_ratio","—"))
+        + '</div>'
+        + '<div class="fund-section-head">Ownership & Dividends</div>'
+        + '<div class="fund-grid">'
+        + fi("Promoter Hold", fund.get("promoter","—"))
+        + fi("Inst. Holding", fund.get("inst_hold","—"))
+        + fi("Div Yield", fund.get("div_yield","—"))
+        + fi("Payout Ratio", fund.get("payout","—"))
+        + fi("Employees", fund.get("employees","—"))
+        + '</div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
+
+
