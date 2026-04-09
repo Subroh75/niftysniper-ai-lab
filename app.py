@@ -275,6 +275,85 @@ def fetch_ohlcv(symbol: str) -> pd.DataFrame:
     except Exception as e:
         return pd.DataFrame(), {}
 
+@st.cache_data(ttl=3600)
+def fetch_fundamentals(symbol: str) -> dict:
+    """Pull key fundamental metrics from yfinance ticker.info."""
+    try:
+        tk = yf.Ticker(symbol.upper().strip() + ".NS")
+        info = tk.info or {}
+        def _pct(v): return f"{v*100:.1f}%" if v is not None else "—"
+        def _x(v,d=1): return f"{v:.{d}f}x" if v is not None else "—"
+        def _n(v,d=1): return f"{v:.{d}f}" if v is not None else "—"
+        def _cr(v): return f"₹{v/1e7:,.0f} Cr" if v is not None else "—"
+        return {
+            "pe":          _n(info.get("trailingPE"),1),
+            "fwd_pe":      _n(info.get("forwardPE"),1),
+            "ev_ebitda":   _x(info.get("enterpriseToEbitda")),
+            "pb":          _x(info.get("priceToBook")),
+            "ps":          _x(info.get("priceToSalesTrailing12Months")),
+            "revenue":     _cr(info.get("totalRevenue")),
+            "net_income":  _cr(info.get("netIncomeToCommon")),
+            "profit_margin": _pct(info.get("profitMargins")),
+            "roe":         _pct(info.get("returnOnEquity")),
+            "debt_equity": _n(info.get("debtToEquity"),1),
+            "current_ratio": _n(info.get("currentRatio"),2),
+            "promoter":    _pct(info.get("heldPercentInsiders")),
+            "inst_hold":   _pct(info.get("heldPercentInstitutions")),
+            "div_yield":   _pct(info.get("dividendYield")),
+            "payout":      _pct(info.get("payoutRatio")),
+            "sector":      info.get("sector") or info.get("industry") or "—",
+            "employees":   f"{info.get('fullTimeEmployees',0):,}" if info.get("fullTimeEmployees") else "—",
+            "_pe_raw":     info.get("trailingPE"),
+            "_de_raw":     info.get("debtToEquity"),
+            "_pm_raw":     info.get("profitMargins"),
+            "_roe_raw":    info.get("returnOnEquity"),
+        }
+    except Exception:
+        return {}
+
+def render_fundamentals(fund: dict, symbol: str):
+    if not fund:
+        st.markdown('<div style="color:#555;font-size:0.85rem;padding:8px 0;">Fundamentals unavailable.</div>', unsafe_allow_html=True)
+        return
+    def pe_c(v): return "good" if v and v<20 else "warn" if v and v<35 else "bad" if v else ""
+    def de_c(v): return "good" if v and v<0.5 else "warn" if v and v<1.5 else "bad" if v else ""
+    def pm_c(v): return "good" if v and v>0.15 else "warn" if v and v>0.05 else "bad" if v else ""
+    def roe_c(v): return "good" if v and v>0.15 else "warn" if v and v>0.08 else "bad" if v else ""
+    def fi(lbl,val,cls=""):
+        return f'<div class="fund-item"><div class="fund-label">{lbl}</div><div class="fund-value {cls}">{val}</div></div>'
+    html = (
+        '<div class="fund-section-head" style="margin-top:0;border-top:none;padding-top:0;">Valuation</div>'
+        '<div class="fund-grid">'
+        + fi("P/E (TTM)", fund.get("pe","—"), pe_c(fund.get("_pe_raw")))
+        + fi("Forward P/E", fund.get("fwd_pe","—"), pe_c(fund.get("_pe_raw")))
+        + fi("EV / EBITDA", fund.get("ev_ebitda","—"))
+        + fi("Price / Book", fund.get("pb","—"))
+        + fi("Price / Sales", fund.get("ps","—"))
+        + fi("Sector", fund.get("sector","—"))
+        + '</div>'
+        + '<div class="fund-section-head">Financials</div>'
+        + '<div class="fund-grid">'
+        + fi("Revenue", fund.get("revenue","—"))
+        + fi("Net Income", fund.get("net_income","—"), pm_c(fund.get("_pm_raw")))
+        + fi("Profit Margin", fund.get("profit_margin","—"), pm_c(fund.get("_pm_raw")))
+        + fi("ROE", fund.get("roe","—"), roe_c(fund.get("_roe_raw")))
+        + fi("Debt / Equity", fund.get("debt_equity","—"), de_c(fund.get("_de_raw")))
+        + fi("Current Ratio", fund.get("current_ratio","—"))
+        + '</div>'
+        + '<div class="fund-section-head">Ownership & Dividends</div>'
+        + '<div class="fund-grid">'
+        + fi("Promoter Hold", fund.get("promoter","—"))
+        + fi("Inst. Holding", fund.get("inst_hold","—"))
+        + fi("Div Yield", fund.get("div_yield","—"))
+        + fi("Payout Ratio", fund.get("payout","—"))
+        + fi("Employees", fund.get("employees","—"))
+        + '</div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
+
+
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_quote(symbol: str) -> dict:
     """Fetch live quote from Yahoo Finance."""
@@ -1220,81 +1299,3 @@ table{{width:100%;border-collapse:collapse}}
             use_container_width=True,
         )
     st.caption("Opens in browser → click **⬇ SAVE AS PDF** inside → Print → Save as PDF")
-
-@st.cache_data(ttl=3600)
-def fetch_fundamentals(symbol: str) -> dict:
-    """Pull key fundamental metrics from yfinance ticker.info."""
-    try:
-        tk = yf.Ticker(symbol.upper().strip() + ".NS")
-        info = tk.info or {}
-        def _pct(v): return f"{v*100:.1f}%" if v is not None else "—"
-        def _x(v,d=1): return f"{v:.{d}f}x" if v is not None else "—"
-        def _n(v,d=1): return f"{v:.{d}f}" if v is not None else "—"
-        def _cr(v): return f"₹{v/1e7:,.0f} Cr" if v is not None else "—"
-        return {
-            "pe":          _n(info.get("trailingPE"),1),
-            "fwd_pe":      _n(info.get("forwardPE"),1),
-            "ev_ebitda":   _x(info.get("enterpriseToEbitda")),
-            "pb":          _x(info.get("priceToBook")),
-            "ps":          _x(info.get("priceToSalesTrailing12Months")),
-            "revenue":     _cr(info.get("totalRevenue")),
-            "net_income":  _cr(info.get("netIncomeToCommon")),
-            "profit_margin": _pct(info.get("profitMargins")),
-            "roe":         _pct(info.get("returnOnEquity")),
-            "debt_equity": _n(info.get("debtToEquity"),1),
-            "current_ratio": _n(info.get("currentRatio"),2),
-            "promoter":    _pct(info.get("heldPercentInsiders")),
-            "inst_hold":   _pct(info.get("heldPercentInstitutions")),
-            "div_yield":   _pct(info.get("dividendYield")),
-            "payout":      _pct(info.get("payoutRatio")),
-            "sector":      info.get("sector") or info.get("industry") or "—",
-            "employees":   f"{info.get('fullTimeEmployees',0):,}" if info.get("fullTimeEmployees") else "—",
-            "_pe_raw":     info.get("trailingPE"),
-            "_de_raw":     info.get("debtToEquity"),
-            "_pm_raw":     info.get("profitMargins"),
-            "_roe_raw":    info.get("returnOnEquity"),
-        }
-    except Exception:
-        return {}
-
-def render_fundamentals(fund: dict, symbol: str):
-    if not fund:
-        st.markdown('<div style="color:#555;font-size:0.85rem;padding:8px 0;">Fundamentals unavailable.</div>', unsafe_allow_html=True)
-        return
-    def pe_c(v): return "good" if v and v<20 else "warn" if v and v<35 else "bad" if v else ""
-    def de_c(v): return "good" if v and v<0.5 else "warn" if v and v<1.5 else "bad" if v else ""
-    def pm_c(v): return "good" if v and v>0.15 else "warn" if v and v>0.05 else "bad" if v else ""
-    def roe_c(v): return "good" if v and v>0.15 else "warn" if v and v>0.08 else "bad" if v else ""
-    def fi(lbl,val,cls=""):
-        return f'<div class="fund-item"><div class="fund-label">{lbl}</div><div class="fund-value {cls}">{val}</div></div>'
-    html = (
-        '<div class="fund-section-head" style="margin-top:0;border-top:none;padding-top:0;">Valuation</div>'
-        '<div class="fund-grid">'
-        + fi("P/E (TTM)", fund.get("pe","—"), pe_c(fund.get("_pe_raw")))
-        + fi("Forward P/E", fund.get("fwd_pe","—"), pe_c(fund.get("_pe_raw")))
-        + fi("EV / EBITDA", fund.get("ev_ebitda","—"))
-        + fi("Price / Book", fund.get("pb","—"))
-        + fi("Price / Sales", fund.get("ps","—"))
-        + fi("Sector", fund.get("sector","—"))
-        + '</div>'
-        + '<div class="fund-section-head">Financials</div>'
-        + '<div class="fund-grid">'
-        + fi("Revenue", fund.get("revenue","—"))
-        + fi("Net Income", fund.get("net_income","—"), pm_c(fund.get("_pm_raw")))
-        + fi("Profit Margin", fund.get("profit_margin","—"), pm_c(fund.get("_pm_raw")))
-        + fi("ROE", fund.get("roe","—"), roe_c(fund.get("_roe_raw")))
-        + fi("Debt / Equity", fund.get("debt_equity","—"), de_c(fund.get("_de_raw")))
-        + fi("Current Ratio", fund.get("current_ratio","—"))
-        + '</div>'
-        + '<div class="fund-section-head">Ownership & Dividends</div>'
-        + '<div class="fund-grid">'
-        + fi("Promoter Hold", fund.get("promoter","—"))
-        + fi("Inst. Holding", fund.get("inst_hold","—"))
-        + fi("Div Yield", fund.get("div_yield","—"))
-        + fi("Payout Ratio", fund.get("payout","—"))
-        + fi("Employees", fund.get("employees","—"))
-        + '</div>'
-    )
-    st.markdown(html, unsafe_allow_html=True)
-
-
