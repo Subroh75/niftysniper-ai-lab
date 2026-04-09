@@ -1005,6 +1005,7 @@ if analyse and symbol:
         fh_key    = get_finnhub_key()
         news      = fetch_news(symbol, fh_key)
         rec       = fetch_recommendation(symbol, fh_key)
+        fund      = fetch_fundamentals(symbol)
 
     if df.empty:
         st.error(f"❌ Could not fetch data for **{symbol}**. Check the NSE symbol and try again.")
