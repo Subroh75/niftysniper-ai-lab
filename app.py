@@ -921,11 +921,11 @@ DISCLAIMER: This is for educational purposes only. Not SEBI registered. Not fina
 """
 
 AGENTS = [
-    ("📈 Bull Analyst",    "bull",    "#00c851", "You are an optimistic equity analyst. Find compelling bullish reasons to buy this stock based on the data. Be specific about price targets and catalysts. 3-4 sentences."),
-    ("📉 Bear Analyst",    "bear",    "#ff4444", "You are a cautious short-seller. Identify the key risks, red flags and reasons to avoid this stock right now. Be specific. 3-4 sentences."),
-    ("⚡ Swing Trader",    "trader",  "#ffaa00", "You are an experienced NSE swing trader. Give a concrete trading plan: entry zone, stop loss, target, and timeframe. Be very specific with numbers. 3-4 sentences."),
-    ("🛡️ Risk Manager",   "risk",    "#3399ff", "You are a portfolio risk manager. Assess the risk/reward, suggest position sizing as % of portfolio, and key levels to watch. 3-4 sentences."),
-    ("🏛️ Fundamentalist", "fund",    "#aa88ff", "You are a fundamental analyst. Comment on valuation context, sector dynamics, and whether the technical picture aligns with fundamentals. 3-4 sentences."),
+    ("📈 Bull Analyst",    "bull",    "#00c851", "You are an optimistic equity analyst. Find compelling bullish reasons to buy this stock based on the data. Be specific about price targets and catalysts. 4-5 sentences, be concise."),
+    ("📉 Bear Analyst",    "bear",    "#ff4444", "You are a cautious short-seller. Identify the key risks, red flags and reasons to avoid this stock right now. Be specific. 4-5 sentences, be concise."),
+    ("⚡ Swing Trader",    "trader",  "#ffaa00", "You are an experienced NSE swing trader. Give a concrete trading plan: entry zone, stop loss, target, and timeframe. Be very specific with numbers. 4-5 sentences, be concise."),
+    ("🛡️ Risk Manager",   "risk",    "#3399ff", "You are a portfolio risk manager. Assess the risk/reward, suggest position sizing as % of portfolio, and key levels to watch. 4-5 sentences, be concise."),
+    ("🏛️ Fundamentalist", "fund",    "#aa88ff", "You are a fundamental analyst. Comment on valuation context, sector dynamics, and whether the technical picture aligns with fundamentals. 4-5 sentences, be concise."),
 ]
 
 def stream_agent(client, agent_name, persona, context, placeholder):
@@ -934,7 +934,7 @@ def stream_agent(client, agent_name, persona, context, placeholder):
     try:
         with client.messages.stream(
             model="claude-sonnet-4-6",
-            max_tokens=300,
+            max_tokens=600,
             system="You are part of an AI trading desk. Give sharp, data-driven analysis. Reference specific numbers from the data provided. Be concise and actionable.",
             messages=msgs,
         ) as stream:
