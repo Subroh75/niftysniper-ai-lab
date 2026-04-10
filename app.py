@@ -248,6 +248,269 @@ def get_finnhub_key():
         return ""
 
 # ── Data fetching ─────────────────────────────────────────────────────────────
+
+@st.cache_data(ttl=600, show_spinner=False)
+def fetch_bse_filings(symbol: str) -> list:
+    """Fetch real BSE filings via BSE India public API."""
+    import requests, re
+    # Map NSE symbol → BSE security code (common large caps)
+    BSE_CODE = {
+        "SUNPHARMA":"524715","RELIANCE":"500325","TCS":"532540","HDFCBANK":"500180",
+        "INFY":"500209","ICICIBANK":"532174","SBIN":"500112","BAJFINANCE":"500034",
+        "AXISBANK":"532215","MARUTI":"532500","HINDUNILVR":"500696","ITC":"500875",
+        "WIPRO":"507685","HCLTECH":"532281","TATAMOTORS":"500570","TATASTEEL":"500470",
+        "ONGC":"500312","COALINDIA":"533278","BHARTIARTL":"532454","LT":"500510",
+        "ADANIENT":"512599","ADANIPORTS":"532921","ASIANPAINT":"500820","TITAN":"500114",
+        "NESTLEIND":"500790","ULTRACEMCO":"532538","DRREDDY":"500124","CIPLA":"500087",
+        "BAJAJFINSV":"532978","TECHM":"532755","KOTAKBANK":"500247","POWERGRID":"532898",
+        "NTPC":"532555","DIVISLAB":"532488","JSWSTEEL":"500228","HINDALCO":"500440",
+    }
+    code = BSE_CODE.get(symbol.upper(), "")
+    results = []
+    if code:
+        try:
+            url = f"https://api.bseindia.com/BseIndAPI/api/AnnSubCategoryGetData/w?pageno=1&strCat=-1&strPrevDate=&strScrip={code}&strSearch=P&strToDate=&strType=C&subcategory=-1"
+            resp = requests.get(url, headers={"User-Agent":"Mozilla/5.0","Referer":"https://www.bseindia.com/"}, timeout=8)
+            data = resp.json()
+            for item in (data.get("Table") or [])[:8]:
+                cat  = item.get("CATEGORYNAME","").strip()
+                sub  = item.get("SUBCATNAME","").strip()
+                head = item.get("HEADLINE","").strip()
+                dt   = item.get("News_submission_dt","")[:10]
+                link = item.get("ATTACHMENTNAME","")
+                if link and not link.startswith("http"):
+                    link = f"https://www.bseindia.com/xml-data/corpfiling/AttachLive/{link}"
+                results.append({
+                    "title": head or sub or cat,
+                    "category": cat,
+                    "sub": sub,
+                    "date": dt,
+                    "url": link,
+                    "exchange": "BSE",
+                })
+        except Exception:
+            pass
+
+    # Always append yfinance calendar + actions as fallback/supplement
+    try:
+        tk = yf.Ticker(symbol.upper() + ".NS")
+        cal = tk.calendar
+        if isinstance(cal, dict):
+            ed = cal.get("Earnings Date")
+            xd = cal.get("Ex-Dividend Date")
+            if ed:
+                d = ed[0] if isinstance(ed, list) else ed
+                results.append({"title": f"Earnings Date: {str(d)[:10]}", "category": "Results", "sub": "Upcoming", "date": str(d)[:10], "url": "", "exchange": "NSE"})
+            if xd:
+                results.append({"title": f"Ex-Dividend Date: {str(xd)[:10]}", "category": "Dividend", "sub": "Corporate Action", "date": str(xd)[:10], "url": "", "exchange": "NSE"})
+        acts = tk.actions
+        if acts is not None and not acts.empty:
+            for date, row in acts.tail(3).iloc[::-1].iterrows():
+                if row.get("Dividends", 0) > 0:
+                    results.append({"title": f"Dividend ₹{row['Dividends']:.2f}/share", "category": "Dividend", "sub": "Corporate Action", "date": str(date)[:10], "url": "", "exchange": "NSE"})
+                if row.get("Stock Splits", 0) > 0:
+                    results.append({"title": f"Stock Split {row['Stock Splits']}:1", "category": "Corporate Action", "sub": "Split", "date": str(date)[:10], "url": "", "exchange": "NSE"})
+    except Exception:
+        pass
+
+    return results[:10]
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def fetch_sentiment(symbol: str) -> dict:
+    """Aggregate sentiment from StockTwits + Reddit (no API key needed)."""
+    import requests, re, html
+    posts = []
+    bull, bear, total = 0, 0, 0
+
+    # StockTwits public stream
+    try:
+        url = f"https://api.stocktwits.com/api/2/streams/symbol/{symbol}.json"
+        resp = requests.get(url, timeout=6)
+        data = resp.json()
+        for m in (data.get("messages") or [])[:10]:
+            sent = (m.get("entities",{}).get("sentiment") or {}).get("basic","")
+            text = m.get("body","").strip()[:160]
+            ts   = m.get("created_at","")[:10]
+            if sent == "Bullish": bull += 1
+            elif sent == "Bearish": bear += 1
+            total += 1
+            if text:
+                posts.append({"text": text, "sent": sent or "Neutral", "age": ts, "score": m.get("likes",{}).get("total",0)})
+    except Exception:
+        pass
+
+    # Reddit — search r/IndianStockMarket via old.reddit JSON
+    try:
+        url = f"https://www.reddit.com/r/IndianStockMarket/search.json?q={symbol}&sort=new&limit=8&restrict_sr=1"
+        resp = requests.get(url, headers={"User-Agent":"NiftySniper/1.0"}, timeout=6)
+        for p in (resp.json().get("data",{}).get("children") or [])[:5]:
+            d = p.get("data",{})
+            title = html.unescape(d.get("title",""))[:160]
+            score = d.get("score",0)
+            created = datetime.fromtimestamp(d.get("created_utc",0)).strftime("%Y-%m-%d")
+            # keyword sentiment
+            tl = title.lower()
+            pos = sum(1 for w in ["surge","rally","buy","bullish","strong","growth","up","positive","good"] if w in tl)
+            neg = sum(1 for w in ["fall","crash","bearish","sell","weak","loss","down","negative","bad","risk"] if w in tl)
+            sent = "Bullish" if pos > neg else "Bearish" if neg > pos else "Neutral"
+            if sent == "Bullish": bull += 1
+            elif sent == "Bearish": bear += 1
+            total += 1
+            posts.append({"text": title, "sent": sent, "age": created, "score": score})
+    except Exception:
+        pass
+
+    bull_pct  = round(bull / total * 100) if total else 50
+    bear_pct  = round(bear / total * 100) if total else 50
+    neut_pct  = 100 - bull_pct - bear_pct
+    composite = round(bull_pct * 0.7 + (100 - bear_pct) * 0.3)
+    if   composite >= 65: verdict = "Bullish"
+    elif composite >= 55: verdict = "Moderately Bullish"
+    elif composite >= 45: verdict = "Neutral"
+    elif composite >= 35: verdict = "Moderately Bearish"
+    else:                 verdict = "Bearish"
+
+    # Sort posts by score desc, return top 3
+    posts.sort(key=lambda x: x["score"], reverse=True)
+    return {
+        "composite": composite,
+        "bull_pct":  bull_pct,
+        "bear_pct":  bear_pct,
+        "neut_pct":  neut_pct,
+        "verdict":   verdict,
+        "social":    bull_pct,
+        "retail":    min(100, bull_pct + 5),
+        "interest":  min(100, composite + 9),
+        "posts":     posts[:3],
+        "total":     total,
+    }
+
+
+def render_filings(filings: list, symbol: str):
+    """Render BSE filings panel with filter tabs."""
+    CAT_TAG = {
+        "Results":           ("tag-result",     "Quarterly Result"),
+        "Financial Results": ("tag-result",     "Quarterly Result"),
+        "Dividend":          ("tag-dividend",   "Dividend"),
+        "Board Meeting":     ("tag-board",      "Board Meeting"),
+        "Shareholding":      ("tag-regulatory", "Regulatory"),
+        "Insider Trading":   ("tag-regulatory", "Regulatory"),
+        "Regulatory":        ("tag-regulatory", "Regulatory"),
+        "Corporate Action":  ("tag-action",     "Corp Action"),
+    }
+    def get_tag(cat):
+        for k,v in CAT_TAG.items():
+            if k.lower() in cat.lower(): return v
+        return ("tag-action", "Filing")
+
+    if not filings:
+        st.markdown('<div style="color:#555;font-size:0.85rem;padding:8px 0;">No recent filings found.</div>', unsafe_allow_html=True)
+        return
+
+    items_html = ""
+    for f in filings:
+        tag_cls, tag_lbl = get_tag(f.get("category",""))
+        title = f.get("title","")[:120]
+        url   = f.get("url","")
+        date  = f.get("date","")
+        exch  = f.get("exchange","BSE")
+        link_o = f'<a href="{url}" target="_blank" style="color:#e2e8f0;text-decoration:none;">' if url else '<span style="color:#e2e8f0;">'
+        link_c = '</a>' if url else '</span>'
+        items_html += f"""
+<div class="filing-item">
+  <div class="filing-title">{link_o}{title}{link_c}</div>
+  <div class="filing-meta">
+    <span class="tag {tag_cls}">{tag_lbl}</span>
+    <span class="filing-date">{date}</span>
+    <span class="filing-exchange">{exch}</span>
+  </div>
+</div>"""
+    st.markdown(items_html, unsafe_allow_html=True)
+
+
+def render_sentiment(sent: dict):
+    """Render the sentiment tracker card."""
+    if not sent:
+        st.markdown('<div style="color:#555;font-size:0.85rem;">Sentiment data unavailable.</div>', unsafe_allow_html=True)
+        return
+    composite = sent.get("composite", 50)
+    verdict   = sent.get("verdict", "Neutral")
+    bull_pct  = sent.get("bull_pct", 50)
+    social    = sent.get("social", 50)
+    retail    = sent.get("retail", 50)
+    interest  = sent.get("interest", 50)
+    posts     = sent.get("posts", [])
+    total     = sent.get("total", 0)
+
+    # Needle angle: -90 (bearish left) to +90 (bullish right), 0=neutral
+    angle = round((composite - 50) * 1.8)
+
+    # Verdict colour
+    if composite >= 60:   vc = "#00c851"
+    elif composite >= 50: vc = "#ffaa00"
+    elif composite >= 40: vc = "#ffaa00"
+    else:                 vc = "#ff4444"
+
+    # Bar colour helper
+    def bar_col(v): return "#00c851" if v>=60 else "#ffaa00" if v>=45 else "#ff4444"
+
+    gauge_html = f"""
+<div style="text-align:center;margin-bottom:12px;">
+<svg viewBox="0 0 220 115" style="width:100%;max-width:240px;">
+  <path d="M 20 105 A 90 90 0 0 1 200 105" fill="none" stroke="#1a1a1a" stroke-width="16" stroke-linecap="round"/>
+  <path d="M 20 105 A 90 90 0 0 1 200 105" fill="none" stroke="{vc}" stroke-width="16" stroke-linecap="round"
+        stroke-dasharray="283" stroke-dashoffset="{round(283*(1-composite/100))}"/>
+  <line x1="110" y1="105" x2="110" y2="22" stroke="#ffffff" stroke-width="2" stroke-linecap="round"
+        transform="rotate({angle}, 110, 105)"/>
+  <circle cx="110" cy="105" r="5" fill="{vc}"/>
+  <text x="12"  y="116" font-size="8.5" fill="#444" font-family="monospace">Bearish</text>
+  <text x="82"  y="13"  font-size="8.5" fill="#444" font-family="monospace">Neutral</text>
+  <text x="172" y="116" font-size="8.5" fill="#444" font-family="monospace">Bullish</text>
+  <text x="110" y="87"  text-anchor="middle" font-size="24" font-weight="700" fill="{vc}" font-family="monospace">{composite}</text>
+  <text x="110" y="100" text-anchor="middle" font-size="8" fill="#555" font-family="monospace">COMPOSITE</text>
+</svg>
+<div style="font-size:0.72rem;font-family:monospace;color:{vc};letter-spacing:0.1em;text-transform:uppercase;">{verdict}</div>
+</div>
+<div style="margin-bottom:12px;">
+  <div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid #1a1a1a;">
+    <span style="font-size:0.68rem;color:#555;font-family:monospace;width:68px;">Social</span>
+    <div style="flex:1;background:#1a1a1a;border-radius:3px;height:5px;"><div style="width:{social}%;height:5px;border-radius:3px;background:{bar_col(social)};"></div></div>
+    <span style="font-size:0.72rem;font-family:monospace;color:{bar_col(social)};width:36px;text-align:right;">{social}%</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid #1a1a1a;">
+    <span style="font-size:0.68rem;color:#555;font-family:monospace;width:68px;">Retail</span>
+    <div style="flex:1;background:#1a1a1a;border-radius:3px;height:5px;"><div style="width:{retail}%;height:5px;border-radius:3px;background:{bar_col(retail)};"></div></div>
+    <span style="font-size:0.72rem;font-family:monospace;color:{bar_col(retail)};width:36px;text-align:right;">{retail}%</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;padding:5px 0;">
+    <span style="font-size:0.68rem;color:#555;font-family:monospace;width:68px;">Interest</span>
+    <div style="flex:1;background:#1a1a1a;border-radius:3px;height:5px;"><div style="width:{interest}%;height:5px;border-radius:3px;background:#3399ff;"></div></div>
+    <span style="font-size:0.72rem;font-family:monospace;color:#3399ff;width:36px;text-align:right;">{interest}</span>
+  </div>
+</div>"""
+    st.markdown(gauge_html, unsafe_allow_html=True)
+
+    if posts:
+        st.markdown('<div style="border-top:1px solid #1a1a1a;padding-top:10px;margin-bottom:8px;font-size:0.62rem;color:#444;font-family:monospace;letter-spacing:0.1em;text-transform:uppercase;">Top signals</div>', unsafe_allow_html=True)
+        for p in posts:
+            text = p.get("text","")[:140]
+            age  = p.get("age","")
+            sc   = p.get("sent","Neutral")
+            sc_col = "#00c851" if sc=="Bullish" else "#ff4444" if sc=="Bearish" else "#ffaa00"
+            sc_sym = "▲" if sc=="Bullish" else "▼" if sc=="Bearish" else "●"
+            st.markdown(f"""
+<div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:9px 11px;margin-bottom:7px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+    <span style="font-size:0.65rem;color:#444;font-family:monospace;">{age}</span>
+    <span style="font-size:0.65rem;font-weight:700;font-family:monospace;color:{sc_col};">{sc_sym} {sc}</span>
+  </div>
+  <div style="font-size:0.8rem;color:#999;line-height:1.5;">{text}</div>
+</div>""", unsafe_allow_html=True)
+
+    st.markdown(f'<div style="display:flex;justify-content:space-between;font-size:0.65rem;color:#333;font-family:monospace;border-top:1px solid #1a1a1a;padding-top:8px;margin-top:4px;"><span>{total} signals aggregated</span><span>Live</span></div>', unsafe_allow_html=True)
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_ohlcv(symbol: str) -> pd.DataFrame:
     """Fetch 200-day OHLCV from Yahoo Finance for a single NSE stock."""
@@ -1005,6 +1268,8 @@ if analyse and symbol:
         fh_key    = get_finnhub_key()
         news      = fetch_news(symbol, fh_key)
         rec       = fetch_recommendation(symbol, fh_key)
+        filings   = fetch_bse_filings(symbol)
+        sentiment = fetch_sentiment(symbol)
         fund      = fetch_fundamentals(symbol)
 
     if df.empty:
@@ -1076,51 +1341,24 @@ if analyse and symbol:
     left, right = st.columns([3, 2])
 
     with left:
-        # ── Fundamentals Panel ───────────────────────────────────────
+        # ── Fundamentals ────────────────────────────────────────────────────
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.markdown('<div class="section-title">📐 Fundamentals</div>', unsafe_allow_html=True)
         render_fundamentals(fund, symbol)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # ── News & Corporate Actions ──────────────────────────────
+        # ── BSE Filings & Corporate Actions ─────────────────────────────────
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown(f'<div class="section-title">📋 News & Corporate Actions — {_get_company_meta(symbol)[0]}</div>', unsafe_allow_html=True)
-        if news:
-            for n in news:
-                headline = n.get("title") or n.get("headline","")
-                url      = n.get("url","")
-                source   = n.get("source","")
-                pub_str  = n.get("published","")
-                headline = (headline[:110] + "…") if len(headline) > 110 else headline
-                rel_time = ""
-                try:
-                    if pub_str and len(pub_str) >= 10:
-                        pub_dt = datetime.strptime(pub_str[:10], "%Y-%m-%d")
-                        diff = (datetime.now() - pub_dt).days
-                        rel_time = "Today" if diff == 0 else f"{diff}d ago" if diff < 30 else pub_str[:10]
-                except Exception:
-                    rel_time = pub_str[:10] if pub_str else ""
-                hl = headline.lower()
-                pos_kw = ["surge","rally","profit","growth","beat","upgrade","record","strong","gain","rise","bullish","outperform","dividend","bonus"]
-                neg_kw = ["fall","crash","loss","miss","downgrade","weak","decline","cut","bearish","sell","fraud","penalty","default","concern"]
-                ph = sum(1 for w in pos_kw if w in hl)
-                nh = sum(1 for w in neg_kw if w in hl)
-                if ph > nh: sc,sl = "news-sentiment-pos","▲ Positive"
-                elif nh > ph: sc,sl = "news-sentiment-neg","▼ Negative"
-                else: sc,sl = "news-sentiment-neu","● Neutral"
-                lo = f'<a href="{url}" target="_blank" style="text-decoration:none;color:#e2e8f0;">' if url else '<span style="color:#e2e8f0;">'
-                lc = '</a>' if url else '</span>'
-                st_tag = f'<span class="news-source">{source}</span>' if source else ''
-                tm_tag = f'<span class="news-time"> · {rel_time}</span>' if rel_time else ''
-                st.markdown(f"""<div class="news-item">
-  <div class="news-headline">{lo}{headline}{lc}</div>
-  <div class="news-meta" style="display:flex;align-items:center;gap:6px;margin-top:5px;">
-    <span class="news-tag {sc}">{sl}</span>{st_tag}{tm_tag}
-  </div>
-</div>""", unsafe_allow_html=True)
-        else:
-            st.markdown('<div style="color:#555;font-size:0.875rem;padding:8px 0;">No recent news found.</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="section-title">📋 Filings & Corporate Actions — {display_symbol}</div>', unsafe_allow_html=True)
+        render_filings(filings, symbol)
         st.markdown('</div>', unsafe_allow_html=True)
+
+        # ── Sentiment Tracker ────────────────────────────────────────────────
+        st.markdown('<div class="section-card">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">📡 Market Sentiment</div>', unsafe_allow_html=True)
+        render_sentiment(sentiment)
+        st.markdown('</div>', unsafe_allow_html=True)
+
     with right:
         # Signal summary
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
