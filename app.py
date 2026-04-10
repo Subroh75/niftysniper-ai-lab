@@ -1139,7 +1139,6 @@ if analyse and symbol:
         for label, val, bull in signals:
             col_s = "#00c851" if bull else "#ff4444" if "❌" in val else "#ff8800"
             st.markdown(f"""
-            st.markdown(f"""
 <div style="display:flex;align-items:center;padding:6px 0;border-bottom:1px solid #1a1a1a;">
   <span style="flex:1;color:#888;font-size:0.8rem;font-family:'Space Grotesk',sans-serif;">{label}</span>
   <span style="color:{col_s};font-size:0.8rem;font-weight:500;white-space:nowrap;">{val}</span>
