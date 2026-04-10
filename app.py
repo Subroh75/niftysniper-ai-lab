@@ -1623,34 +1623,20 @@ if analyse and symbol:
         # Signal summary
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.markdown('<div class="section-title">🎯 Signal Summary</div>', unsafe_allow_html=True)
-
-    signals = [
-        ("Miro Score",   f"{miro}/10 — {'Strong' if miro>=6.5 else 'Weak' if miro<4 else 'Moderate'}", miro >= 6.5),
-        ("MA Alignment", "✅ Bullish" if cp > ind["ma50"] > ind["ma200"] else "❌ Bearish",              cp > ind["ma50"] > ind["ma200"]),
-        ("Z-Score",      "✅ Oversold" if z < -0.5 else ("❌ Extended" if z > 1.5 else "⚠️ Neutral"), z < -0.5),
-        ("Weekly Trend", ind.get("weekly_trend","—"),                                                       ind.get("weekly_chg",0) > 0),
-    ]
-    bull_count = sum(1 for _, _, b in signals if b)
-    for label, val, bull in signals:
-        col_s = "#00c851" if bull else "#ff4444" if "❌" in val else "#ff8800"
-        st.markdown(f"""
-<div style="padding:6px 0;border-bottom:1px solid #1a1a1a;font-size:0.8rem;">
-  <span style="color:#888;font-family:'Space Grotesk',sans-serif;">{label}&nbsp;&nbsp;</span>
-  <span style="color:{col_s};font-weight:600;font-family:monospace;">{val}</span>
-</div>""", unsafe_allow_html=True)
-
-        # ── Verdict — inside signal card ─────────────────────────────────
+        signals = [
+            ("Miro Score",   f"{miro}/10 — {'Strong' if miro>=6.5 else 'Weak' if miro<4 else 'Moderate'}", miro >= 6.5),
+            ("MA Alignment", "✅ Bullish" if cp > ind["ma50"] > ind["ma200"] else "❌ Bearish",              cp > ind["ma50"] > ind["ma200"]),
+            ("Z-Score",      "✅ Oversold" if z < -0.5 else ("❌ Extended" if z > 1.5 else "⚠️ Neutral"), z < -0.5),
+            ("Weekly Trend", ind.get("weekly_trend","—"),                                                       ind.get("weekly_chg",0) > 0),
+        ]
+        bull_count = sum(1 for _, _, b in signals if b)
+        for label, val, bull in signals:
+            col_s = "#00c851" if bull else "#ff4444" if "❌" in val else "#ff8800"
+            st.markdown(f'<div style="padding:6px 0;border-bottom:1px solid #1a1a1a;font-size:0.8rem;"><span style="color:#888;font-family:monospace;">{label}&nbsp;&nbsp;</span><span style="color:{col_s};font-weight:600;font-family:monospace;">{val}</span></div>', unsafe_allow_html=True)
         bull_signals = bull_count
         verdict = "STRONG BUY" if bull_signals >= 4 else "BUY" if bull_signals >= 3 else "AVOID" if bull_signals <= 1 else "HOLD"
         v_col   = "#00c851" if "BUY" in verdict else "#ff4444" if verdict == "AVOID" else "#ffaa00"
-        st.markdown(f"""
-        <div style='margin-top:14px;display:flex;justify-content:flex-end;'>
-        <div style='background:#0d0d0d;border:1px solid #2a2a2a;border-top:2px solid {v_col};border-radius:6px;padding:10px 16px;text-align:center;min-width:110px;'>
-        <div style='font-size:0.58rem;color:#555;font-family:monospace;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;'>Signal Verdict</div>
-        <div style='font-size:1.3rem;font-weight:700;font-family:monospace;color:{v_col};letter-spacing:0.05em;'>{verdict}</div>
-        <div style='font-size:0.62rem;color:#444;font-family:monospace;margin-top:3px;'>{bull_signals}/4 bullish</div>
-        </div>
-        </div>""", unsafe_allow_html=True)
+        st.markdown(f'<div style="margin-top:14px;display:flex;justify-content:flex-end;"><div style="background:#0d0d0d;border:1px solid #2a2a2a;border-top:2px solid {v_col};border-radius:6px;padding:10px 16px;text-align:center;min-width:110px;"><div style="font-size:0.58rem;color:#555;font-family:monospace;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;">Signal Verdict</div><div style="font-size:1.3rem;font-weight:700;font-family:monospace;color:{v_col};">{verdict}</div><div style="font-size:0.62rem;color:#444;font-family:monospace;margin-top:3px;">{bull_signals}/4 bullish</div></div></div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
         # Analyst recs
