@@ -1022,7 +1022,7 @@ if analyse and symbol:
     chg_sym = "▲" if chg >= 0 else "▼"
 
     # ── Stock Header ──────────────────────────────────────────────────────────
-        company_name = (quote.get('name', symbol) or symbol).replace('.NS','').replace('.BO','')
+    company_name = (quote.get('name', symbol) or symbol).replace('.NS','').replace('.BO','')
     st.markdown(f"""
 <div class="section-card" style="margin-bottom:20px; border-top:2px solid #ff6600;">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
