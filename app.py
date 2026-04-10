@@ -1392,11 +1392,11 @@ if analyse and symbol:
 </div>""", unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # Verdict
-        bull_signals = bull_count
+    # Verdict
+    bull_signals = bull_count
     verdict = "STRONG BUY" if bull_signals >= 4 else "BUY" if bull_signals >= 3 else "AVOID" if bull_signals <= 1 else "HOLD"
-        v_col   = "#00c851" if "BUY" in verdict else "#ff4444" if verdict == "AVOID" else "#ffaa00"
-        st.markdown(f"""
+    v_col   = "#00c851" if "BUY" in verdict else "#ff4444" if verdict == "AVOID" else "#ffaa00"
+    st.markdown(f"""
 <div class="verdict-box">
   <div class="verdict-label">AI Technical Verdict</div>
   <div class="verdict-text" style="color:{v_col};">{verdict}</div>
