@@ -1184,11 +1184,11 @@ DISCLAIMER: This is for educational purposes only. Not SEBI registered. Not fina
 """
 
 AGENTS = [
-    ("📈 Bull Analyst",    "bull",    "#00c851", "You are an optimistic equity analyst. Find compelling bullish reasons to buy this stock based on the data. Be specific about price targets and catalysts. 4-5 sentences, be concise."),
-    ("📉 Bear Analyst",    "bear",    "#ff4444", "You are a cautious short-seller. Identify the key risks, red flags and reasons to avoid this stock right now. Be specific. 4-5 sentences, be concise."),
-    ("⚡ Swing Trader",    "trader",  "#ffaa00", "You are an experienced NSE swing trader. Give a concrete trading plan: entry zone, stop loss, target, and timeframe. Be very specific with numbers. 4-5 sentences, be concise."),
-    ("🛡️ Risk Manager",   "risk",    "#3399ff", "You are a portfolio risk manager. Assess the risk/reward, suggest position sizing as % of portfolio, and key levels to watch. 4-5 sentences, be concise."),
-    ("🏛️ Fundamentalist", "fund",    "#aa88ff", "You are a fundamental analyst. Comment on valuation context, sector dynamics, and whether the technical picture aligns with fundamentals. 4-5 sentences, be concise."),
+    ("📈 Bull Analyst",    "bull",    "#00c851", "You are an optimistic NSE equity analyst. Focus on Miro Score strength, MA alignment (price vs MA20/50/200), and volume trends. If Miro > 7, highlight momentum. Reference specific numbers. 4-5 sentences, be concise."),
+    ("📉 Bear Analyst",    "bear",    "#ff4444", "You are a cautious short-seller focused on NSE stocks. Identify risks using MA breakdown signals, ADX below 25 (weak trend), and low Miro Score. Mention valuation if stretched. Reference specific numbers. 4-5 sentences, be concise."),
+    ("⚡ Swing Trader",    "trader",  "#ffaa00", "You are an experienced NSE swing trader. Give a concrete trading plan using MA levels as entry/stop zones. Use ADX to judge trend strength (>25 = strong). Reference the Miro Score as your momentum filter. Entry zone, stop loss, target, timeframe. 4-5 sentences, be concise."),
+    ("🛡️ Risk Manager",   "risk",    "#3399ff", "You are a portfolio risk manager for NSE positions. Assess risk/reward using the Z-Score (mean reversion risk), ATR-based volatility, and the weekly trend direction. Suggest position sizing as % of portfolio. Reference specific numbers. 4-5 sentences, be concise."),
+    ("🏗️ Fundamentalist", "fund",    "#aa88ff", "You are a fundamental analyst. Comment on valuation multiples (P/E, EV/EBITDA), promoter holding trends, and whether the Miro Score momentum aligns with the fundamental picture. Highlight any divergence. 4-5 sentences, be concise."),
 ]
 
 def stream_agent(client, agent_name, persona, context, placeholder):
@@ -1313,7 +1313,7 @@ if analyse and symbol:
     weekly_c = "signal-bull" if ind.get("weekly_chg",0) > 0.5 else "signal-bear" if ind.get("weekly_chg",0) < -0.5 else "signal-neutral"
     adx      = ind["adx"]
     trend    = ind["trend"]
-    tr_c     = "signal-bull" if "Up" in trend else "signal-bear" if "Down" in trend else "signal-neutral"
+    tr_c     = "signal-bull" if adx >= 25 and "Up" in trend else "signal-bear" if adx >= 25 and "Down" in trend else "signal-neutral"
     cp       = ind["price"]
 
     # ── Metric cards row 1: Miro / Z-Score / Weekly / ADX ───────────────
@@ -1321,7 +1321,7 @@ if analyse and symbol:
     c1.markdown(render_metric("Miro Score",   f"{miro}/10", score_bar(miro), miro_c), unsafe_allow_html=True)
     c2.markdown(render_metric("Z-Score",      f"{z}",       "vs 20D mean",   z_c),    unsafe_allow_html=True)
     c3.markdown(render_metric("Weekly Trend", ind.get("weekly_trend","—"), f"{ind.get('weekly_chg',0):+.2f}% this week", weekly_c), unsafe_allow_html=True)
-    c4.markdown(render_metric("ADX / Trend",  f"{adx}",     trend.replace(" ","<br>"), tr_c), unsafe_allow_html=True)
+    c4.markdown(render_metric("ADX / Trend", f"{adx} {'✅ Strong' if adx>=25 else '⚠️ Weak'}", trend.replace(" ","<br>"), tr_c), unsafe_allow_html=True)
 
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
@@ -1398,9 +1398,9 @@ if analyse and symbol:
     v_col   = "#00c851" if "BUY" in verdict else "#ff4444" if verdict == "AVOID" else "#ffaa00"
     st.markdown(f"""
 <div class="verdict-box">
-  <div class="verdict-label">AI Technical Verdict</div>
+  <div class="verdict-label">Signal Verdict</div>
   <div class="verdict-text" style="color:{v_col};">{verdict}</div>
-  <div style="color:#555555; font-size:0.75rem; margin-top:6px;">{bull_signals}/7 bullish signals</div>
+  <div style="color:#555555; font-size:0.75rem; margin-top:6px;">{bull_signals}/4 bullish signals</div>
 </div>""", unsafe_allow_html=True)
 
     # ── AI Agent Debate ───────────────────────────────────────────────────────
