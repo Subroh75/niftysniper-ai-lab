@@ -1347,19 +1347,18 @@ if analyse and symbol:
         render_fundamentals(fund, symbol)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # ── BSE Filings & Corporate Actions ─────────────────────────────────
+        # ── BSE Filings ──────────────────────────────────────────────────────
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.markdown(f'<div class="section-title">📋 Filings & Corporate Actions — {display_symbol}</div>', unsafe_allow_html=True)
         render_filings(filings, symbol)
         st.markdown('</div>', unsafe_allow_html=True)
-
+    with right:
         # ── Sentiment Tracker ────────────────────────────────────────────────
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.markdown('<div class="section-title">📡 Market Sentiment</div>', unsafe_allow_html=True)
         render_sentiment(sentiment)
         st.markdown('</div>', unsafe_allow_html=True)
 
-    with right:
         # Signal summary
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.markdown('<div class="section-title">🎯 Signal Summary</div>', unsafe_allow_html=True)
