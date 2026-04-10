@@ -1022,13 +1022,14 @@ if analyse and symbol:
     chg_sym = "▲" if chg >= 0 else "▼"
 
     # ── Stock Header ──────────────────────────────────────────────────────────
+    display_symbol = symbol.replace(".NS","").replace(".BO","")
     company_name = (quote.get('name', symbol) or symbol).replace('.NS','').replace('.BO','')
     st.markdown(f"""
 <div class="section-card" style="margin-bottom:20px; border-top:2px solid #ff6600;">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
     <div>
       <div style="color:#ff6600; font-size:0.7rem; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; font-family:'JetBrains Mono',monospace; margin-bottom:2px;">NSE · EQUITY</div>
-      <div style="color:#ffffff; font-size:1.8rem; font-weight:700; font-family:'JetBrains Mono',monospace; letter-spacing:0.05em; line-height:1.1;">{symbol}</div>
+      <div style="color:#ffffff; font-size:1.8rem; font-weight:700; font-family:'JetBrains Mono',monospace; letter-spacing:0.05em; line-height:1.1;">{display_symbol}</div>
       <div style="color:#aaaaaa; font-size:0.95rem; margin-top:3px;">{company_name}</div>
     </div>
     <div style="text-align:right;">
@@ -1138,11 +1139,11 @@ if analyse and symbol:
         for label, val, bull in signals:
             col_s = "#00c851" if bull else "#ff4444" if "❌" in val else "#ff8800"
             st.markdown(f"""
-<div style="display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid #1a1a1a;">
-  <span style="color:#9ca3af; font-size:0.8rem;">{label}</span>
-  <span style="color:{col_s}; font-size:0.8rem; font-weight:600;">{val}</span>
+            st.markdown(f"""
+<div style="display:flex;align-items:center;padding:6px 0;border-bottom:1px solid #1a1a1a;">
+  <span style="flex:1;color:#888;font-size:0.8rem;font-family:'Space Grotesk',sans-serif;">{label}</span>
+  <span style="color:{col_s};font-size:0.8rem;font-weight:500;white-space:nowrap;">{val}</span>
 </div>""", unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
 
         # Analyst recs
         if rec:
