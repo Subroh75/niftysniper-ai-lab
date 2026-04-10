@@ -387,6 +387,255 @@ def fetch_sentiment(symbol: str) -> dict:
     }
 
 
+
+def run_miro_backtest(df: "pd.DataFrame", threshold: float = 8.0) -> dict:
+    """
+    Scan historical OHLCV for past Miro score signals above threshold.
+    Uses a rolling compute of Miro score components, measures 15-day forward return.
+    Returns win_rate, avg_gain, avg_loss, n_signals, returns_list.
+    """
+    import numpy as np
+    results = []
+    if df is None or len(df) < 60:
+        return {}
+    close = df["Close"].values
+    vol   = df["Volume"].values
+    n = len(close)
+    fwd = 15
+    for i in range(30, n - fwd):
+        sl = close[max(0,i-19):i+1]
+        if len(sl) < 10: continue
+        ma20 = sl.mean()
+        ma50_sl = close[max(0,i-49):i+1].mean() if i >= 49 else sl.mean()
+        rsi_gain = sum(max(c-p,0) for c,p in zip(sl[1:],sl[:-1])) / max(len(sl)-1,1)
+        rsi_loss = sum(max(p-c,0) for c,p in zip(sl[1:],sl[:-1])) / max(len(sl)-1,1)
+        rsi = 100 - 100/(1+rsi_gain/rsi_loss) if rsi_loss > 0 else 50
+        z = (close[i]-ma20) / (np.std(sl)+1e-9)
+        vol_ratio = vol[i] / (np.mean(vol[max(0,i-19):i])+1e-9)
+        tr_vals = [abs(close[k]-close[k-1]) for k in range(max(1,i-13),i+1)]
+        atr = np.mean(tr_vals) if tr_vals else 1
+        atr_pct = atr / close[i] * 100
+        # Miro components (simplified)
+        s = 0.0
+        if close[i] > ma50_sl: s += 2
+        if 40 < rsi < 70:      s += 2
+        elif rsi < 40:         s += 1
+        if z < -0.3:           s += 2
+        elif -0.3 <= z < 0.5:  s += 1
+        if vol_ratio > 1.2:    s += 2
+        if atr_pct < 3:        s += 2
+        elif atr_pct < 5:      s += 1
+        miro = min(s, 10)
+        if miro >= threshold:
+            fwd_ret = (close[i+fwd] - close[i]) / close[i] * 100
+            results.append(round(fwd_ret, 2))
+    if not results:
+        return {}
+    wins = [r for r in results if r > 0]
+    losses = [r for r in results if r <= 0]
+    return {
+        "win_rate":  round(len(wins)/len(results)*100),
+        "avg_gain":  round(sum(wins)/len(wins), 1) if wins else 0,
+        "avg_loss":  round(sum(losses)/len(losses), 1) if losses else 0,
+        "n_signals": len(results),
+        "returns":   results[-30:],
+    }
+
+
+def run_monte_carlo(ind: dict, n_sims: int = 1000, horizon: int = 15,
+                    target_pct: float = 5.0, stop_pct: float = -2.0) -> dict:
+    """
+    GBM Monte Carlo: simulate 1000 price paths using ATR-derived volatility
+    and Miro-score-biased drift. Returns probability of hitting target before stop.
+    """
+    import numpy as np, math
+    price  = ind.get("price", 100)
+    atr    = ind.get("atr", price * 0.02)
+    miro   = ind.get("miro_score", 5)
+    adx    = ind.get("adx", 20)
+    # Daily vol from ATR
+    daily_vol = atr / price
+    # Drift: Miro provides a mild positive bias, ADX strength amplifies it
+    adx_factor = min(adx / 50, 1.0)
+    daily_drift = ((miro - 5) / 5) * 0.002 * adx_factor
+    target = price * (1 + target_pct/100)
+    stop   = price * (1 + stop_pct/100)
+    hits_target, hits_stop = 0, 0
+    cone_paths = {"p90":[], "p50":[], "p10":[]}
+    all_finals = []
+    rng = np.random.default_rng(42)
+    path_snapshots = []
+    for sim in range(n_sims):
+        p = price
+        hit_t = hit_s = False
+        day_prices = [price]
+        for d in range(horizon):
+            shock = rng.normal(daily_drift, daily_vol)
+            p *= math.exp(shock)
+            day_prices.append(p)
+            if not hit_t and not hit_s:
+                if p >= target: hit_t = True
+                elif p <= stop: hit_s = True
+        if hit_t: hits_target += 1
+        elif hit_s: hits_stop += 1
+        all_finals.append(p)
+        path_snapshots.append(day_prices)
+    # Build cone: p10/p50/p90 at each day
+    finals = np.array(all_finals)
+    prob_target = round(hits_target / n_sims * 100)
+    prob_stop   = round(hits_stop / n_sims * 100)
+    expected    = round((finals.mean() - price) / price * 100, 1)
+    # Cone paths
+    snap_arr = np.array(path_snapshots)
+    cone_p90 = [round((np.percentile(snap_arr[:,d], 90) - price)/price*100, 2) for d in range(horizon+1)]
+    cone_p50 = [round((np.percentile(snap_arr[:,d], 50) - price)/price*100, 2) for d in range(horizon+1)]
+    cone_p10 = [round((np.percentile(snap_arr[:,d], 10) - price)/price*100, 2) for d in range(horizon+1)]
+    return {
+        "prob_target":  prob_target,
+        "prob_stop":    prob_stop,
+        "expected":     expected,
+        "target_pct":   target_pct,
+        "stop_pct":     stop_pct,
+        "horizon":      horizon,
+        "cone_p90":     cone_p90,
+        "cone_p50":     cone_p50,
+        "cone_p10":     cone_p10,
+        "daily_vol_pct": round(daily_vol*100, 1),
+        "miro":         miro,
+        "adx":          adx,
+    }
+
+
+def render_miro_backtest(bt: dict, symbol: str):
+    """Render Miro Performance Backtest as a Chart.js bar chart."""
+    if not bt or not bt.get("returns"):
+        st.markdown('<div style="color:#555;font-size:0.85rem;padding:8px 0;">Not enough historical data for backtest.</div>', unsafe_allow_html=True)
+        return
+    import json as _json
+    wr  = bt["win_rate"]
+    ag  = bt["avg_gain"]
+    al  = bt["avg_loss"]
+    ns  = bt["n_signals"]
+    rets = bt["returns"]
+    wr_col = "#00c851" if wr >= 65 else "#ffaa00" if wr >= 55 else "#ff4444"
+    ag_col = "#00c851" if ag > 0 else "#ff4444"
+    colors_js = _json.dumps(["#00c851cc" if v >= 0 else "#ff4444cc" for v in rets])
+    data_js   = _json.dumps(rets)
+    labels_js = _json.dumps([f"S{i+1}" for i in range(len(rets))])
+    st.markdown(f"""
+<div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+  <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:9px 12px;flex:1;min-width:70px;">
+    <div style="font-size:0.6rem;color:#555;font-family:monospace;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:3px;">Win rate</div>
+    <div style="font-size:1.1rem;font-weight:600;font-family:monospace;color:{wr_col};">{wr}%</div>
+  </div>
+  <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:9px 12px;flex:1;min-width:70px;">
+    <div style="font-size:0.6rem;color:#555;font-family:monospace;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:3px;">Avg gain</div>
+    <div style="font-size:1.1rem;font-weight:600;font-family:monospace;color:{ag_col};">+{ag}%</div>
+  </div>
+  <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:9px 12px;flex:1;min-width:70px;">
+    <div style="font-size:0.6rem;color:#555;font-family:monospace;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:3px;">Avg loss</div>
+    <div style="font-size:1.1rem;font-weight:600;font-family:monospace;color:#ff4444;">{al}%</div>
+  </div>
+  <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:9px 12px;flex:1;min-width:70px;">
+    <div style="font-size:0.6rem;color:#555;font-family:monospace;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:3px;">Signals</div>
+    <div style="font-size:1.1rem;font-weight:600;font-family:monospace;color:#aaa;">{ns}</div>
+  </div>
+</div>""", unsafe_allow_html=True)
+    st.components.v1.html(f"""
+<div style="background:#0d0d0d;padding:8px;border-radius:6px;">
+<canvas id="bt-chart" height="120"></canvas>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+new Chart(document.getElementById('bt-chart'), {{
+  type:'bar',
+  data:{{labels:{labels_js},datasets:[{{data:{data_js},backgroundColor:{colors_js},borderRadius:3,borderSkipped:false}}]}},
+  options:{{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{{legend:{{display:false}},tooltip:{{callbacks:{{label:c=>c.raw.toFixed(1)+'%'}}}}}},
+    scales:{{
+      x:{{ticks:{{display:false}},grid:{{color:'#1a1a1a'}},border:{{color:'#2a2a2a'}}}},
+      y:{{ticks:{{color:'#555',font:{{family:'monospace',size:10}},callback:v=>v+'%'}},grid:{{color:'#1a1a1a'}},border:{{color:'#2a2a2a'}}}}
+    }}
+  }}
+}});
+</script>""", height=150)
+    st.markdown('<div style="font-size:0.65rem;color:#444;font-family:monospace;margin-top:4px;">Each bar = 15-day forward return after Miro signal. Lookback: full history.</div>', unsafe_allow_html=True)
+
+
+def render_monte_carlo(mc: dict):
+    """Render Monte Carlo probability cone as inline SVG + stats."""
+    if not mc:
+        st.markdown('<div style="color:#555;font-size:0.85rem;padding:8px 0;">Monte Carlo data unavailable.</div>', unsafe_allow_html=True)
+        return
+    import json as _json
+    pt  = mc["prob_target"]
+    ps  = mc["prob_stop"]
+    exp = mc["expected"]
+    tgt = mc["target_pct"]
+    stp = mc["stop_pct"]
+    hz  = mc["horizon"]
+    p90 = mc["cone_p90"]
+    p50 = mc["cone_p50"]
+    p10 = mc["cone_p10"]
+    dvol = mc["daily_vol_pct"]
+    pt_col = "#00c851" if pt >= 65 else "#ffaa00" if pt >= 50 else "#ff4444"
+    # Stats row
+    st.markdown(f"""
+<div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+  <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:9px 12px;flex:1;">
+    <div style="font-size:0.6rem;color:#555;font-family:monospace;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:3px;">Hit +{tgt}%</div>
+    <div style="font-size:1.1rem;font-weight:600;font-family:monospace;color:{pt_col};">{pt}%</div>
+  </div>
+  <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:9px 12px;flex:1;">
+    <div style="font-size:0.6rem;color:#555;font-family:monospace;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:3px;">Hit {stp}%</div>
+    <div style="font-size:1.1rem;font-weight:600;font-family:monospace;color:#ff4444;">{ps}%</div>
+  </div>
+  <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:9px 12px;flex:1;">
+    <div style="font-size:0.6rem;color:#555;font-family:monospace;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:3px;">Expected</div>
+    <div style="font-size:1.1rem;font-weight:600;font-family:monospace;color:#ffaa00;">{exp:+.1f}%</div>
+  </div>
+  <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:9px 12px;flex:1;">
+    <div style="font-size:0.6rem;color:#555;font-family:monospace;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:3px;">Daily vol</div>
+    <div style="font-size:1.1rem;font-weight:600;font-family:monospace;color:#aaa;">{dvol}%</div>
+  </div>
+</div>""", unsafe_allow_html=True)
+    # Build SVG cone
+    W, H, pl, pr, pt_, pb = 440, 180, 50, 30, 15, 30
+    cw = W - pl - pr
+    ch = H - pt_ - pb
+    # Y scale: center at 0, show -8% to +10%
+    y_min, y_max = -8, 10
+    def ypx(pct): return pt_ + ch - (pct - y_min)/(y_max - y_min)*ch
+    def xpx(i):   return pl + i/hz * cw
+    # Build polygon points for cone (p10 to p90 shaded)
+    p90_pts = " ".join(f"{xpx(i):.1f},{ypx(p90[i]):.1f}" for i in range(hz+1))
+    p10_pts = " ".join(f"{xpx(i):.1f},{ypx(p10[i]):.1f}" for i in range(hz, -1, -1))
+    cone_poly = p90_pts + " " + p10_pts
+    p50_pts  = " ".join(f"{xpx(i):.1f},{ypx(p50[i]):.1f}" for i in range(hz+1))
+    y0   = ypx(0)
+    ytgt = ypx(tgt)
+    ystp = ypx(stp)
+    svg = f"""<svg viewBox="0 0 {W} {H}" style="width:100%;background:#0d0d0d;border-radius:6px;display:block;">
+  <line x1="{pl}" y1="{y0:.0f}" x2="{W-pr}" y2="{y0:.0f}" stroke="#333" stroke-width="0.5" stroke-dasharray="3 3"/>
+  <line x1="{pl}" y1="{ytgt:.0f}" x2="{W-pr}" y2="{ytgt:.0f}" stroke="#00c85140" stroke-width="0.8" stroke-dasharray="2 4"/>
+  <line x1="{pl}" y1="{ystp:.0f}" x2="{W-pr}" y2="{ystp:.0f}" stroke="#ff444440" stroke-width="0.8" stroke-dasharray="2 4"/>
+  <polygon points="{cone_poly}" fill="#ff660010" stroke="none"/>
+  <polyline points="{p50_pts}" fill="none" stroke="#ffaa00" stroke-width="1.5"/>
+  <circle cx="{xpx(0):.1f}" cy="{ypx(0):.1f}" r="3" fill="#ff6600"/>
+  <text x="{pl-4}" y="{y0+4:.0f}" text-anchor="end" font-size="9" fill="#555" font-family="monospace">0%</text>
+  <text x="{pl-4}" y="{ytgt+4:.0f}" text-anchor="end" font-size="9" fill="#00c85188" font-family="monospace">+{tgt}%</text>
+  <text x="{pl-4}" y="{ystp+4:.0f}" text-anchor="end" font-size="9" fill="#ff444488" font-family="monospace">{stp}%</text>
+  <text x="{W-pr}" y="{ytgt+4:.0f}" text-anchor="start" font-size="9" fill="#00c85188" font-family="monospace"> target</text>
+  <text x="{W-pr}" y="{ystp+4:.0f}" text-anchor="start" font-size="9" fill="#ff444488" font-family="monospace"> stop</text>
+  <text x="{xpx(hz):.0f}" y="{H-2}" text-anchor="end" font-size="9" fill="#444" font-family="monospace">Day {hz}</text>
+  <text x="{pl+2}" y="{H-2}" text-anchor="start" font-size="9" fill="#444" font-family="monospace">Now</text>
+</svg>"""
+    verdict_col = "#00c851" if pt >= 65 else "#ffaa00" if pt >= 50 else "#ff4444"
+    st.markdown(svg, unsafe_allow_html=True)
+    st.markdown(f'<div style="background:{verdict_col}18;border:1px solid {verdict_col}35;border-radius:6px;padding:8px 12px;font-size:0.78rem;color:{verdict_col};font-family:monospace;margin-top:8px;">{pt}% probability of hitting +{tgt}% target before {stp}% stop · 1,000 GBM simulations · {hz}-day horizon</div>', unsafe_allow_html=True)
+
+
 def render_filings(filings: list, symbol: str):
     """Render BSE filings panel with filter tabs."""
     CAT_TAG = {
@@ -1271,6 +1520,8 @@ if analyse and symbol:
         filings   = fetch_bse_filings(symbol)
         sentiment = fetch_sentiment(symbol)
         fund      = fetch_fundamentals(symbol)
+        backtest  = run_miro_backtest(df)
+        mc        = run_monte_carlo(ind)
 
     if df.empty:
         st.error(f"❌ Could not fetch data for **{symbol}**. Check the NSE symbol and try again.")
@@ -1347,6 +1598,18 @@ if analyse and symbol:
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.markdown(f'<div class="section-title">📋 Filings & Corporate Actions — {display_symbol}</div>', unsafe_allow_html=True)
         render_filings(filings, symbol)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # ── Miro Backtest ──────────────────────────────────────────────────
+        st.markdown('<div class="section-card">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">📊 Miro Performance Backtest</div>', unsafe_allow_html=True)
+        render_miro_backtest(backtest, display_symbol)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # ── Monte Carlo ────────────────────────────────────────────────────
+        st.markdown('<div class="section-card">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">🎲 Monte Carlo — Probability Cone (1,000 GBM sims)</div>', unsafe_allow_html=True)
+        render_monte_carlo(mc)
         st.markdown('</div>', unsafe_allow_html=True)
     with right:
         # ── Sentiment Tracker ────────────────────────────────────────────────
