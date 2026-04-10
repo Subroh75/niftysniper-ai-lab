@@ -1329,23 +1329,6 @@ def compute_indicators(df: pd.DataFrame) -> dict:
         macd_line = 0
 
     # Miro Score (composite 0-10)
-    # ── Miro Score — Volume-first institutional momentum ─────────────────
-    score = 0.0
-    # 1. Volume Multiplier (primary factor — institutional interest)
-    if   vol_ratio >= 5.0: score += 5.0  # Miro Spike
-    elif vol_ratio >= 2.0: score += 3.0
-    elif vol_ratio >= 1.5: score += 2.0
-    # 2. Price Change % (confirms volume is buying not distribution)
-    pct_chg = (cp - close[-2]) / close[-2] * 100 if len(close) >= 2 else 0
-    if   pct_chg >= 5.0: score += 3.0
-    elif pct_chg >= 3.0: score += 2.0
-    elif pct_chg >= 1.0: score += 1.0
-    # 3. Close position — top 25% of day range signals strength
-    day_range = high[-1] - low[-1] if len(high) > 0 else 0
-    if day_range > 0 and (cp - low[-1]) / day_range >= 0.75: score += 1.0
-    # 4. Price above MA20 (trend confirmation)
-    if cp > ma20: score += 1.0
-    score = max(0.0, min(10.0, round(score, 1)))
 
     # Trend
     if cp > ma20 > ma50 > ma200 and adx > 25:
@@ -1371,6 +1354,25 @@ def compute_indicators(df: pd.DataFrame) -> dict:
     # Volume surge
     avg_vol = np.mean(vol[-20:-1]) if n > 20 else np.mean(vol)
     vol_ratio = vol[-1] / avg_vol if avg_vol else 1
+
+    # ── Miro Score — Volume-first institutional momentum ─────────────────
+    score = 0.0
+    # 1. Volume Multiplier (primary factor — institutional interest)
+    if   vol_ratio >= 5.0: score += 5.0  # Miro Spike
+    elif vol_ratio >= 2.0: score += 3.0
+    elif vol_ratio >= 1.5: score += 2.0
+    # 2. Price Change % (confirms volume is buying not distribution)
+    pct_chg = (cp - close[-2]) / close[-2] * 100 if len(close) >= 2 else 0
+    if   pct_chg >= 5.0: score += 3.0
+    elif pct_chg >= 3.0: score += 2.0
+    elif pct_chg >= 1.0: score += 1.0
+    # 3. Close position — top 25% of day range signals strength
+    day_range = high[-1] - low[-1] if len(high) > 0 else 0
+    if day_range > 0 and (cp - low[-1]) / day_range >= 0.75: score += 1.0
+    # 4. Price above MA20 (trend confirmation)
+    if cp > ma20: score += 1.0
+    score = max(0.0, min(10.0, round(score, 1)))
+
 
     # 52-week position %
     wk52_high = np.max(high[-min(252,n):])
