@@ -1639,6 +1639,20 @@ if analyse and symbol:
   <span style="color:{col_s};font-size:0.8rem;font-weight:500;white-space:nowrap;">{val}</span>
 </div>""", unsafe_allow_html=True)
 
+        # ── Verdict — inside signal card ─────────────────────────────────
+        bull_signals = bull_count
+        verdict = "STRONG BUY" if bull_signals >= 4 else "BUY" if bull_signals >= 3 else "AVOID" if bull_signals <= 1 else "HOLD"
+        v_col   = "#00c851" if "BUY" in verdict else "#ff4444" if verdict == "AVOID" else "#ffaa00"
+        st.markdown(f"""
+<div style="margin-top:12px;padding:10px 14px;border-top:1px solid #1a1a1a;display:flex;justify-content:space-between;align-items:center;">
+  <div style="font-size:0.65rem;color:#555;font-family:monospace;letter-spacing:0.1em;text-transform:uppercase;">Signal Verdict</div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span style="font-size:1.2rem;font-weight:700;font-family:monospace;color:{v_col};">{verdict}</span>
+    <span style="font-size:0.68rem;color:#444;font-family:monospace;">{bull_signals}/4 bullish</span>
+  </div>
+</div>""", unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
         # Analyst recs
         if rec:
             st.markdown('<div class="section-card">', unsafe_allow_html=True)
@@ -1656,17 +1670,6 @@ if analyse and symbol:
   <span style="color:{col}; font-size:0.75rem; width:20px;">{n_rec}</span>
 </div>""", unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
-
-    # Verdict
-    bull_signals = bull_count
-    verdict = "STRONG BUY" if bull_signals >= 4 else "BUY" if bull_signals >= 3 else "AVOID" if bull_signals <= 1 else "HOLD"
-    v_col   = "#00c851" if "BUY" in verdict else "#ff4444" if verdict == "AVOID" else "#ffaa00"
-    st.markdown(f"""
-<div class="verdict-box">
-  <div class="verdict-label">Signal Verdict</div>
-  <div class="verdict-text" style="color:{v_col};">{verdict}</div>
-  <div style="color:#555555; font-size:0.75rem; margin-top:6px;">{bull_signals}/4 bullish signals</div>
-</div>""", unsafe_allow_html=True)
 
     # ── AI Agent Debate ───────────────────────────────────────────────────────
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
