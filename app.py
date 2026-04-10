@@ -1588,29 +1588,31 @@ if analyse and symbol:
     left, right = st.columns([3, 2])
 
     with left:
-        # ── Fundamentals ────────────────────────────────────────────────────
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">📐 Fundamentals</div>', unsafe_allow_html=True)
-        render_fundamentals(fund, symbol)
-        st.markdown('</div>', unsafe_allow_html=True)
+        ll, lr = st.columns([1, 1])
 
-        # ── BSE Filings ──────────────────────────────────────────────────────
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown(f'<div class="section-title">📋 Filings & Corporate Actions — {display_symbol}</div>', unsafe_allow_html=True)
-        render_filings(filings, symbol)
-        st.markdown('</div>', unsafe_allow_html=True)
+        # ── Left sub-col: Fundamentals + Filings ───────────────────────
+        with ll:
+            st.markdown('<div class="section-card">', unsafe_allow_html=True)
+            st.markdown('<div class="section-title">📐 Fundamentals</div>', unsafe_allow_html=True)
+            render_fundamentals(fund, symbol)
+            st.markdown('</div>', unsafe_allow_html=True)
 
-        # ── Miro Backtest ──────────────────────────────────────────────────
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">📊 Miro Performance Backtest</div>', unsafe_allow_html=True)
-        render_miro_backtest(backtest, display_symbol)
-        st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('<div class="section-card">', unsafe_allow_html=True)
+            st.markdown(f'<div class="section-title">📋 Filings — {display_symbol}</div>', unsafe_allow_html=True)
+            render_filings(filings, symbol)
+            st.markdown('</div>', unsafe_allow_html=True)
 
-        # ── Monte Carlo ────────────────────────────────────────────────────
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">🎲 Monte Carlo — Probability Cone (1,000 GBM sims)</div>', unsafe_allow_html=True)
-        render_monte_carlo(mc)
-        st.markdown('</div>', unsafe_allow_html=True)
+        # ── Right sub-col: Miro Backtest + Monte Carlo ──────────────────
+        with lr:
+            st.markdown('<div class="section-card">', unsafe_allow_html=True)
+            st.markdown('<div class="section-title">📊 Miro Performance Backtest</div>', unsafe_allow_html=True)
+            render_miro_backtest(backtest, display_symbol)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            st.markdown('<div class="section-card">', unsafe_allow_html=True)
+            st.markdown('<div class="section-title">🎲 Monte Carlo — Probability Cone</div>', unsafe_allow_html=True)
+            render_monte_carlo(mc)
+            st.markdown('</div>', unsafe_allow_html=True)
     with right:
         # ── Sentiment Tracker ────────────────────────────────────────────────
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
