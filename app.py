@@ -73,8 +73,8 @@ st.set_page_config(
 # ── Styling ───────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
-* { font-family: 'Inter', sans-serif; }
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+    * { font-family: 'Space Grotesk', sans-serif; }
 .main { background: #080808; }
 .stApp { background: #080808; color: #cccccc; }
 #MainMenu, footer, header { visibility: hidden; }
@@ -121,7 +121,7 @@ st.markdown("""
 .agent-msg {
     background: #0d0d0d; border-left: 3px solid #ff6600;
     border-radius: 0 6px 6px 0; padding: 12px 16px;
-    margin-bottom: 10px; color: #cccccc; font-size: 0.875rem; line-height: 1.7;
+    margin-bottom: 10px; color: #cccccc; font-size: 0.875rem; line-height: 1.8; font-family: 'Space Grotesk', sans-serif; letter-spacing: 0.01em;
 }
 .agent-name {
     font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em;
@@ -1022,7 +1022,7 @@ if analyse and symbol:
     chg_sym = "▲" if chg >= 0 else "▼"
 
     # ── Stock Header ──────────────────────────────────────────────────────────
-    company_name = quote.get('name', symbol) or symbol
+        company_name = (quote.get('name', symbol) or symbol).replace('.NS','').replace('.BO','')
     st.markdown(f"""
 <div class="section-card" style="margin-bottom:20px; border-top:2px solid #ff6600;">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
