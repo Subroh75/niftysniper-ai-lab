@@ -1409,41 +1409,35 @@ def compute_indicators(df: pd.DataFrame) -> dict:
 
 # ── AI Agents ─────────────────────────────────────────────────────────────────
 def build_context(symbol, ind, quote, news, rec) -> str:
-    news_txt = "\n".join([f"- {n.get('title', n.get('headline',''))}" for n in news[:4]]) or "No recent news"
-    rec_txt  = f"Buy:{rec.get('buy',0)} Hold:{rec.get('hold',0)} Sell:{rec.get('sell',0)}" if rec else "N/A"
-    return f"""
-Stock: {symbol}.NS | Price: ₹{ind.get('price',0)} ({ind.get('change_pct',0):+.2f}%)
-Company: {quote.get('name', symbol)}
-
-TECHNICAL INDICATORS:
-- Miro Score: {ind.get('miro_score',5)}/10
-- Trend: {ind.get('trend','N/A')} | ADX: {ind.get('adx',0)}
-- RSI(14): {ind.get('rsi',50)} | MACD: {ind.get('macd',0)}
-- Z-Score: {ind.get('z_score',0)} (vs 20d mean)
-- IBS: {ind.get('ibs',0.5)} (0=oversold, 1=overbought)
-- MA20: {ind.get('ma20')} | MA50: {ind.get('ma50')} | MA200: {ind.get('ma200')}
-- Bollinger: {ind.get('bb_dn')} – {ind.get('bb_up')}
-- Donchian 20d: {ind.get('don_low')} – {ind.get('don_high')}
-- ATR(14): {ind.get('atr')} | Volume ratio: {ind.get('vol_ratio')}x avg
-- 52W Range: ₹{ind.get('wk52_low')} – ₹{ind.get('wk52_high')} | Position: {ind.get('wk52_pct')}%
-- HP Filter: {'Above trend' if ind.get('hp_above') else 'Below trend'}
-
-ANALYST CONSENSUS: {rec_txt}
-
-RECENT NEWS:
-{news_txt}
-
-DISCLAIMER: This is for educational purposes only. Not SEBI registered. Not financial advice.
-"""
-
-AGENTS = [
-    ("📈 Bull Analyst",    "bull",    "#00c851", "You are an optimistic NSE equity analyst. Focus on Miro Score strength, MA alignment (price vs MA20/50/200), and volume trends. If Miro > 7, highlight momentum. Reference specific numbers. 4-5 sentences, be concise."),
-    ("📉 Bear Analyst",    "bear",    "#ff4444", "You are a cautious short-seller focused on NSE stocks. Identify risks using MA breakdown signals, ADX below 25 (weak trend), and low Miro Score. Mention valuation if stretched. Reference specific numbers. 4-5 sentences, be concise."),
-    ("⚡ Swing Trader",    "trader",  "#ffaa00", "You are an experienced NSE swing trader. Give a concrete trading plan using MA levels as entry/stop zones. Use ADX to judge trend strength (>25 = strong). Reference the Miro Score as your momentum filter. Entry zone, stop loss, target, timeframe. 4-5 sentences, be concise."),
-    ("🛡️ Risk Manager",   "risk",    "#3399ff", "You are a portfolio risk manager for NSE positions. Assess risk/reward using the Z-Score (mean reversion risk), ATR-based volatility, and the weekly trend direction. Suggest position sizing as % of portfolio. Reference specific numbers. 4-5 sentences, be concise."),
-    ("🏗️ Fundamentalist", "fund",    "#aa88ff", "You are a fundamental analyst. Comment on valuation multiples (P/E, EV/EBITDA), promoter holding trends, and whether the Miro Score momentum aligns with the fundamental picture. Highlight any divergence. 4-5 sentences, be concise."),
-]
-
+        news_txt = "\n".join([f"- {n.get('title', n.get('headline',''))}" for n in news[:4]]) or "No recent news."
+        rec_txt  = f"Buy:{rec.get('buy',0)} Hold:{rec.get('hold',0)} Sell:{rec.get('sell',0)}" if rec else "No analyst data."
+        miro     = ind.get("miro_score", 0)
+        vol_r    = ind.get("vol_ratio", 1)
+        pct_chg  = ind.get("change_pct", 0)
+        ma_bull  = ind.get("price",0) > ind.get("ma50",0) > ind.get("ma200",0)
+        return f"""
+    Stock: {symbol} | Price: ₹{ind.get("price",0):,.2f} ({pct_chg:+.2f}%)
+    Company: {quote.get("name", symbol)}
+    
+    MIRO SCORE: {miro}/10 (Volume-first institutional momentum)
+    - Volume ratio: {vol_r:.2f}x average ({"Miro Spike" if vol_r>=5 else "High" if vol_r>=2 else "Elevated" if vol_r>=1.5 else "Normal"})
+    - Price change today: {pct_chg:+.2f}%
+    - MA Alignment: {"Bullish (price > MA50 > MA200)" if ma_bull else "Bearish (price below key MAs)"}
+    - MA20: ₹{ind.get("ma20",0):,.2f} | MA50: ₹{ind.get("ma50",0):,.2f} | MA200: ₹{ind.get("ma200",0):,.2f}
+    - Z-Score: {ind.get("z_score",0):.2f} (mean reversion signal)
+    - ADX: {ind.get("adx",0):.1f} ({"Strong trend" if ind.get("adx",0)>=25 else "Weak/no trend"})
+    - Weekly trend: {ind.get("weekly_trend","N/A")} ({ind.get("weekly_chg",0):+.2f}% this week)
+    - ATR(14): ₹{ind.get("atr",0):.2f} (daily volatility)
+    
+    FUNDAMENTALS:
+    - Sector: {quote.get("sector", "N/A")}
+    - P/E: {quote.get("pe","N/A")} | EV/EBITDA: {quote.get("ev_ebitda","N/A")}
+    - ROE: {quote.get("roe","N/A")} | Debt/Equity: {quote.get("debt_equity","N/A")}
+    - Promoter holding: {quote.get("promoter","N/A")}
+    
+    ANALYST CONSENSUS: {rec_txt}
+    RECENT NEWS:\n{news_txt}
+    """
 def stream_agent(client, agent_name, persona, context, placeholder):
     msgs = [{"role": "user", "content": f"{context}\n\nYour role: {persona}\nAnalyse this stock now."}]
     full = ""
@@ -1670,7 +1664,7 @@ if analyse and symbol:
     if not client:
         st.warning("Add ANTHROPIC_API_KEY to Streamlit secrets to enable AI agent debate.")
     else:
-        context = build_context(symbol, ind, quote, news, rec)
+        context = build_context(display_symbol, ind, quote, news, rec)
         for agent_name, agent_key, color, persona in AGENTS:
             st.markdown(f"""
 <div class="agent-{agent_key}">
