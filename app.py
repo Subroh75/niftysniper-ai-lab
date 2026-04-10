@@ -1644,11 +1644,11 @@ if analyse and symbol:
         verdict = "STRONG BUY" if bull_signals >= 4 else "BUY" if bull_signals >= 3 else "AVOID" if bull_signals <= 1 else "HOLD"
         v_col   = "#00c851" if "BUY" in verdict else "#ff4444" if verdict == "AVOID" else "#ffaa00"
         st.markdown(f"""
-<div style="margin-top:12px;padding:10px 14px;border-top:1px solid #1a1a1a;display:flex;justify-content:space-between;align-items:center;">
-  <div style="font-size:0.65rem;color:#555;font-family:monospace;letter-spacing:0.1em;text-transform:uppercase;">Signal Verdict</div>
-  <div style="display:flex;align-items:center;gap:8px;">
-    <span style="font-size:1.2rem;font-weight:700;font-family:monospace;color:{v_col};">{verdict}</span>
-    <span style="font-size:0.68rem;color:#444;font-family:monospace;">{bull_signals}/4 bullish</span>
+<div style='margin-top:14px;display:flex;justify-content:flex-end;'>
+  <div style='background:#0d0d0d;border:1px solid #2a2a2a;border-top:2px solid {v_col};border-radius:6px;padding:10px 16px;text-align:center;min-width:110px;'>
+    <div style='font-size:0.58rem;color:#555;font-family:monospace;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;'>Signal Verdict</div>
+    <div style='font-size:1.3rem;font-weight:700;font-family:monospace;color:{v_col};letter-spacing:0.05em;'>{verdict}</div>
+    <div style='font-size:0.62rem;color:#444;font-family:monospace;margin-top:3px;'>{bull_signals}/4 bullish</div>
   </div>
 </div>""", unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
