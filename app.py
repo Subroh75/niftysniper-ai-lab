@@ -1520,14 +1520,14 @@ if analyse and symbol:
         filings   = fetch_bse_filings(symbol)
         sentiment = fetch_sentiment(symbol)
         fund      = fetch_fundamentals(symbol)
-        backtest  = run_miro_backtest(df)
-        mc        = run_monte_carlo(ind)
 
     if df.empty:
         st.error(f"❌ Could not fetch data for **{symbol}**. Check the NSE symbol and try again.")
         st.stop()
 
     ind = compute_indicators(df)
+    backtest  = run_miro_backtest(df)
+    mc        = run_monte_carlo(ind)
     if not ind:
         st.error("❌ Not enough data to compute indicators.")
         st.stop()
