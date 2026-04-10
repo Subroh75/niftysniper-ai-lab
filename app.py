@@ -1365,10 +1365,10 @@ if analyse and symbol:
         ("Z-Score",      "✅ Oversold" if z < -0.5 else ("❌ Extended" if z > 1.5 else "⚠️ Neutral"), z < -0.5),
         ("Weekly Trend", ind.get("weekly_trend","—"),                                                       ind.get("weekly_chg",0) > 0),
     ]
-        bull_count = sum(1 for _, _, b in signals if b)
-        for label, val, bull in signals:
-            col_s = "#00c851" if bull else "#ff4444" if "❌" in val else "#ff8800"
-            st.markdown(f"""
+    bull_count = sum(1 for _, _, b in signals if b)
+    for label, val, bull in signals:
+        col_s = "#00c851" if bull else "#ff4444" if "❌" in val else "#ff8800"
+        st.markdown(f"""
 <div style="display:flex;align-items:center;padding:6px 0;border-bottom:1px solid #1a1a1a;">
   <span style="flex:1;color:#888;font-size:0.8rem;font-family:'Space Grotesk',sans-serif;">{label}</span>
   <span style="color:{col_s};font-size:0.8rem;font-weight:500;white-space:nowrap;">{val}</span>
