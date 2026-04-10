@@ -367,7 +367,7 @@ def fetch_quote(symbol: str) -> dict:
             "prev":     meta.get("chartPreviousClose", 0),
             "high52":   meta.get("fiftyTwoWeekHigh", 0),
             "low52":    meta.get("fiftyTwoWeekLow", 0),
-            "name":     meta.get("longName", symbol),
+            "name":     meta.get("longName", symbol).replace(".NS","").replace(".BO",""),
             "currency": meta.get("currency", "INR"),
             "exchange": meta.get("exchangeName", "NSE"),
         }
@@ -1197,7 +1197,7 @@ if analyse and symbol:
     # Disclaimer
     st.markdown("""
 <div style="text-align:center; color:#333333; font-size:0.75rem; margin-top:24px; padding:12px; border-top:1px solid #1a1a1a;">
-⚠️ Not SEBI registered. Not financial advice. For educational purposes only. Always do your own research.
+⚠️ <strong>Not SEBI registered. Not financial advice. For educational purposes only. Always do your own research.</strong>
 </div>""", unsafe_allow_html=True)
 
 
@@ -1288,7 +1288,7 @@ table{{width:100%;border-collapse:collapse}}
 <div class='sec'><div class='stitle'>🎯 Signal Checklist</div><table>{_sl_rows}</table></div>
 <div class='sec'><div class='stitle'>📰 Recent News & Filings</div><table>{_news_rows}</table></div>
 </div>
-<div class='disc'>⚠️ Nifty Sniper — For educational purposes only. Not registered with SEBI. Not financial advice. Always conduct your own research. · niftysniper-ai-lab.streamlit.app</div>
+<div class='disc'>⚠️ <strong>Nifty Sniper — For educational purposes only. Not registered with SEBI. Not financial advice. Always do your own research.</strong></div>
 </body></html>"""
     _col1, _col2, _col3 = st.columns([1,2,1])
     with _col2:
