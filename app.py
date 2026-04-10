@@ -1306,34 +1306,30 @@ if analyse and symbol:
 """, unsafe_allow_html=True)
 
     # ── Key Metrics Row ───────────────────────────────────────────────────────
-    miro  = ind["miro_score"]
-    miro_c = "signal-bull" if miro >= 6.5 else "signal-bear" if miro < 4 else "signal-neutral"
+    miro     = ind["miro_score"]
+    miro_c   = "signal-bull" if miro >= 6.5 else "signal-bear" if miro < 4 else "signal-neutral"
+    z        = ind["z_score"]
+    z_c      = "signal-bull" if z < -0.5 else "signal-bear" if z > 1.5 else "signal-neutral"
     weekly_c = "signal-bull" if ind.get("weekly_chg",0) > 0.5 else "signal-bear" if ind.get("weekly_chg",0) < -0.5 else "signal-neutral"
-    rsi    = ind["rsi"]
-    rsi_c  = "signal-bull" if rsi < 40 else "signal-bear" if rsi > 65 else "signal-neutral"
-    z      = ind["z_score"]
-    z_c    = "signal-bull" if z < -0.5 else "signal-bear" if z > 1.5 else "signal-neutral"
-    ibs    = ind["ibs"]
-    ibs_c  = "signal-bull" if ibs < 0.3 else "signal-bear" if ibs > 0.75 else "signal-neutral"
-    trend  = ind["trend"]
-    tr_c   = "signal-bull" if "Up" in trend else "signal-bear" if "Down" in trend else "signal-neutral"
+    adx      = ind["adx"]
+    trend    = ind["trend"]
+    tr_c     = "signal-bull" if "Up" in trend else "signal-bear" if "Down" in trend else "signal-neutral"
+    cp       = ind["price"]
 
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.markdown(render_metric("Miro Score", f"{miro}/10", score_bar(miro), miro_c), unsafe_allow_html=True)
-    c2.markdown(render_metric("RSI (14)", rsi, "Oversold<30 | Hot>70", rsi_c), unsafe_allow_html=True)
-    c3.markdown(render_metric("Z-Score", z, "vs 20D mean", z_c), unsafe_allow_html=True)
-    c4.markdown(render_metric("IBS", ibs, "0=low 1=high", ibs_c), unsafe_allow_html=True)
-    c5.markdown(render_metric("Trend", trend.replace(" ", "<br>"), f"ADX {ind['adx']}", tr_c), unsafe_allow_html=True)
+    # ── Metric cards row 1: Miro / Z-Score / Weekly / ADX ───────────────
+    c1, c2, c3, c4 = st.columns(4)
+    c1.markdown(render_metric("Miro Score",   f"{miro}/10", score_bar(miro), miro_c), unsafe_allow_html=True)
+    c2.markdown(render_metric("Z-Score",      f"{z}",       "vs 20D mean",   z_c),    unsafe_allow_html=True)
+    c3.markdown(render_metric("Weekly Trend", ind.get("weekly_trend","—"), f"{ind.get('weekly_chg',0):+.2f}% this week", weekly_c), unsafe_allow_html=True)
+    c4.markdown(render_metric("ADX / Trend",  f"{adx}",     trend.replace(" ","<br>"), tr_c), unsafe_allow_html=True)
 
-    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
-    # ── Second metrics row ────────────────────────────────────────────────────
-    c6, c7, c8, c9, c10 = st.columns(5)
-    c6.markdown(render_metric("MA 20", f"₹{ind['ma20']:,}", "<span style='color:#00c851'>▲ Above</span>" if cp > ind['ma20'] else "<span style='color:#ff4444'>▼ Below</span>"), unsafe_allow_html=True)
-    c7.markdown(render_metric("MA 50", f"₹{ind['ma50_display']:,}", "<span style='color:#00c851'>▲ Above</span>" if cp > ind['ma50_display'] else "<span style='color:#ff4444'>▼ Below</span>"), unsafe_allow_html=True)
-    c8.markdown(render_metric("MA 200", f"₹{ind['ma200']:,}", "<span style='color:#00c851'>▲ Above</span>" if cp > ind['ma200'] else "<span style='color:#ff4444'>▼ Below</span>"), unsafe_allow_html=True)
-    c9.markdown(render_metric("Weekly Trend", ind.get("weekly_trend","—"), f"{ind.get('weekly_chg',0):+.2f}% this week", weekly_c), unsafe_allow_html=True)
-    c10.markdown(render_metric("52W Position", f"{ind['wk52_pct']}%", f"H:{ind['wk52_high']} L:{ind['wk52_low']}"), unsafe_allow_html=True)
+    # ── Metric cards row 2: MA20 / MA50 / MA200 ─────────────────────────
+    cm1, cm2, cm3 = st.columns(3)
+    cm1.markdown(render_metric("MA 20",  f"₹{ind['ma20']:,}",         "<span style='color:#00c851'>▲ Above</span>" if cp > ind["ma20"]         else "<span style='color:#ff4444'>▼ Below</span>"), unsafe_allow_html=True)
+    cm2.markdown(render_metric("MA 50",  f"₹{ind['ma50_display']:,}",  "<span style='color:#00c851'>▲ Above</span>" if cp > ind["ma50_display"]  else "<span style='color:#ff4444'>▼ Below</span>"), unsafe_allow_html=True)
+    cm3.markdown(render_metric("MA 200", f"₹{ind['ma200']:,}",         "<span style='color:#00c851'>▲ Above</span>" if cp > ind["ma200"]         else "<span style='color:#ff4444'>▼ Below</span>"), unsafe_allow_html=True)
 
     st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 
@@ -1363,15 +1359,12 @@ if analyse and symbol:
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.markdown('<div class="section-title">🎯 Signal Summary</div>', unsafe_allow_html=True)
 
-        signals = [
-            ("HP Filter",    "✅ Above Trend" if ind["hp_above"] else "❌ Below Trend",   ind["hp_above"]),
-            ("Donchian",     "✅ Near High"   if cp > ind["don_high"]*0.97 else "⚠️ Mid Range", cp > ind["don_high"]*0.97),
-            ("Bollinger",    "✅ Near Lower"  if cp < ind["bb_dn"]*1.02 else ("❌ Near Upper" if cp > ind["bb_up"]*0.98 else "⚠️ Mid Band"), cp < ind["bb_dn"]*1.02),
-            ("MA Alignment", "✅ Bullish" if cp > ind["ma50"] > ind["ma200"] else "❌ Bearish", cp > ind["ma50"] > ind["ma200"]),
-            ("MACD",         "✅ Positive" if ind["macd"] > 0 else "❌ Negative", ind["macd"] > 0),
-            ("RSI Zone",     "✅ Buy Zone" if rsi < 40 else ("❌ Overbought" if rsi > 65 else "⚠️ Neutral"), rsi < 40),
-            ("Volume",       f"✅ {ind['vol_ratio']}x Surge" if ind["vol_ratio"] > 1.5 else "⚠️ Normal", ind["vol_ratio"] > 1.5),
-        ]
+    signals = [
+        ("Miro Score",   f"{miro}/10 — {'Strong' if miro>=6.5 else 'Weak' if miro<4 else 'Moderate'}", miro >= 6.5),
+        ("MA Alignment", "✅ Bullish" if cp > ind["ma50"] > ind["ma200"] else "❌ Bearish",              cp > ind["ma50"] > ind["ma200"]),
+        ("Z-Score",      "✅ Oversold" if z < -0.5 else ("❌ Extended" if z > 1.5 else "⚠️ Neutral"), z < -0.5),
+        ("Weekly Trend", ind.get("weekly_trend","—"),                                                       ind.get("weekly_chg",0) > 0),
+    ]
         bull_count = sum(1 for _, _, b in signals if b)
         for label, val, bull in signals:
             col_s = "#00c851" if bull else "#ff4444" if "❌" in val else "#ff8800"
@@ -1401,7 +1394,7 @@ if analyse and symbol:
 
         # Verdict
         bull_signals = bull_count
-        verdict = "STRONG BUY" if bull_signals >= 6 else "BUY" if bull_signals >= 5 else "HOLD" if bull_signals >= 3 else "AVOID"
+    verdict = "STRONG BUY" if bull_signals >= 4 else "BUY" if bull_signals >= 3 else "AVOID" if bull_signals <= 1 else "HOLD"
         v_col   = "#00c851" if "BUY" in verdict else "#ff4444" if verdict == "AVOID" else "#ffaa00"
         st.markdown(f"""
 <div class="verdict-box">
