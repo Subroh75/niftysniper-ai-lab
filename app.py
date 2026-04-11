@@ -1865,9 +1865,52 @@ if analyse and symbol:
                 col_s = "#00c851" if bull else "#ff4444" if "✅" in val else "#ff8800"
                 st.markdown(f'<div style="padding:6px 0;border-bottom:1px solid #1a1a1a;font-size:0.8rem;"><span style="color:#888;font-family:monospace;">{label}&nbsp;&nbsp;</span><span style="color:{col_s};font-weight:600;font-family:monospace;">{val}</span></div>', unsafe_allow_html=True)
             bull_signals = bull_count
-            verdict = "STRONG BUY" if bull_signals >= 4 else "BUY" if bull_signals >= 3 else "AVOID" if bull_signals <= 1 else "HOLD"
-            v_col   = "#00c851" if "BUY" in verdict else "#ff4444" if verdict == "AVOID" else "#ffaa00"
-            st.markdown(f'<div style="margin-top:14px;display:flex;justify-content:flex-start;"><div style="background:#0d0d0d;border:1px solid #2a2a2a;border-top:2px solid {v_col};border-radius:6px;padding:10px 16px;text-align:center;min-width:110px;"><div style="font-size:0.58rem;color:#555;font-family:monospace;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;">Signal Verdict</div><div style="font-size:1.3rem;font-weight:700;font-family:monospace;color:{v_col};">{verdict}</div><div style="font-size:0.62rem;color:#444;font-family:monospace;margin-top:3px;">{bull_signals}/4 bullish</div></div></div>', unsafe_allow_html=True)
+            # ── Composite Signal Matrix: Z-Score + Miro + Volume ───────────────
+            _z  = ind.get("z_score", 0)
+            _m  = ind.get("miro_score", 0)
+            _vr = ind.get("vol_ratio", 1)
+            if _z > 3.0:
+                verdict, v_col, v_sub, v_icon = "BLOW-OFF TOP", "#cc0000", f"Z={_z:+.1f}σ · mean-reversion likely", "&#9888;&#65039;"
+            elif _m >= 8 and 0.5 <= _z <= 1.5:
+                verdict, v_col, v_sub, v_icon = "FRESH BREAKOUT", "#00c851", f"Miro {_m}/10 · room to run", "&#9650;"
+            elif _m >= 8 and _z > 2.5:
+                verdict, v_col, v_sub, v_icon = "EXHAUSTION", "#ff8800", f"Z={_z:+.1f}σ · wait for pullback", "&#9888;&#65039;"
+            elif 3 <= _m <= 5 and _z > 2.0 and _vr < 1.5:
+                verdict, v_col, v_sub, v_icon = "TRAP ALERT", "#ff4444", f"Price high · volume absent", "&#9660;"
+            elif bull_signals >= 4 or _m >= 7:
+                verdict, v_col, v_sub, v_icon = "STRONG BUY", "#00c851", f"{bull_signals}/4 signals · Miro {_m}/10", "&#9650;"
+            elif bull_signals >= 3 or _m >= 5:
+                verdict, v_col, v_sub, v_icon = "BUY", "#00c851", f"{bull_signals}/4 signals · Miro {_m}/10", "&#9650;"
+            elif bull_signals <= 1:
+                verdict, v_col, v_sub, v_icon = "AVOID", "#ff4444", f"{bull_signals}/4 signals · Miro {_m}/10", "&#9660;"
+            else:
+                verdict, v_col, v_sub, v_icon = "HOLD", "#ffaa00", f"{bull_signals}/4 signals · Miro {_m}/10", "—"
+            _z_col = "#ff8800" if abs(_z) > 2 else "#00c851" if abs(_z) < 1 else "#ffaa00"
+            _vr_col = "#ff6600" if _vr >= 2 else "#ffaa00" if _vr >= 1.5 else "#555"
+            st.markdown(f"""<div style="margin-top:14px;">
+  <div style="background:#0d0d0d;border:1px solid #2a2a2a;border-top:2px solid {v_col};border-radius:6px;padding:12px 16px;">
+    <div style="font-size:0.52rem;color:#555;font-family:monospace;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">Signal Verdict</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+      <span style="font-size:1.0rem;">{v_icon}</span>
+      <span style="font-size:1.2rem;font-weight:700;font-family:monospace;color:{v_col};">{verdict}</span>
+    </div>
+    <div style="font-size:0.62rem;color:#666;font-family:monospace;margin-bottom:8px;">{v_sub}</div>
+    <div style="padding-top:8px;border-top:1px solid #1a1a1a;display:flex;gap:8px;">
+      <div style="flex:1;text-align:center;background:#111;border-radius:4px;padding:6px 4px;">
+        <div style="font-size:0.5rem;color:#444;font-family:monospace;text-transform:uppercase;margin-bottom:2px;">Z-Score</div>
+        <div style="font-size:0.82rem;font-weight:700;font-family:monospace;color:{_z_col};">{_z:+.2f}&sigma;</div>
+      </div>
+      <div style="flex:1;text-align:center;background:#111;border-radius:4px;padding:6px 4px;">
+        <div style="font-size:0.5rem;color:#444;font-family:monospace;text-transform:uppercase;margin-bottom:2px;">Miro</div>
+        <div style="font-size:0.82rem;font-weight:700;font-family:monospace;color:{v_col};">{_m}/10</div>
+      </div>
+      <div style="flex:1;text-align:center;background:#111;border-radius:4px;padding:6px 4px;">
+        <div style="font-size:0.5rem;color:#444;font-family:monospace;text-transform:uppercase;margin-bottom:2px;">Vol Ratio</div>
+        <div style="font-size:0.82rem;font-weight:700;font-family:monospace;color:{_vr_col};">{_vr:.1f}x</div>
+      </div>
+    </div>
+  </div>
+</div>""", unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
             # ✅✅ Ticker Velocity ------------------------------------------------------------
