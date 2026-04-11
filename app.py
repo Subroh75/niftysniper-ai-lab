@@ -636,6 +636,124 @@ def render_monte_carlo(mc: dict):
     st.markdown(f'<div style="background:{verdict_col}18;border:1px solid {verdict_col}35;border-radius:6px;padding:8px 12px;font-size:0.78rem;color:{verdict_col};font-family:monospace;margin-top:8px;">{pt}% probability of hitting +{tgt}% target before {stp}% stop · 1,000 GBM simulations · {hz}-day horizon</div>', unsafe_allow_html=True)
 
 
+
+def render_ticker_velocity(ind: dict, symbol: str):
+    """Ticker Velocity — how fast institutional momentum is building."""
+    miro      = ind.get("miro_score", 0)
+    vol_ratio = ind.get("vol_ratio", 1)
+    pct_chg   = ind.get("change_pct", 0)
+    adx       = ind.get("adx", 0)
+    # Velocity score: weighted composite of Miro + volume surge + ADX
+    vel = min(100, int(miro*6 + min(vol_ratio-1,4)*8 + (adx/50)*20))
+    vel_col = "#00c851" if vel>=70 else "#ffaa00" if vel>=40 else "#ff4444"
+    vel_lbl = "Hot ⚡" if vel>=70 else "Building" if vel>=40 else "Quiet"
+    # Narrative drivers derived from indicators
+    drivers = []
+    if vol_ratio >= 2.0:  drivers.append(("Volume surge", f"{vol_ratio:.1f}x avg", "#ff6600"))
+    elif vol_ratio >= 1.5: drivers.append(("Volume elevated", f"{vol_ratio:.1f}x avg", "#ffaa00"))
+    if miro >= 7:          drivers.append(("Strong Miro signal", f"{miro}/10", "#00c851"))
+    elif miro >= 5:        drivers.append(("Moderate momentum", f"{miro}/10", "#ffaa00"))
+    if adx >= 25:          drivers.append(("Strong trend (ADX)", f"{adx:.0f}", "#3399ff"))
+    if pct_chg >= 1:       drivers.append(("Price breakout", f"{pct_chg:+.2f}%", "#00c851"))
+    elif pct_chg <= -1:    drivers.append(("Price declining", f"{pct_chg:+.2f}%", "#ff4444"))
+    if not drivers:        drivers.append(("No dominant signal", "Monitor", "#555"))
+
+    gauge_html = f"""
+<div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
+  <div style="text-align:center;">
+    <div style="font-size:2.2rem;font-weight:700;font-family:monospace;color:{vel_col};">{vel}</div>
+    <div style="font-size:0.6rem;color:#555;font-family:monospace;letter-spacing:0.1em;text-transform:uppercase;">Velocity</div>
+  </div>
+  <div style="flex:1;">
+    <div style="background:#1a1a1a;border-radius:4px;height:8px;margin-bottom:6px;">
+      <div style="width:{vel}%;height:8px;border-radius:4px;background:{vel_col};transition:width 0.3s;"></div>
+    </div>
+    <div style="font-size:0.75rem;font-family:monospace;color:{vel_col};font-weight:600;">{vel_lbl}</div>
+  </div>
+</div>"""
+    st.markdown(gauge_html, unsafe_allow_html=True)
+    for name, val, col in drivers:
+        st.markdown(f'<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1a1a1a;font-size:0.78rem;"><span style="color:#888;">{name}</span><span style="color:{col};font-family:monospace;font-weight:600;">{val}</span></div>', unsafe_allow_html=True)
+
+
+def render_probability_cone(ind: dict, mc: dict):
+    """Probability Cone — ATR-based uncertainty cone with Exhaustion flag."""
+    if not mc:
+        st.markdown('<div style="color:#555;font-size:0.85rem;">Run analysis to see cone.</div>', unsafe_allow_html=True)
+        return
+    pt      = mc.get("prob_target", 50)
+    ps      = mc.get("prob_stop",   50)
+    exp     = mc.get("expected",    0)
+    tgt     = mc.get("target_pct",  5)
+    stp     = mc.get("stop_pct",   -2)
+    miro    = ind.get("miro_score", 0)
+    z       = ind.get("z_score",    0)
+    # Exhaustion check: high Miro but Z > 1.5 (stretched above mean)
+    exhausted = miro >= 7 and z > 1.5
+    pt_col = "#00c851" if pt >= 65 else "#ffaa00" if pt >= 50 else "#ff4444"
+    verdict_lbl  = "⚠️ Exhausted — Wait for pullback" if exhausted else (
+                   "✅ Momentum aligned" if pt >= 65 else "⚠️ Proceed with caution" if pt >= 50 else "❌ Risk/reward unfavourable")
+    verdict_col  = "#ffaa00" if exhausted else pt_col
+    st.markdown(f"""
+<div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+  <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;flex:1;">
+    <div style="font-size:0.6rem;color:#555;font-family:monospace;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:3px;">Hit +{tgt}%</div>
+    <div style="font-size:1.1rem;font-weight:600;font-family:monospace;color:{pt_col};">{pt}%</div>
+  </div>
+  <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;flex:1;">
+    <div style="font-size:0.6rem;color:#555;font-family:monospace;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:3px;">Hit {stp}%</div>
+    <div style="font-size:1.1rem;font-weight:600;font-family:monospace;color:#ff4444;">{ps}%</div>
+  </div>
+  <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;flex:1;">
+    <div style="font-size:0.6rem;color:#555;font-family:monospace;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:3px;">Expected</div>
+    <div style="font-size:1.1rem;font-weight:600;font-family:monospace;color:#ffaa00;">{exp:+.1f}%</div>
+  </div>
+</div>
+<div style="background:{verdict_col}18;border:1px solid {verdict_col}35;border-radius:6px;padding:8px 12px;font-size:0.78rem;color:{verdict_col};font-family:monospace;">{verdict_lbl}</div>""",
+    unsafe_allow_html=True)
+
+
+def render_rubber_band(ind: dict):
+    """Rubber Band Index — distance from MA20, mean reversion risk."""
+    cp    = ind.get("price",  0)
+    ma20  = ind.get("ma20",   cp or 1)
+    ma8   = ind.get("ma20",   cp or 1)  # use MA20 as proxy if EMA8 not computed
+    z     = ind.get("z_score", 0)
+    dist_pct = (cp - ma20) / ma20 * 100 if ma20 else 0
+    abs_dist = abs(dist_pct)
+    # Tension level
+    if abs_dist >= 10:   tension, t_col, t_lbl = 3, "#ff4444", "Overstretched — Wait"
+    elif abs_dist >= 5:  tension, t_col, t_lbl = 2, "#ffaa00", "Stretched — Caution"
+    else:                tension, t_col, t_lbl = 1, "#00c851", "Normal — OK to enter"
+    above = dist_pct >= 0
+    bar_pct = min(abs_dist / 15 * 100, 100)
+    st.markdown(f"""
+<div style="margin-bottom:10px;">
+  <div style="display:flex;justify-content:space-between;font-size:0.75rem;margin-bottom:4px;">
+    <span style="color:#888;font-family:monospace;">Distance from MA20</span>
+    <span style="color:{t_col};font-family:monospace;font-weight:600;">{dist_pct:+.1f}%</span>
+  </div>
+  <div style="background:#1a1a1a;border-radius:3px;height:6px;margin-bottom:8px;">
+    <div style="width:{bar_pct:.0f}%;height:6px;border-radius:3px;background:{t_col};"></div>
+  </div>
+  <div style="font-size:0.75rem;color:{t_col};font-family:monospace;font-weight:600;margin-bottom:8px;">{t_lbl}</div>
+</div>
+<div style="display:flex;gap:10px;">
+  <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;flex:1;">
+    <div style="font-size:0.6rem;color:#555;font-family:monospace;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:3px;">Z-Score</div>
+    <div style="font-size:1rem;font-weight:600;font-family:monospace;color:{"#00c851" if z<-0.5 else "#ff4444" if z>1.5 else "#ffaa00"};">{z:.2f}</div>
+  </div>
+  <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;flex:1;">
+    <div style="font-size:0.6rem;color:#555;font-family:monospace;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:3px;">MA20</div>
+    <div style="font-size:1rem;font-weight:600;font-family:monospace;color:#aaa;">₹{ma20:,.2f}</div>
+  </div>
+  <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;flex:1;">
+    <div style="font-size:0.6rem;color:#555;font-family:monospace;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:3px;">Tension</div>
+    <div style="font-size:1rem;font-weight:600;font-family:monospace;color:{t_col};">{"High" if tension==3 else "Med" if tension==2 else "Low"}</div>
+  </div>
+</div>""", unsafe_allow_html=True)
+
+
 def render_filings(filings: list, symbol: str):
     """Render BSE filings panel with filter tabs."""
     CAT_TAG = {
@@ -1408,7 +1526,7 @@ def compute_indicators(df: pd.DataFrame) -> dict:
     }
 
 # ── AI Agents ─────────────────────────────────────────────────────────────────
-def build_context(symbol, ind, quote, news, rec) -> str:
+def build_context(symbol, ind, quote, fund, news, rec) -> str:
         news_txt = "\n".join([f"- {n.get('title', n.get('headline',''))}" for n in news[:4]]) or "No recent news."
         rec_txt  = f"Buy:{rec.get('buy',0)} Hold:{rec.get('hold',0)} Sell:{rec.get('sell',0)}" if rec else "No analyst data."
         miro     = ind.get("miro_score", 0)
@@ -1430,14 +1548,22 @@ def build_context(symbol, ind, quote, news, rec) -> str:
     - ATR(14): ₹{ind.get("atr",0):.2f} (daily volatility)
     
     FUNDAMENTALS:
-    - Sector: {quote.get("sector", "N/A")}
-    - P/E: {quote.get("pe","N/A")} | EV/EBITDA: {quote.get("ev_ebitda","N/A")}
-    - ROE: {quote.get("roe","N/A")} | Debt/Equity: {quote.get("debt_equity","N/A")}
-    - Promoter holding: {quote.get("promoter","N/A")}
+    "- Sector: {fund.get(\"sector\",quote.get(\"sector\",\"N/A\"))}",
+    "- P/E: {fund.get(\"pe\",\"N/A\")} | EV/EBITDA: {fund.get(\"ev_ebitda\",\"N/A\")}",
+    "- ROE: {fund.get(\"roe\",\"N/A\")} | Debt/Equity: {fund.get(\"debt_equity\",\"N/A\")}",
+    "- Promoter holding: {fund.get(\"promoter\",\"N/A\")} | Inst: {fund.get(\"inst_hold\",\"N/A\")}",
     
     ANALYST CONSENSUS: {rec_txt}
     RECENT NEWS:\n{news_txt}
     """
+AGENTS = [
+    ("📈 Bull Analyst",    "bull",    "#00c851", "You are an optimistic NSE equity analyst. Focus ONLY on Miro Score strength, volume surge, MA alignment, and weekly momentum. If Miro > 7 and volume > 1.5x average, highlight the breakout. Reference specific numbers from the data. 4-5 sentences, be concise."),
+    ("📉 Bear Analyst",    "bear",    "#ff4444", "You are a cautious short-seller on NSE. Identify risks using MA breakdown, ADX below 25, low Miro Score, and weak volume. Reference the Z-Score for mean reversion risk. Reference specific numbers. 4-5 sentences, be concise."),
+    ("⚡ Swing Trader",    "trader",  "#ffaa00", "You are an experienced NSE swing trader. Give a concrete plan using MA levels as entry/stop zones. Use ADX to judge trend strength (>25=strong). Use the Miro Score as your momentum filter — only trade Miro > 6. Entry, stop, target, timeframe. 4-5 sentences, be concise."),
+    ("🛡️ Risk Manager",   "risk",    "#3399ff", "You are a portfolio risk manager. Use the Z-Score, ATR volatility, and Probability Cone data to assess risk/reward. Flag if the stock is at the top of its 2-SD cone (Exhausted). Suggest position size as % of portfolio. 4-5 sentences, be concise."),
+    ("🏗️ Fundamentalist", "fund",    "#aa88ff", "You are a fundamental analyst. Comment on P/E, EV/EBITDA, ROE, and promoter holding. Check if the Miro momentum aligns with the fundamental picture. Highlight divergence between technicals and fundamentals. 4-5 sentences, be concise."),
+]
+
 def stream_agent(client, agent_name, persona, context, placeholder):
     msgs = [{"role": "user", "content": f"{context}\n\nYour role: {persona}\nAnalyse this stock now."}]
     full = ""
@@ -1655,6 +1781,25 @@ if analyse and symbol:
 </div>""", unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
+
+        # ── Ticker Velocity ──────────────────────────────────────────────────
+        st.markdown('<div class="section-card">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">⚡ Ticker Velocity</div>', unsafe_allow_html=True)
+        render_ticker_velocity(ind, display_symbol)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # ── Probability Cone ────────────────────────────────────────────────
+        st.markdown('<div class="section-card">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">📊 Probability Cone</div>', unsafe_allow_html=True)
+        render_probability_cone(ind, mc)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # ── Rubber Band Index ───────────────────────────────────────────────
+        st.markdown('<div class="section-card">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">🎯 Rubber Band Index</div>', unsafe_allow_html=True)
+        render_rubber_band(ind)
+        st.markdown('</div>', unsafe_allow_html=True)
+
     # ── AI Agent Debate ───────────────────────────────────────────────────────
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
     st.markdown('<div class="section-card">', unsafe_allow_html=True)
@@ -1664,7 +1809,7 @@ if analyse and symbol:
     if not client:
         st.warning("Add ANTHROPIC_API_KEY to Streamlit secrets to enable AI agent debate.")
     else:
-        context = build_context(display_symbol, ind, quote, news, rec)
+        context = build_context(display_symbol, ind, quote, fund, news, rec)
         for agent_name, agent_key, color, persona in AGENTS:
             st.markdown(f"""
 <div class="agent-{agent_key}">
@@ -1691,7 +1836,6 @@ if analyse and symbol:
     _dt = datetime.now().strftime('%d %B %Y, %H:%M IST')
     _sl_rows = ""
     for _sln,_slv,_slb in [
-        ("HP Filter","Above Trend" if ind["hp_above"] else "Below Trend",ind["hp_above"]),
         ("MA Alignment","Bullish" if cp>ind["ma50_display"]>ind["ma200"] else "Bearish",cp>ind["ma50_display"]>ind["ma200"]),
         ("RSI (14)",f"{ind['rsi']} — Buy Zone" if ind['rsi']<40 else f"{ind['rsi']} — Hot" if ind['rsi']>65 else f"{ind['rsi']} — Neutral",ind['rsi']<40),
         ("Z-Score",f"{ind['z_score']} — Oversold" if ind['z_score']<-0.5 else f"{ind['z_score']} — Extended" if ind['z_score']>1.5 else f"{ind['z_score']} — Neutral",ind['z_score']<-0.5),
