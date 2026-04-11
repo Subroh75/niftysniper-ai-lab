@@ -307,7 +307,7 @@ def fetch_bse_filings(symbol: str) -> list:
         if acts is not None and not acts.empty:
             for date, row in acts.tail(3).iloc[::-1].iterrows():
                 if row.get("Dividends", 0) > 0:
-                    results.append({"title": f"Dividend ✅¹{row['Dividends']:.2f}/share", "category": "Dividend", "sub": "Corporate Action", "date": str(date)[:10], "url": "", "exchange": "NSE"})
+                    results.append({"title": f"Dividend &#8377;{row['Dividends']:.2f}/share", "category": "Dividend", "sub": "Corporate Action", "date": str(date)[:10], "url": "", "exchange": "NSE"})
                 if row.get("Stock Splits", 0) > 0:
                     results.append({"title": f"Stock Split {row['Stock Splits']}:1", "category": "Corporate Action", "sub": "Split", "date": str(date)[:10], "url": "", "exchange": "NSE"})
     except Exception:
@@ -646,7 +646,7 @@ def render_ticker_velocity(ind: dict, symbol: str):
     # Velocity score: weighted composite of Miro + volume surge + ADX
     vel = min(100, int(miro * 7 + min(max(vol_ratio - 1, 0), 4) * 7 + min(adx / 50, 1) * 20))
     vel_col = "#00c851" if vel>=70 else "#ffaa00" if vel>=40 else "#ff4444"
-    vel_lbl = "Hot ✅¡" if vel>=70 else "Building" if vel>=40 else "Quiet"
+    vel_lbl = "Hot &#127919;" if vel>=70 else "Building" if vel>=40 else "Quiet"
     # Narrative drivers derived from indicators
     drivers = []
     if vol_ratio >= 2.0:  drivers.append(("Volume surge", f"{vol_ratio:.1f}x avg", "#ff6600"))
@@ -850,7 +850,7 @@ def render_rubber_band(ind: dict):
   </div>
   <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;flex:1;">
     <div style="font-size:0.6rem;color:#555;font-family:monospace;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:3px;">MA20</div>
-    <div style="font-size:1rem;font-weight:600;font-family:monospace;color:#aaa;">✅¹{ma20:,.2f}</div>
+    <div style="font-size:1rem;font-weight:600;font-family:monospace;color:#aaa;">&#8377;{ma20:,.2f}</div>
   </div>
   <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;flex:1;">
     <div style="font-size:0.6rem;color:#555;font-family:monospace;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:3px;">Tension</div>
@@ -1029,7 +1029,7 @@ def fetch_fundamentals(symbol: str) -> dict:
         def _pct(v): return f"{v*100:.1f}%" if v is not None else "✅"
         def _x(v,d=1): return f"{v:.{d}f}x" if v is not None else "✅"
         def _n(v,d=1): return f"{v:.{d}f}" if v is not None else "✅"
-        def _cr(v): return f"✅¹{v/1e7:,.0f} Cr" if v is not None else "✅"
+        def _cr(v): return f"&#8377;{v/1e7:,.0f} Cr" if v is not None else "✅"
         # Try getting missing fields from fast_info
         mkt_cap = info.get("marketCap") or getattr(fi, "market_cap", None)
         if not info and not mkt_cap:
@@ -1362,7 +1362,7 @@ def _fetch_indianapi_news(symbol):
                 for date, row in actions.tail(3).iloc[::-1].iterrows():
                     if row.get("Dividends", 0) > 0:
                         results.append({
-                            "title":       f"Dividend: ✅¹{row['Dividends']:.2f} per share",
+                            "title":       f"Dividend: &#8377;{row['Dividends']:.2f} per share",
                             "description": "",
                             "url":         "",
                             "source":      "NSE Corporate Action",
@@ -1654,18 +1654,18 @@ def build_context(symbol, ind, quote, fund, news, rec) -> str:
         pct_chg  = ind.get("change_pct", 0)
         ma_bull  = ind.get("price",0) > ind.get("ma50",0) > ind.get("ma200",0)
         return f"""
-    Stock: {symbol} | Price: ✅¹{ind.get("price",0):,.2f} ({pct_chg:+.2f}%)
+    Stock: {symbol} | Price: &#8377;{ind.get("price",0):,.2f} ({pct_chg:+.2f}%)
     Company: {quote.get("name", symbol)}
     
     MIRO SCORE: {miro}/10 (Volume-first institutional momentum)
     - Volume ratio: {vol_r:.2f}x average ({"Miro Spike" if vol_r>=5 else "High" if vol_r>=2 else "Elevated" if vol_r>=1.5 else "Normal"})
     - Price change today: {pct_chg:+.2f}%
     - MA Alignment: {"Bullish (price > MA50 > MA200)" if ma_bull else "Bearish (price below key MAs)"}
-    - MA20: ✅¹{ind.get("ma20",0):,.2f} | MA50: ✅¹{ind.get("ma50",0):,.2f} | MA200: ✅¹{ind.get("ma200",0):,.2f}
+    - MA20: &#8377;{ind.get("ma20",0):,.2f} | MA50: &#8377;{ind.get("ma50",0):,.2f} | MA200: &#8377;{ind.get("ma200",0):,.2f}
     - Z-Score: {ind.get("z_score",0):.2f} (mean reversion signal)
     - ADX: {ind.get("adx",0):.1f} ({"Strong trend" if ind.get("adx",0)>=25 else "Weak/no trend"})
     - Weekly trend: {ind.get("weekly_trend","N/A")} ({ind.get("weekly_chg",0):+.2f}% this week)
-    - ATR(14): ✅¹{ind.get("atr",0):.2f} (daily volatility)
+    - ATR(14): &#8377;{ind.get("atr",0):.2f} (daily volatility)
     
     FUNDAMENTALS:
     "- Sector: {fund.get('sector', quote.get('sector','N/A'))}",
@@ -1679,7 +1679,7 @@ def build_context(symbol, ind, quote, fund, news, rec) -> str:
 AGENTS = [
     ("📡 Bull Analyst",    "bull",    "#00c851", "You are an optimistic NSE equity analyst. Focus ONLY on Miro Score strength, volume surge, MA alignment, and weekly momentum. If Miro > 7 and volume > 1.5x average, highlight the breakout. Reference specific numbers from the data. 4-5 sentences, be concise."),
     ("📡 Bear Analyst",    "bear",    "#ff4444", "You are a cautious short-seller on NSE. Identify risks using MA breakdown, ADX below 25, low Miro Score, and weak volume. Reference the Z-Score for mean reversion risk. Reference specific numbers. 4-5 sentences, be concise."),
-    ("✅¡ Swing Trader",    "trader",  "#ffaa00", "You are an experienced NSE swing trader. Give a concrete plan using MA levels as entry/stop zones. Use ADX to judge trend strength (>25=strong). Use the Miro Score as your momentum filter ✅ only trade Miro > 6. Entry, stop, target, timeframe. 4-5 sentences, be concise."),
+    ("&#127919; Swing Trader",    "trader",  "#ffaa00", "You are an experienced NSE swing trader. Give a concrete plan using MA levels as entry/stop zones. Use ADX to judge trend strength (>25=strong). Use the Miro Score as your momentum filter ✅ only trade Miro > 6. Entry, stop, target, timeframe. 4-5 sentences, be concise."),
     ("📡¡ï¸ Risk Manager",   "risk",    "#3399ff", "You are a portfolio risk manager. Use the Z-Score, ATR volatility, and Probability Cone data to assess risk/reward. Flag if the stock is at the top of its 2-SD cone (Exhausted). Suggest position size as % of portfolio. 4-5 sentences, be concise."),
     ("📡ï¸ Fundamentalist", "fund",    "#aa88ff", "You are a fundamental analyst. Comment on P/E, EV/EBITDA, ROE, and promoter holding. Check if the Miro momentum aligns with the fundamental picture. Highlight divergence between technicals and fundamentals. 4-5 sentences, be concise."),
 ]
@@ -1726,7 +1726,7 @@ def score_bar(val, max_val=10, color="#00c851"):
 # ✅✅ Main UI ------------------------------------------------------------
 st.markdown("""
 <div class="hero">
-  <h1>✅¡ NIFTY SNIPER</h1>
+  <h1>&#127919; NIFTY SNIPER</h1>
   <p>Stock intelligence terminal · NSE India · Powered by AI agents</p>
 </div>
 """, unsafe_allow_html=True)
@@ -1822,9 +1822,9 @@ if analyse and symbol:
 
     # ✅✅ Metric cards row 2: MA20 / MA50 / MA200 ------------------------------------------------------------
     cm1, cm2, cm3 = st.columns(3)
-    cm1.markdown(render_metric("MA 20",  f"✅¹{ind['ma20']:,}",         "<span style='color:#00c851'>✅² Above</span>" if cp > ind["ma20"]         else "<span style='color:#ff4444'>✅¼ Below</span>"), unsafe_allow_html=True)
-    cm2.markdown(render_metric("MA 50",  f"✅¹{ind['ma50_display']:,}",  "<span style='color:#00c851'>✅² Above</span>" if cp > ind["ma50_display"]  else "<span style='color:#ff4444'>✅¼ Below</span>"), unsafe_allow_html=True)
-    cm3.markdown(render_metric("MA 200", f"✅¹{ind['ma200']:,}",         "<span style='color:#00c851'>✅² Above</span>" if cp > ind["ma200"]         else "<span style='color:#ff4444'>✅¼ Below</span>"), unsafe_allow_html=True)
+    cm1.markdown(render_metric("MA 20",  f"&#8377;{ind['ma20']:,}",         "<span style='color:#00c851'>✅² Above</span>" if cp > ind["ma20"]         else "<span style='color:#ff4444'>✅¼ Below</span>"), unsafe_allow_html=True)
+    cm2.markdown(render_metric("MA 50",  f"&#8377;{ind['ma50_display']:,}",  "<span style='color:#00c851'>✅² Above</span>" if cp > ind["ma50_display"]  else "<span style='color:#ff4444'>✅¼ Below</span>"), unsafe_allow_html=True)
+    cm3.markdown(render_metric("MA 200", f"&#8377;{ind['ma200']:,}",         "<span style='color:#00c851'>✅² Above</span>" if cp > ind["ma200"]         else "<span style='color:#ff4444'>✅¼ Below</span>"), unsafe_allow_html=True)
 
     st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 
@@ -1872,7 +1872,7 @@ if analyse and symbol:
 
             # ✅✅ Ticker Velocity ------------------------------------------------------------
             st.markdown('<div class="section-card">', unsafe_allow_html=True)
-            st.markdown('<div class="section-title">✅¡ Ticker Velocity</div>', unsafe_allow_html=True)
+            st.markdown('<div class="section-title">&#127919; Ticker Velocity</div>', unsafe_allow_html=True)
             render_ticker_velocity(ind, display_symbol)
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1999,8 +1999,8 @@ table{{width:100%;border-collapse:collapse}}
 </style></head><body>
 <button class='btn no-print' onclick='window.print()'>✅¬ SAVE AS PDF (Ctrl+P)</button>
 <div class='hdr'>
-  <div><div class='logo'>✅¡ NIFTY SNIPER</div><div class='logo-sub'>SINGLE-STOCK INTELLIGENCE REPORT</div></div>
-  <div><div class='sym'>{symbol}</div><div class='co'>{_co}</div><div class='px'>✅¹{cp:,.2f} <span style='color:{_cc};font-size:13px;'>{'+' if chg>=0 else ''}{chg:.2f}%</span></div><div class='logo-sub' style='text-align:right;margin-top:3px;'>NSE · {_dt}</div></div>
+  <div><div class='logo'>&#127919; NIFTY SNIPER</div><div class='logo-sub'>SINGLE-STOCK INTELLIGENCE REPORT</div></div>
+  <div><div class='sym'>{symbol}</div><div class='co'>{_co}</div><div class='px'>&#8377;{cp:,.2f} <span style='color:{_cc};font-size:13px;'>{'+' if chg>=0 else ''}{chg:.2f}%</span></div><div class='logo-sub' style='text-align:right;margin-top:3px;'>NSE · {_dt}</div></div>
 </div>
 <div class='vbox'>
   <div><div class='vlbl'>AI Technical Verdict</div><div class='vsub'>{bull_signals}/8 signals · Miro Score {ind['miro_score']}/10</div></div>
@@ -2018,13 +2018,13 @@ table{{width:100%;border-collapse:collapse}}
 <tr><td style='padding:6px 12px;color:#888;font-size:11px;'>Volume Ratio</td><td style='padding:6px 12px;'><span class='mono {"green" if ind["vol_ratio"]>1.5 else "white"}'>{ind['vol_ratio']}x avg</span></td></tr>
 </table></div>
 <div class='sec'><div class='stitle'>📡 Moving Averages & Key Levels</div><table>
-<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>MA 20</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>✅¹{ind['ma20']:,}</span> <span style='color:{"#00c851" if cp>ind["ma20"] else "#ff4444"};font-size:10px;'>{"✅²" if cp>ind["ma20"] else "✅¼"}</span></td></tr>
-<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>MA 50</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>✅¹{ind['ma50_display']:,}</span> <span style='color:{"#00c851" if cp>ind["ma50_display"] else "#ff4444"};font-size:10px;'>{"✅²" if cp>ind["ma50_display"] else "✅¼"}</span></td></tr>
-<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>MA 200</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>✅¹{ind['ma200']:,}</span> <span style='color:{"#00c851" if cp>ind["ma200"] else "#ff4444"};font-size:10px;'>{"✅²" if cp>ind["ma200"] else "✅¼"}</span></td></tr>
-<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>Donchian</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>✅¹{ind['don_low']:,} ✅ ✅¹{ind['don_high']:,}</span></td></tr>
-<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>Bollinger Bands</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>✅¹{ind['bb_dn']:,} ✅ ✅¹{ind['bb_up']:,}</span></td></tr>
-<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>ATR (14)</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>✅¹{ind['atr']}</span></td></tr>
-<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>52-Week Range</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>✅¹{ind['wk52_low']:,} ✅ ✅¹{ind['wk52_high']:,}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>MA 20</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>&#8377;{ind['ma20']:,}</span> <span style='color:{"#00c851" if cp>ind["ma20"] else "#ff4444"};font-size:10px;'>{"✅²" if cp>ind["ma20"] else "✅¼"}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>MA 50</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>&#8377;{ind['ma50_display']:,}</span> <span style='color:{"#00c851" if cp>ind["ma50_display"] else "#ff4444"};font-size:10px;'>{"✅²" if cp>ind["ma50_display"] else "✅¼"}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>MA 200</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>&#8377;{ind['ma200']:,}</span> <span style='color:{"#00c851" if cp>ind["ma200"] else "#ff4444"};font-size:10px;'>{"✅²" if cp>ind["ma200"] else "✅¼"}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>Donchian</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>&#8377;{ind['don_low']:,} ✅ &#8377;{ind['don_high']:,}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>Bollinger Bands</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>&#8377;{ind['bb_dn']:,} ✅ &#8377;{ind['bb_up']:,}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>ATR (14)</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>&#8377;{ind['atr']}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>52-Week Range</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>&#8377;{ind['wk52_low']:,} ✅ &#8377;{ind['wk52_high']:,}</span></td></tr>
 <tr><td style='padding:6px 12px;color:#888;font-size:11px;'>52W Position</td><td style='padding:6px 12px;'><span class='mono white'>{ind['wk52_pct']}% of range</span></td></tr>
 </table></div>
 </div>
