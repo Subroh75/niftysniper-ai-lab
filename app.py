@@ -1548,10 +1548,10 @@ def build_context(symbol, ind, quote, fund, news, rec) -> str:
     - ATR(14): ₹{ind.get("atr",0):.2f} (daily volatility)
     
     FUNDAMENTALS:
-    "- Sector: {fund.get(\"sector\",quote.get(\"sector\",\"N/A\"))}",
-    "- P/E: {fund.get(\"pe\",\"N/A\")} | EV/EBITDA: {fund.get(\"ev_ebitda\",\"N/A\")}",
-    "- ROE: {fund.get(\"roe\",\"N/A\")} | Debt/Equity: {fund.get(\"debt_equity\",\"N/A\")}",
-    "- Promoter holding: {fund.get(\"promoter\",\"N/A\")} | Inst: {fund.get(\"inst_hold\",\"N/A\")}",
+    "- Sector: {fund.get('sector', quote.get('sector','N/A'))}",
+    "- P/E: {fund.get('pe','N/A')} | EV/EBITDA: {fund.get('ev_ebitda','N/A')}",
+    "- ROE: {fund.get('roe','N/A')} | Debt/Equity: {fund.get('debt_equity','N/A')}",
+    "- Promoter: {fund.get('promoter','N/A')} | Inst: {fund.get('inst_hold','N/A')}",
     
     ANALYST CONSENSUS: {rec_txt}
     RECENT NEWS:\n{news_txt}
