@@ -9,8 +9,8 @@ import hashlib
 import xml.etree.ElementTree as ET
 import yfinance as yf
 
-# ✅✅ Page config ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
-# ✅✅ NSE Symbol lookup ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+# ✅✅ Page config ------------------------------------------------------------
+# ✅✅ NSE Symbol lookup ------------------------------------------------------------
 NSE_LOOKUP = {
     "reliance":"RELIANCE","reliance industries":"RELIANCE",
     "tata consultancy":"TCS","tcs":"TCS","tata consultancy services":"TCS",
@@ -65,12 +65,12 @@ def resolve_symbol(raw):
 
 st.set_page_config(
     page_title="Nifty Sniper",
-    page_icon="📡¯",
+    page_icon="🎯",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
-# ✅✅ Styling ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+# ✅✅ Styling ------------------------------------------------------------
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -170,7 +170,7 @@ st.markdown("""
 .verdict-label { color: #777; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px; font-family: 'JetBrains Mono', monospace; }
 .verdict-text { font-size: 1.8rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.05em; }
 
-/* ✅✅ INPUT: force white text ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅ */
+/* ✅✅ INPUT: force white text ------------------------------------------------------------ */
 [data-testid="stTextInput"] > div > div > input {
     background-color: #1a1a1a !important;
     border: 1px solid #ff660066 !important;
@@ -233,7 +233,7 @@ div[data-testid="stHorizontalBlock"] { gap: 10px; }
 </style>
 """, unsafe_allow_html=True)
 
-# ✅✅ Clients ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+# ✅✅ Clients ------------------------------------------------------------
 def get_anthropic():
     try:
         key = st.secrets.get("ANTHROPIC_API_KEY", "")
@@ -247,13 +247,13 @@ def get_finnhub_key():
     except Exception:
         return ""
 
-# ✅✅ Data fetching ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+# ✅✅ Data fetching ------------------------------------------------------------
 
 @st.cache_data(ttl=600, show_spinner=False)
 def fetch_bse_filings(symbol: str) -> list:
     """Fetch real BSE filings via BSE India public API."""
     import requests, re
-    # Map NSE symbol ✅ BSE security code (common large caps)
+    # Map NSE symbol ✅ BSE security code (common large caps)
     BSE_CODE = {
         "SUNPHARMA":"524715","RELIANCE":"500325","TCS":"532540","HDFCBANK":"500180",
         "INFY":"500209","ICICIBANK":"532174","SBIN":"500112","BAJFINANCE":"500034",
@@ -307,7 +307,7 @@ def fetch_bse_filings(symbol: str) -> list:
         if acts is not None and not acts.empty:
             for date, row in acts.tail(3).iloc[::-1].iterrows():
                 if row.get("Dividends", 0) > 0:
-                    results.append({"title": f"Dividend ✅¹{row['Dividends']:.2f}/share", "category": "Dividend", "sub": "Corporate Action", "date": str(date)[:10], "url": "", "exchange": "NSE"})
+                    results.append({"title": f"Dividend ✅¹{row['Dividends']:.2f}/share", "category": "Dividend", "sub": "Corporate Action", "date": str(date)[:10], "url": "", "exchange": "NSE"})
                 if row.get("Stock Splits", 0) > 0:
                     results.append({"title": f"Stock Split {row['Stock Splits']}:1", "category": "Corporate Action", "sub": "Split", "date": str(date)[:10], "url": "", "exchange": "NSE"})
     except Exception:
@@ -340,7 +340,7 @@ def fetch_sentiment(symbol: str) -> dict:
     except Exception:
         pass
 
-    # Reddit ✅ search r/IndianStockMarket via old.reddit JSON
+    # Reddit ✅ search r/IndianStockMarket via old.reddit JSON
     try:
         url = f"https://www.reddit.com/r/IndianStockMarket/search.json?q={symbol}&sort=new&limit=8&restrict_sr=1"
         resp = requests.get(url, headers={"User-Agent":"NiftySniper/1.0"}, timeout=6)
@@ -638,7 +638,7 @@ def render_monte_carlo(mc: dict):
 
 
 def render_ticker_velocity(ind: dict, symbol: str):
-    """Ticker Velocity ✅ how fast institutional momentum is building."""
+    """Ticker Velocity ✅ how fast institutional momentum is building."""
     miro      = ind.get("miro_score", 0)
     vol_ratio = ind.get("vol_ratio", 1)
     pct_chg   = ind.get("change_pct", 0)
@@ -646,7 +646,7 @@ def render_ticker_velocity(ind: dict, symbol: str):
     # Velocity score: weighted composite of Miro + volume surge + ADX
     vel = min(100, int(miro * 7 + min(max(vol_ratio - 1, 0), 4) * 7 + min(adx / 50, 1) * 20))
     vel_col = "#00c851" if vel>=70 else "#ffaa00" if vel>=40 else "#ff4444"
-    vel_lbl = "Hot ✅¡" if vel>=70 else "Building" if vel>=40 else "Quiet"
+    vel_lbl = "Hot ✅¡" if vel>=70 else "Building" if vel>=40 else "Quiet"
     # Narrative drivers derived from indicators
     drivers = []
     if vol_ratio >= 2.0:  drivers.append(("Volume surge", f"{vol_ratio:.1f}x avg", "#ff6600"))
@@ -676,7 +676,7 @@ def render_ticker_velocity(ind: dict, symbol: str):
         st.markdown(f'<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1a1a1a;font-size:0.78rem;"><span style="color:#888;">{name}</span><span style="color:{col};font-family:monospace;font-weight:600;">{val}</span></div>', unsafe_allow_html=True)
 
 
-# ── Sector Index Map ─────────────────────────────────────────────────────────
+# ── Sector Index Map ------------------------------------------------------------
 SECTOR_INDEX_MAP = {
     "IT":           "^CNXIT",
     "Banking":      "^NSEBANK",
@@ -782,7 +782,7 @@ def render_sector_correlation(sc: dict, sector: str):
 
 
 def render_probability_cone(ind: dict, mc: dict):
-    """Probability Cone ✅ ATR-based uncertainty cone with Exhaustion flag."""
+    """Probability Cone ✅ ATR-based uncertainty cone with Exhaustion flag."""
     if not mc:
         st.markdown('<div style="color:#555;font-size:0.85rem;">Run analysis to see cone.</div>', unsafe_allow_html=True)
         return
@@ -796,8 +796,8 @@ def render_probability_cone(ind: dict, mc: dict):
     # Exhaustion check: high Miro but Z > 1.5 (stretched above mean)
     exhausted = miro >= 7 and z > 1.5
     pt_col = "#00c851" if pt >= 65 else "#ffaa00" if pt >= 50 else "#ff4444"
-    verdict_lbl  = "✅ ï¸ Exhausted ✅ Wait for pullback" if exhausted else (
-                   "✅ Momentum aligned" if pt >= 65 else "✅ ï¸ Proceed with caution" if pt >= 50 else "✅ Risk/reward unfavourable")
+    verdict_lbl  = "✅ ï¸ Exhausted ✅ Wait for pullback" if exhausted else (
+                   "✅ Momentum aligned" if pt >= 65 else "✅ ï¸ Proceed with caution" if pt >= 50 else "✅ Risk/reward unfavourable")
     verdict_col  = "#ffaa00" if exhausted else pt_col
     st.markdown(f"""
 <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
@@ -819,7 +819,7 @@ def render_probability_cone(ind: dict, mc: dict):
 
 
 def render_rubber_band(ind: dict):
-    """Rubber Band Index ✅ distance from MA20, mean reversion risk."""
+    """Rubber Band Index ✅ distance from MA20, mean reversion risk."""
     cp    = ind.get("price",  0)
     ma20  = ind.get("ma20",   cp or 1)
     ma8   = ind.get("ma20",   cp or 1)  # use MA20 as proxy if EMA8 not computed
@@ -827,9 +827,9 @@ def render_rubber_band(ind: dict):
     dist_pct = (cp - ma20) / ma20 * 100 if ma20 else 0
     abs_dist = abs(dist_pct)
     # Tension level
-    if abs_dist >= 10:   tension, t_col, t_lbl = 3, "#ff4444", "Overstretched ✅ Wait"
-    elif abs_dist >= 5:  tension, t_col, t_lbl = 2, "#ffaa00", "Stretched ✅ Caution"
-    else:                tension, t_col, t_lbl = 1, "#00c851", "Normal ✅ OK to enter"
+    if abs_dist >= 10:   tension, t_col, t_lbl = 3, "#ff4444", "Overstretched ✅ Wait"
+    elif abs_dist >= 5:  tension, t_col, t_lbl = 2, "#ffaa00", "Stretched ✅ Caution"
+    else:                tension, t_col, t_lbl = 1, "#00c851", "Normal ✅ OK to enter"
     above = dist_pct >= 0
     bar_pct = min(abs_dist / 15 * 100, 100)
     st.markdown(f"""
@@ -850,7 +850,7 @@ def render_rubber_band(ind: dict):
   </div>
   <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;flex:1;">
     <div style="font-size:0.6rem;color:#555;font-family:monospace;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:3px;">MA20</div>
-    <div style="font-size:1rem;font-weight:600;font-family:monospace;color:#aaa;">✅¹{ma20:,.2f}</div>
+    <div style="font-size:1rem;font-weight:600;font-family:monospace;color:#aaa;">✅¹{ma20:,.2f}</div>
   </div>
   <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;flex:1;">
     <div style="font-size:0.6rem;color:#555;font-family:monospace;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:3px;">Tension</div>
@@ -970,7 +970,7 @@ def render_sentiment(sent: dict):
             age  = p.get("age","")
             sc   = p.get("sent","Neutral")
             sc_col = "#00c851" if sc=="Bullish" else "#ff4444" if sc=="Bearish" else "#ffaa00"
-            sc_sym = "✅²" if sc=="Bullish" else "✅¼" if sc=="Bearish" else "✅"
+            sc_sym = "✅²" if sc=="Bullish" else "✅¼" if sc=="Bearish" else "✅"
             st.markdown(f"""
 <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:9px 11px;margin-bottom:7px;">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
@@ -1026,10 +1026,10 @@ def fetch_fundamentals(symbol: str) -> dict:
             fi = tk.fast_info or {}
         except Exception:
             pass
-        def _pct(v): return f"{v*100:.1f}%" if v is not None else "✅"
-        def _x(v,d=1): return f"{v:.{d}f}x" if v is not None else "✅"
-        def _n(v,d=1): return f"{v:.{d}f}" if v is not None else "✅"
-        def _cr(v): return f"✅¹{v/1e7:,.0f} Cr" if v is not None else "✅"
+        def _pct(v): return f"{v*100:.1f}%" if v is not None else "✅"
+        def _x(v,d=1): return f"{v:.{d}f}x" if v is not None else "✅"
+        def _n(v,d=1): return f"{v:.{d}f}" if v is not None else "✅"
+        def _cr(v): return f"✅¹{v/1e7:,.0f} Cr" if v is not None else "✅"
         # Try getting missing fields from fast_info
         mkt_cap = info.get("marketCap") or getattr(fi, "market_cap", None)
         if not info and not mkt_cap:
@@ -1050,8 +1050,8 @@ def fetch_fundamentals(symbol: str) -> dict:
             "inst_hold":   _pct(info.get("heldPercentInstitutions")),
             "div_yield":   _pct(info.get("dividendYield")),
             "payout":      _pct(info.get("payoutRatio")),
-            "sector":      info.get("sector") or info.get("industry") or "✅",
-            "employees":   f"{info.get('fullTimeEmployees',0):,}" if info.get("fullTimeEmployees") else "✅",
+            "sector":      info.get("sector") or info.get("industry") or "✅",
+            "employees":   f"{info.get('fullTimeEmployees',0):,}" if info.get("fullTimeEmployees") else "✅",
             "mkt_cap":     _cr(mkt_cap),
             "_pe_raw":     info.get("trailingPE"),
             "_de_raw":     info.get("debtToEquity"),
@@ -1074,29 +1074,29 @@ def render_fundamentals(fund: dict, symbol: str):
     html = (
         '<div class="fund-section-head" style="margin-top:0;border-top:none;padding-top:0;">Valuation</div>'
         '<div class="fund-grid">'
-        + fi("P/E (TTM)", fund.get("pe","✅"), pe_c(fund.get("_pe_raw")))
-        + fi("Forward P/E", fund.get("fwd_pe","✅"), pe_c(fund.get("_pe_raw")))
-        + fi("EV / EBITDA", fund.get("ev_ebitda","✅"))
-        + fi("Price / Book", fund.get("pb","✅"))
-        + fi("Price / Sales", fund.get("ps","✅"))
-        + fi("Sector", fund.get("sector","✅"))
+        + fi("P/E (TTM)", fund.get("pe","✅"), pe_c(fund.get("_pe_raw")))
+        + fi("Forward P/E", fund.get("fwd_pe","✅"), pe_c(fund.get("_pe_raw")))
+        + fi("EV / EBITDA", fund.get("ev_ebitda","✅"))
+        + fi("Price / Book", fund.get("pb","✅"))
+        + fi("Price / Sales", fund.get("ps","✅"))
+        + fi("Sector", fund.get("sector","✅"))
         + '</div>'
         + '<div class="fund-section-head">Financials</div>'
         + '<div class="fund-grid">'
-        + fi("Revenue", fund.get("revenue","✅"))
-        + fi("Net Income", fund.get("net_income","✅"), pm_c(fund.get("_pm_raw")))
-        + fi("Profit Margin", fund.get("profit_margin","✅"), pm_c(fund.get("_pm_raw")))
-        + fi("ROE", fund.get("roe","✅"), roe_c(fund.get("_roe_raw")))
-        + fi("Debt / Equity", fund.get("debt_equity","✅"), de_c(fund.get("_de_raw")))
-        + fi("Current Ratio", fund.get("current_ratio","✅"))
+        + fi("Revenue", fund.get("revenue","✅"))
+        + fi("Net Income", fund.get("net_income","✅"), pm_c(fund.get("_pm_raw")))
+        + fi("Profit Margin", fund.get("profit_margin","✅"), pm_c(fund.get("_pm_raw")))
+        + fi("ROE", fund.get("roe","✅"), roe_c(fund.get("_roe_raw")))
+        + fi("Debt / Equity", fund.get("debt_equity","✅"), de_c(fund.get("_de_raw")))
+        + fi("Current Ratio", fund.get("current_ratio","✅"))
         + '</div>'
         + '<div class="fund-section-head">Ownership & Dividends</div>'
         + '<div class="fund-grid">'
-        + fi("Promoter Hold", fund.get("promoter","✅"))
-        + fi("Inst. Holding", fund.get("inst_hold","✅"))
-        + fi("Div Yield", fund.get("div_yield","✅"))
-        + fi("Payout Ratio", fund.get("payout","✅"))
-        + fi("Employees", fund.get("employees","✅"))
+        + fi("Promoter Hold", fund.get("promoter","✅"))
+        + fi("Inst. Holding", fund.get("inst_hold","✅"))
+        + fi("Div Yield", fund.get("div_yield","✅"))
+        + fi("Payout Ratio", fund.get("payout","✅"))
+        + fi("Employees", fund.get("employees","✅"))
         + '</div>'
     )
     st.markdown(html, unsafe_allow_html=True)
@@ -1125,7 +1125,7 @@ def fetch_quote(symbol: str) -> dict:
         return {}
 
 
-# ✅✅ Company metadata ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+# ✅✅ Company metadata ------------------------------------------------------------
 COMPANY_META = {
     "HINDALCO":   ("Hindalco Industries",      "Metals",       "Novelis aluminium copper"),
     "TATASTEEL":  ("Tata Steel",               "Metals",       "steel Europe"),
@@ -1303,7 +1303,7 @@ def _dedup_news(articles):
 
 def _fetch_indianapi_news(symbol):
     """
-    Fetch stock-specific filings and news via yfinance ✅ no API key needed.
+    Fetch stock-specific filings and news via yfinance ✅ no API key needed.
     Returns: Yahoo Finance news feed + upcoming corporate calendar events.
     """
     ticker_sym = symbol.upper().strip() + ".NS"
@@ -1311,7 +1311,7 @@ def _fetch_indianapi_news(symbol):
     try:
         tk = yf.Ticker(ticker_sym)
 
-        # 1. Yahoo Finance news ✅ stock-specific articles
+        # 1. Yahoo Finance news ✅ stock-specific articles
         news_items = tk.news or []
         for n in news_items[:5]:
             content = n.get("content", {})
@@ -1329,7 +1329,7 @@ def _fetch_indianapi_news(symbol):
                     "published":   pub_dt,
                 })
 
-        # 2. Calendar ✅ earnings date, ex-dividend date
+        # 2. Calendar ✅ earnings date, ex-dividend date
         try:
             cal = tk.calendar
             if isinstance(cal, dict):
@@ -1362,7 +1362,7 @@ def _fetch_indianapi_news(symbol):
                 for date, row in actions.tail(3).iloc[::-1].iterrows():
                     if row.get("Dividends", 0) > 0:
                         results.append({
-                            "title":       f"Dividend: ✅¹{row['Dividends']:.2f} per share",
+                            "title":       f"Dividend: ✅¹{row['Dividends']:.2f} per share",
                             "description": "",
                             "url":         "",
                             "source":      "NSE Corporate Action",
@@ -1449,7 +1449,7 @@ def _fetch_moneycontrol_rss(symbol: str) -> list:
 
 @st.cache_data(ttl=1802, show_spinner=False)
 def fetch_news(symbol: str, finnhub_key: str) -> list:
-    """Stock-specific news. Chain: IndianAPI ✅ GNews ✅ Finnhub ✅ Moneycontrol RSS."""
+    """Stock-specific news. Chain: IndianAPI ✅ GNews ✅ Finnhub ✅ Moneycontrol RSS."""
     raw: list = []
     for fetcher in [
         lambda: _fetch_indianapi_news(symbol),
@@ -1489,7 +1489,7 @@ def fetch_recommendation(symbol: str, finnhub_key: str) -> dict:
     except Exception:
         return {}
 
-# ✅✅ Indicators ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+# ✅✅ Indicators ------------------------------------------------------------
 def compute_indicators(df: pd.DataFrame) -> dict:
     if df.empty or len(df) < 20:
         return {}
@@ -1593,9 +1593,9 @@ def compute_indicators(df: pd.DataFrame) -> dict:
     avg_vol = np.mean(vol[-20:-1]) if n > 20 else np.mean(vol)
     vol_ratio = vol[-1] / avg_vol if avg_vol else 1
 
-    # ✅✅ Miro Score ✅ Volume-first institutional momentum ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+    # ✅✅ Miro Score ✅ Volume-first institutional momentum ------------------------------------------------------------
     score = 0.0
-    # 1. Volume Multiplier (primary factor ✅ institutional interest)
+    # 1. Volume Multiplier (primary factor ✅ institutional interest)
     if   vol_ratio >= 5.0: score += 5.0  # Miro Spike
     elif vol_ratio >= 2.0: score += 3.0
     elif vol_ratio >= 1.5: score += 2.0
@@ -1604,7 +1604,7 @@ def compute_indicators(df: pd.DataFrame) -> dict:
     if   pct_chg >= 5.0: score += 3.0
     elif pct_chg >= 3.0: score += 2.0
     elif pct_chg >= 1.0: score += 1.0
-    # 3. Close position ✅ top 25% of day range signals strength
+    # 3. Close position ✅ top 25% of day range signals strength
     day_range = high[-1] - low[-1] if len(high) > 0 else 0
     if day_range > 0 and (cp - low[-1]) / day_range >= 0.75: score += 1.0
     # 4. Price above MA20 (trend confirmation)
@@ -1645,7 +1645,7 @@ def compute_indicators(df: pd.DataFrame) -> dict:
         "ma50_display": round(ma50, 2),
     }
 
-# ✅✅ AI Agents ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+# ✅✅ AI Agents ------------------------------------------------------------
 def build_context(symbol, ind, quote, fund, news, rec) -> str:
         news_txt = "\n".join([f"- {n.get('title', n.get('headline',''))}" for n in news[:4]]) or "No recent news."
         rec_txt  = f"Buy:{rec.get('buy',0)} Hold:{rec.get('hold',0)} Sell:{rec.get('sell',0)}" if rec else "No analyst data."
@@ -1654,18 +1654,18 @@ def build_context(symbol, ind, quote, fund, news, rec) -> str:
         pct_chg  = ind.get("change_pct", 0)
         ma_bull  = ind.get("price",0) > ind.get("ma50",0) > ind.get("ma200",0)
         return f"""
-    Stock: {symbol} | Price: ✅¹{ind.get("price",0):,.2f} ({pct_chg:+.2f}%)
+    Stock: {symbol} | Price: ✅¹{ind.get("price",0):,.2f} ({pct_chg:+.2f}%)
     Company: {quote.get("name", symbol)}
     
     MIRO SCORE: {miro}/10 (Volume-first institutional momentum)
     - Volume ratio: {vol_r:.2f}x average ({"Miro Spike" if vol_r>=5 else "High" if vol_r>=2 else "Elevated" if vol_r>=1.5 else "Normal"})
     - Price change today: {pct_chg:+.2f}%
     - MA Alignment: {"Bullish (price > MA50 > MA200)" if ma_bull else "Bearish (price below key MAs)"}
-    - MA20: ✅¹{ind.get("ma20",0):,.2f} | MA50: ✅¹{ind.get("ma50",0):,.2f} | MA200: ✅¹{ind.get("ma200",0):,.2f}
+    - MA20: ✅¹{ind.get("ma20",0):,.2f} | MA50: ✅¹{ind.get("ma50",0):,.2f} | MA200: ✅¹{ind.get("ma200",0):,.2f}
     - Z-Score: {ind.get("z_score",0):.2f} (mean reversion signal)
     - ADX: {ind.get("adx",0):.1f} ({"Strong trend" if ind.get("adx",0)>=25 else "Weak/no trend"})
     - Weekly trend: {ind.get("weekly_trend","N/A")} ({ind.get("weekly_chg",0):+.2f}% this week)
-    - ATR(14): ✅¹{ind.get("atr",0):.2f} (daily volatility)
+    - ATR(14): ✅¹{ind.get("atr",0):.2f} (daily volatility)
     
     FUNDAMENTALS:
     "- Sector: {fund.get('sector', quote.get('sector','N/A'))}",
@@ -1677,11 +1677,11 @@ def build_context(symbol, ind, quote, fund, news, rec) -> str:
     RECENT NEWS:\n{news_txt}
     """
 AGENTS = [
-    ("📡 Bull Analyst",    "bull",    "#00c851", "You are an optimistic NSE equity analyst. Focus ONLY on Miro Score strength, volume surge, MA alignment, and weekly momentum. If Miro > 7 and volume > 1.5x average, highlight the breakout. Reference specific numbers from the data. 4-5 sentences, be concise."),
-    ("📡 Bear Analyst",    "bear",    "#ff4444", "You are a cautious short-seller on NSE. Identify risks using MA breakdown, ADX below 25, low Miro Score, and weak volume. Reference the Z-Score for mean reversion risk. Reference specific numbers. 4-5 sentences, be concise."),
-    ("✅¡ Swing Trader",    "trader",  "#ffaa00", "You are an experienced NSE swing trader. Give a concrete plan using MA levels as entry/stop zones. Use ADX to judge trend strength (>25=strong). Use the Miro Score as your momentum filter ✅ only trade Miro > 6. Entry, stop, target, timeframe. 4-5 sentences, be concise."),
-    ("📡¡ï¸ Risk Manager",   "risk",    "#3399ff", "You are a portfolio risk manager. Use the Z-Score, ATR volatility, and Probability Cone data to assess risk/reward. Flag if the stock is at the top of its 2-SD cone (Exhausted). Suggest position size as % of portfolio. 4-5 sentences, be concise."),
-    ("📡ï¸ Fundamentalist", "fund",    "#aa88ff", "You are a fundamental analyst. Comment on P/E, EV/EBITDA, ROE, and promoter holding. Check if the Miro momentum aligns with the fundamental picture. Highlight divergence between technicals and fundamentals. 4-5 sentences, be concise."),
+    ("📡 Bull Analyst",    "bull",    "#00c851", "You are an optimistic NSE equity analyst. Focus ONLY on Miro Score strength, volume surge, MA alignment, and weekly momentum. If Miro > 7 and volume > 1.5x average, highlight the breakout. Reference specific numbers from the data. 4-5 sentences, be concise."),
+    ("📡 Bear Analyst",    "bear",    "#ff4444", "You are a cautious short-seller on NSE. Identify risks using MA breakdown, ADX below 25, low Miro Score, and weak volume. Reference the Z-Score for mean reversion risk. Reference specific numbers. 4-5 sentences, be concise."),
+    ("✅¡ Swing Trader",    "trader",  "#ffaa00", "You are an experienced NSE swing trader. Give a concrete plan using MA levels as entry/stop zones. Use ADX to judge trend strength (>25=strong). Use the Miro Score as your momentum filter ✅ only trade Miro > 6. Entry, stop, target, timeframe. 4-5 sentences, be concise."),
+    ("📡¡ï¸ Risk Manager",   "risk",    "#3399ff", "You are a portfolio risk manager. Use the Z-Score, ATR volatility, and Probability Cone data to assess risk/reward. Flag if the stock is at the top of its 2-SD cone (Exhausted). Suggest position size as % of portfolio. 4-5 sentences, be concise."),
+    ("📡ï¸ Fundamentalist", "fund",    "#aa88ff", "You are a fundamental analyst. Comment on P/E, EV/EBITDA, ROE, and promoter holding. Check if the Miro momentum aligns with the fundamental picture. Highlight divergence between technicals and fundamentals. 4-5 sentences, be concise."),
 ]
 
 def stream_agent(client, agent_name, persona, context, placeholder):
@@ -1696,13 +1696,13 @@ def stream_agent(client, agent_name, persona, context, placeholder):
         ) as stream:
             for text in stream.text_stream:
                 full += text
-                placeholder.markdown(full + "✅")
+                placeholder.markdown(full + "✅")
         placeholder.markdown(full)
     except Exception as e:
         placeholder.markdown(f"*Analysis unavailable: {e}*")
     return full
 
-# ✅✅ Helpers ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+# ✅✅ Helpers ------------------------------------------------------------
 def signal_color(val, low_good=False):
     if low_good:
         return "signal-bull" if val < 30 else "signal-bear" if val > 70 else "signal-neutral"
@@ -1723,10 +1723,10 @@ def score_bar(val, max_val=10, color="#00c851"):
   <div class="score-bar-fill" style="width:{pct}%; background:{color};"></div>
 </div>"""
 
-# ✅✅ Main UI ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+# ✅✅ Main UI ------------------------------------------------------------
 st.markdown("""
 <div class="hero">
-  <h1>✅¡ NIFTY SNIPER</h1>
+  <h1>✅¡ NIFTY SNIPER</h1>
   <p>Stock intelligence terminal · NSE India · Powered by AI agents</p>
 </div>
 """, unsafe_allow_html=True)
@@ -1740,7 +1740,7 @@ with col_inp:
         key="symbol_input",
     ).upper().strip()
 with col_btn:
-    analyse = st.button("📡 Analyse", key="analyse_btn")
+    analyse = st.button("📡 Analyse", key="analyse_btn")
 
 # Popular picks
 st.markdown(
@@ -1750,7 +1750,7 @@ st.markdown(
     + "</div>", unsafe_allow_html=True
 )
 
-# ✅✅ Analysis ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+# ✅✅ Analysis ------------------------------------------------------------
 if analyse and symbol:
     symbol = resolve_symbol(symbol)
     st.divider()
@@ -1766,22 +1766,22 @@ if analyse and symbol:
         fund      = fetch_fundamentals(symbol)
 
     if df.empty:
-        st.error(f"✅ Could not fetch data for **{symbol}**. Check the NSE symbol and try again.")
+        st.error(f"✅ Could not fetch data for **{symbol}**. Check the NSE symbol and try again.")
         st.stop()
 
     ind = compute_indicators(df)
     backtest  = run_miro_backtest(df)
     mc        = run_monte_carlo(ind)
     if not ind:
-        st.error("✅ Not enough data to compute indicators.")
+        st.error("✅ Not enough data to compute indicators.")
         st.stop()
 
     cp      = ind["price"]
     chg     = ind["change_pct"]
     chg_col = "#00c851" if chg >= 0 else "#ff4444"
-    chg_sym = "✅²" if chg >= 0 else "✅¼"
+    chg_sym = "✅²" if chg >= 0 else "✅¼"
 
-    # ✅✅ Stock Header ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+    # ✅✅ Stock Header ------------------------------------------------------------
     display_symbol = symbol.replace(".NS","").replace(".BO","")
     company_name = (quote.get('name', symbol) or symbol).replace('.NS','').replace('.BO','')
     st.markdown(f"""
@@ -1800,7 +1800,7 @@ if analyse and symbol:
 </div>
 """, unsafe_allow_html=True)
 
-    # ✅✅ Key Metrics Row ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+    # ✅✅ Key Metrics Row ------------------------------------------------------------
     miro     = ind["miro_score"]
     miro_c   = "signal-bull" if miro >= 6.5 else "signal-bear" if miro < 4 else "signal-neutral"
     z        = ind["z_score"]
@@ -1811,27 +1811,27 @@ if analyse and symbol:
     tr_c     = "signal-bull" if adx >= 25 and "Up" in trend else "signal-bear" if adx >= 25 and "Down" in trend else "signal-neutral"
     cp       = ind["price"]
 
-    # ✅✅ Metric cards row 1: Miro / Z-Score / Weekly / ADX ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+    # ✅✅ Metric cards row 1: Miro / Z-Score / Weekly / ADX ------------------------------------------------------------
     c1, c2, c3, c4 = st.columns(4)
     c1.markdown(render_metric("Miro Score",   f"{miro}/10", score_bar(miro), miro_c), unsafe_allow_html=True)
     c2.markdown(render_metric("Z-Score",      f"{z}",       "vs 20D mean",   z_c),    unsafe_allow_html=True)
-    c3.markdown(render_metric("Weekly Trend", ind.get("weekly_trend","✅"), f"{ind.get('weekly_chg',0):+.2f}% this week", weekly_c), unsafe_allow_html=True)
-    c4.markdown(render_metric("ADX / Trend", f"{adx} {'✅ Strong' if adx>=25 else '✅ ï¸ Weak'}", trend.replace(" ","<br>"), tr_c), unsafe_allow_html=True)
+    c3.markdown(render_metric("Weekly Trend", ind.get("weekly_trend","✅"), f"{ind.get('weekly_chg',0):+.2f}% this week", weekly_c), unsafe_allow_html=True)
+    c4.markdown(render_metric("ADX / Trend", f"{adx} {'✅ Strong' if adx>=25 else '✅ ï¸ Weak'}", trend.replace(" ","<br>"), tr_c), unsafe_allow_html=True)
 
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
-    # ✅✅ Metric cards row 2: MA20 / MA50 / MA200 ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+    # ✅✅ Metric cards row 2: MA20 / MA50 / MA200 ------------------------------------------------------------
     cm1, cm2, cm3 = st.columns(3)
-    cm1.markdown(render_metric("MA 20",  f"✅¹{ind['ma20']:,}",         "<span style='color:#00c851'>✅² Above</span>" if cp > ind["ma20"]         else "<span style='color:#ff4444'>✅¼ Below</span>"), unsafe_allow_html=True)
-    cm2.markdown(render_metric("MA 50",  f"✅¹{ind['ma50_display']:,}",  "<span style='color:#00c851'>✅² Above</span>" if cp > ind["ma50_display"]  else "<span style='color:#ff4444'>✅¼ Below</span>"), unsafe_allow_html=True)
-    cm3.markdown(render_metric("MA 200", f"✅¹{ind['ma200']:,}",         "<span style='color:#00c851'>✅² Above</span>" if cp > ind["ma200"]         else "<span style='color:#ff4444'>✅¼ Below</span>"), unsafe_allow_html=True)
+    cm1.markdown(render_metric("MA 20",  f"✅¹{ind['ma20']:,}",         "<span style='color:#00c851'>✅² Above</span>" if cp > ind["ma20"]         else "<span style='color:#ff4444'>✅¼ Below</span>"), unsafe_allow_html=True)
+    cm2.markdown(render_metric("MA 50",  f"✅¹{ind['ma50_display']:,}",  "<span style='color:#00c851'>✅² Above</span>" if cp > ind["ma50_display"]  else "<span style='color:#ff4444'>✅¼ Below</span>"), unsafe_allow_html=True)
+    cm3.markdown(render_metric("MA 200", f"✅¹{ind['ma200']:,}",         "<span style='color:#00c851'>✅² Above</span>" if cp > ind["ma200"]         else "<span style='color:#ff4444'>✅¼ Below</span>"), unsafe_allow_html=True)
 
     st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 
-    # ✅✅ Two column layout: News + Chart data left, Signals right ✅✅✅✅✅✅✅✅✅✅✅✅✅
+    # ✅✅ Two column layout: News + Chart data left, Signals right ------------------------------------------------------------
     left, right = st.columns([3, 2])
 
-    # ── Sector Correlation data ───────────────────────────────────────────────
+    # ── Sector Correlation data ------------------------------------------------------------
     sector_label = COMPANY_META.get(symbol, ("", "", ""))[1]
     sc = compute_sector_correlation(symbol, sector_label)
 
@@ -1839,30 +1839,30 @@ if analyse and symbol:
         ll, lr = st.columns([1, 1])
 
         with ll:
-            # ✅✅ Fundamentals ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+            # ✅✅ Fundamentals ------------------------------------------------------------
             st.markdown('<div class="section-card">', unsafe_allow_html=True)
-            st.markdown('<div class="section-title">📡 Fundamentals</div>', unsafe_allow_html=True)
+            st.markdown('<div class="section-title">📡 Fundamentals</div>', unsafe_allow_html=True)
             render_fundamentals(fund, symbol)
             st.markdown('</div>', unsafe_allow_html=True)
-            # ✅✅ Filings ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+            # ✅✅ Filings ------------------------------------------------------------
             st.markdown('<div class="section-card">', unsafe_allow_html=True)
-            st.markdown(f'<div class="section-title">📡 Filings ✅ {display_symbol}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="section-title">📡 Filings ✅ {display_symbol}</div>', unsafe_allow_html=True)
             render_filings(filings, symbol)
             st.markdown('</div>', unsafe_allow_html=True)
 
         with lr:
-            # ✅✅ Signal Summary ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+            # ✅✅ Signal Summary ------------------------------------------------------------
             st.markdown('<div class="section-card">', unsafe_allow_html=True)
-            st.markdown('<div class="section-title">📡¯ Signal Summary</div>', unsafe_allow_html=True)
+            st.markdown('<div class="section-title">📡¯ Signal Summary</div>', unsafe_allow_html=True)
             signals = [
-                ("Miro Score",   f"{miro}/10 ✅ {'Strong' if miro>=6.5 else 'Weak' if miro<4 else 'Moderate'}", miro >= 6.5),
-                ("MA Alignment", "✅ Bullish" if cp > ind["ma50"] > ind["ma200"] else "✅ Bearish",              cp > ind["ma50"] > ind["ma200"]),
-                ("Z-Score",      "✅ Oversold" if z < -0.5 else ("✅ Extended" if z > 1.5 else "✅ ï¸ Neutral"), z < -0.5),
-                ("Weekly Trend", ind.get("weekly_trend","✅"),                                                       ind.get("weekly_chg",0) > 0),
+                ("Miro Score",   f"{miro}/10 ✅ {'Strong' if miro>=6.5 else 'Weak' if miro<4 else 'Moderate'}", miro >= 6.5),
+                ("MA Alignment", "✅ Bullish" if cp > ind["ma50"] > ind["ma200"] else "✅ Bearish",              cp > ind["ma50"] > ind["ma200"]),
+                ("Z-Score",      "✅ Oversold" if z < -0.5 else ("✅ Extended" if z > 1.5 else "✅ ï¸ Neutral"), z < -0.5),
+                ("Weekly Trend", ind.get("weekly_trend","✅"),                                                       ind.get("weekly_chg",0) > 0),
             ]
             bull_count = sum(1 for _, _, b in signals if b)
             for label, val, bull in signals:
-                col_s = "#00c851" if bull else "#ff4444" if "✅" in val else "#ff8800"
+                col_s = "#00c851" if bull else "#ff4444" if "✅" in val else "#ff8800"
                 st.markdown(f'<div style="padding:6px 0;border-bottom:1px solid #1a1a1a;font-size:0.8rem;"><span style="color:#888;font-family:monospace;">{label}&nbsp;&nbsp;</span><span style="color:{col_s};font-weight:600;font-family:monospace;">{val}</span></div>', unsafe_allow_html=True)
             bull_signals = bull_count
             verdict = "STRONG BUY" if bull_signals >= 4 else "BUY" if bull_signals >= 3 else "AVOID" if bull_signals <= 1 else "HOLD"
@@ -1870,47 +1870,47 @@ if analyse and symbol:
             st.markdown(f'<div style="margin-top:14px;display:flex;justify-content:flex-start;"><div style="background:#0d0d0d;border:1px solid #2a2a2a;border-top:2px solid {v_col};border-radius:6px;padding:10px 16px;text-align:center;min-width:110px;"><div style="font-size:0.58rem;color:#555;font-family:monospace;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;">Signal Verdict</div><div style="font-size:1.3rem;font-weight:700;font-family:monospace;color:{v_col};">{verdict}</div><div style="font-size:0.62rem;color:#444;font-family:monospace;margin-top:3px;">{bull_signals}/4 bullish</div></div></div>', unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
-            # ✅✅ Ticker Velocity ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+            # ✅✅ Ticker Velocity ------------------------------------------------------------
             st.markdown('<div class="section-card">', unsafe_allow_html=True)
-            st.markdown('<div class="section-title">✅¡ Ticker Velocity</div>', unsafe_allow_html=True)
+            st.markdown('<div class="section-title">✅¡ Ticker Velocity</div>', unsafe_allow_html=True)
             render_ticker_velocity(ind, display_symbol)
             st.markdown('</div>', unsafe_allow_html=True)
 
-            # ── Sector Correlation ────────────────────────────────────────────
+            # ── Sector Correlation ------------------------------------------------------------
             st.markdown('<div class="section-card">', unsafe_allow_html=True)
             st.markdown('<div class="section-title">📡 Sector Correlation</div>', unsafe_allow_html=True)
             render_sector_correlation(sc, sector_label)
             st.markdown('</div>', unsafe_allow_html=True)
 
     with right:
-        # ✅✅ Miro Backtest ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+        # ✅✅ Miro Backtest ------------------------------------------------------------
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">📡 Miro Performance Backtest</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">📡 Miro Performance Backtest</div>', unsafe_allow_html=True)
         render_miro_backtest(backtest, display_symbol)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # ✅✅ Probability Cone ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+        # ✅✅ Probability Cone ------------------------------------------------------------
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">📡 Probability Cone</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">📡 Probability Cone</div>', unsafe_allow_html=True)
         render_probability_cone(ind, mc)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # ✅✅ Rubber Band ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+        # ✅✅ Rubber Band ------------------------------------------------------------
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">📡¯ Rubber Band Index</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">📡¯ Rubber Band Index</div>', unsafe_allow_html=True)
         render_rubber_band(ind)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # ✅✅ Sentiment ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+        # ✅✅ Sentiment ------------------------------------------------------------
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">📡¡ Market Sentiment</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">📡¡ Market Sentiment</div>', unsafe_allow_html=True)
         render_sentiment(sentiment)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # ✅✅ Analyst Recs ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+        # ✅✅ Analyst Recs ------------------------------------------------------------
         if rec:
             st.markdown('<div class="section-card">', unsafe_allow_html=True)
-            st.markdown('<div class="section-title">📡¦ Analyst Consensus</div>', unsafe_allow_html=True)
+            st.markdown('<div class="section-title">📡¦ Analyst Consensus</div>', unsafe_allow_html=True)
             total = (rec.get("buy",0) + rec.get("hold",0) + rec.get("sell",0) + rec.get("strongBuy",0) + rec.get("strongSell",0)) or 1
             for label, key, col in [("Strong Buy","strongBuy","#ff6600"),("Buy","buy","#00c851"),("Hold","hold","#ffaa00"),("Sell","sell","#ff4444"),("Strong Sell","strongSell","#cc0000")]:
                 n_rec = rec.get(key, 0)
@@ -1918,10 +1918,10 @@ if analyse and symbol:
                 st.markdown(f'<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><span style="color:#888;font-size:0.75rem;width:80px;">{label}</span><div style="flex:1;background:#1a1a1a;border-radius:2px;height:5px;"><div style="width:{pct}%;background:{col};height:5px;border-radius:2px;"></div></div><span style="color:{col};font-size:0.72rem;font-family:monospace;width:32px;text-align:right;">{pct}%</span></div>', unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
-    # ✅✅ AI Agent Debate ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+    # ✅✅ AI Agent Debate ------------------------------------------------------------
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
     st.markdown('<div class="section-card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">📡¤ AI Agent Debate</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">📡¤ AI Agent Debate</div>', unsafe_allow_html=True)
 
     client = get_anthropic()
     if not client:
@@ -1942,11 +1942,11 @@ if analyse and symbol:
     # Disclaimer
     st.markdown("""
 <div style="text-align:center; color:#333333; font-size:0.75rem; margin-top:24px; padding:12px; border-top:1px solid #1a1a1a;">
-✅ ï¸ <strong>Not SEBI registered. Not financial advice. For educational purposes only. Always do your own research.</strong>
+✅ ï¸ <strong>Not SEBI registered. Not financial advice. For educational purposes only. Always do your own research.</strong>
 </div>""", unsafe_allow_html=True)
 
 
-    # ✅✅ PDF Report ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅
+    # ✅✅ PDF Report ------------------------------------------------------------
     st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
     _vc = "#00c851" if "BUY" in verdict else "#ff4444" if verdict == "AVOID" else "#ffaa00"
     _cc = "#00c851" if chg >= 0 else "#ff4444"
@@ -1955,15 +1955,15 @@ if analyse and symbol:
     _sl_rows = ""
     for _sln,_slv,_slb in [
         ("MA Alignment","Bullish" if cp>ind["ma50_display"]>ind["ma200"] else "Bearish",cp>ind["ma50_display"]>ind["ma200"]),
-        ("RSI (14)",f"{ind['rsi']} ✅ Buy Zone" if ind['rsi']<40 else f"{ind['rsi']} ✅ Hot" if ind['rsi']>65 else f"{ind['rsi']} ✅ Neutral",ind['rsi']<40),
-        ("Z-Score",f"{ind['z_score']} ✅ Oversold" if ind['z_score']<-0.5 else f"{ind['z_score']} ✅ Extended" if ind['z_score']>1.5 else f"{ind['z_score']} ✅ Neutral",ind['z_score']<-0.5),
-        ("IBS",f"{ind['ibs']} ✅ Buy" if ind['ibs']<0.3 else f"{ind['ibs']} ✅ Sell" if ind['ibs']>0.75 else f"{ind['ibs']} ✅ Neutral",ind['ibs']<0.3),
+        ("RSI (14)",f"{ind['rsi']} ✅ Buy Zone" if ind['rsi']<40 else f"{ind['rsi']} ✅ Hot" if ind['rsi']>65 else f"{ind['rsi']} ✅ Neutral",ind['rsi']<40),
+        ("Z-Score",f"{ind['z_score']} ✅ Oversold" if ind['z_score']<-0.5 else f"{ind['z_score']} ✅ Extended" if ind['z_score']>1.5 else f"{ind['z_score']} ✅ Neutral",ind['z_score']<-0.5),
+        ("IBS",f"{ind['ibs']} ✅ Buy" if ind['ibs']<0.3 else f"{ind['ibs']} ✅ Sell" if ind['ibs']>0.75 else f"{ind['ibs']} ✅ Neutral",ind['ibs']<0.3),
         ("Donchian","Near High" if cp>ind['don_high']*0.97 else "Mid Range",cp>ind['don_high']*0.97),
         ("MACD","Positive" if ind['macd']>0 else "Negative",ind['macd']>0),
         ("Volume",f"{ind['vol_ratio']}x Surge" if ind['vol_ratio']>1.5 else f"{ind['vol_ratio']}x Normal",ind['vol_ratio']>1.5),
     ]:
         _sc2 = "#00c851" if _slb else "#ff4444"
-        _sl_rows += f"<tr><td style='padding:6px 12px;color:#888;font-size:12px;border-bottom:1px solid #1e1e1e;'>{_sln}</td><td style='padding:6px 12px;color:{_sc2};font-size:12px;font-weight:600;border-bottom:1px solid #1e1e1e;'>{'✅' if _slb else '✅'} {_slv}</td></tr>"
+        _sl_rows += f"<tr><td style='padding:6px 12px;color:#888;font-size:12px;border-bottom:1px solid #1e1e1e;'>{_sln}</td><td style='padding:6px 12px;color:{_sc2};font-size:12px;font-weight:600;border-bottom:1px solid #1e1e1e;'>{'✅' if _slb else '✅'} {_slv}</td></tr>"
     _news_rows = ""
     if news:
         for _n2 in news[:5]:
@@ -1971,9 +1971,9 @@ if analyse and symbol:
             _ns2 = datetime.fromtimestamp(_n2.get('datetime',0)).strftime('%d %b') if _n2.get('datetime') else ''
             _news_rows += f"<tr><td style='padding:5px 12px;color:#ccc;font-size:11px;border-bottom:1px solid #1e1e1e;'>{_nh2}</td><td style='padding:5px 12px;color:#666;font-size:11px;border-bottom:1px solid #1e1e1e;white-space:nowrap;'>{_n2.get('source','')} · {_ns2}</td></tr>"
     if not _news_rows:
-        _news_rows = "<tr><td colspan='2' style='padding:8px 12px;color:#555;font-size:11px;'>No news data ✅ add FINNHUB_API_KEY to Streamlit secrets</td></tr>"
+        _news_rows = "<tr><td colspan='2' style='padding:8px 12px;color:#555;font-size:11px;'>No news data ✅ add FINNHUB_API_KEY to Streamlit secrets</td></tr>"
     _miro_w = int(ind['miro_score']/10*100)
-    _pdf = f"""<!DOCTYPE html><html><head><meta charset='UTF-8'><title>NiftySniper ✅ {symbol}</title>
+    _pdf = f"""<!DOCTYPE html><html><head><meta charset='UTF-8'><title>NiftySniper ✅ {symbol}</title>
 <link href='https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap' rel='stylesheet'>
 <style>*{{margin:0;padding:0;box-sizing:border-box}}body{{background:#080808;color:#ccc;font-family:Inter,sans-serif;padding:32px;max-width:900px;margin:0 auto}}
 @media print{{body{{padding:16px;background:#000}}@page{{size:A4;margin:12mm;background:#000}}.no-print{{display:none}}}}
@@ -1997,50 +1997,50 @@ table{{width:100%;border-collapse:collapse}}
 .green{{color:#00c851}}.red{{color:#ff4444}}.amber{{color:#ffaa00}}.white{{color:#fff}}.mono{{font-family:'JetBrains Mono',monospace;font-weight:600}}
 .disc{{color:#444;font-size:9px;text-align:center;margin-top:18px;padding-top:12px;border-top:1px solid #1a1a1a;line-height:1.7}}
 </style></head><body>
-<button class='btn no-print' onclick='window.print()'>✅¬ SAVE AS PDF (Ctrl+P)</button>
+<button class='btn no-print' onclick='window.print()'>✅¬ SAVE AS PDF (Ctrl+P)</button>
 <div class='hdr'>
-  <div><div class='logo'>✅¡ NIFTY SNIPER</div><div class='logo-sub'>SINGLE-STOCK INTELLIGENCE REPORT</div></div>
-  <div><div class='sym'>{symbol}</div><div class='co'>{_co}</div><div class='px'>✅¹{cp:,.2f} <span style='color:{_cc};font-size:13px;'>{'+' if chg>=0 else ''}{chg:.2f}%</span></div><div class='logo-sub' style='text-align:right;margin-top:3px;'>NSE · {_dt}</div></div>
+  <div><div class='logo'>✅¡ NIFTY SNIPER</div><div class='logo-sub'>SINGLE-STOCK INTELLIGENCE REPORT</div></div>
+  <div><div class='sym'>{symbol}</div><div class='co'>{_co}</div><div class='px'>✅¹{cp:,.2f} <span style='color:{_cc};font-size:13px;'>{'+' if chg>=0 else ''}{chg:.2f}%</span></div><div class='logo-sub' style='text-align:right;margin-top:3px;'>NSE · {_dt}</div></div>
 </div>
 <div class='vbox'>
   <div><div class='vlbl'>AI Technical Verdict</div><div class='vsub'>{bull_signals}/8 signals · Miro Score {ind['miro_score']}/10</div></div>
   <div class='vval'>{verdict}</div>
 </div>
 <div class='grid'>
-<div class='sec'><div class='stitle'>📡 Technical Indicators</div><table>
+<div class='sec'><div class='stitle'>📡 Technical Indicators</div><table>
 <tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>Miro Score</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono {"green" if ind["miro_score"]>=6.5 else "red" if ind["miro_score"]<4 else "amber"}'>{ind['miro_score']}/10</span><div class='mbar'><div class='mfill'></div></div></td></tr>
 <tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>Trend</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono {"green" if "Up" in ind["trend"] else "red" if "Down" in ind["trend"] else "amber"}'>{ind['trend']}</span> <span style='color:#555;font-size:10px;'>ADX {ind['adx']}</span></td></tr>
-<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>Weekly Trend</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono {"green" if ind.get("weekly_chg",0)>0.5 else "red" if ind.get("weekly_chg",0)<-0.5 else "amber"}'>{ind.get("weekly_trend","✅")} ({ind.get("weekly_chg",0):+.2f}%)</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>Weekly Trend</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono {"green" if ind.get("weekly_chg",0)>0.5 else "red" if ind.get("weekly_chg",0)<-0.5 else "amber"}'>{ind.get("weekly_trend","✅")} ({ind.get("weekly_chg",0):+.2f}%)</span></td></tr>
 <tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>RSI (14)</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono {"green" if ind["rsi"]<40 else "red" if ind["rsi"]>65 else "amber"}'>{ind['rsi']}</span></td></tr>
 <tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>Z-Score</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono {"green" if ind["z_score"]<-0.5 else "red" if ind["z_score"]>1.5 else "amber"}'>{ind['z_score']}</span></td></tr>
 <tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>IBS</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono'>{ind['ibs']}</span></td></tr>
 <tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>MACD</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono {"green" if ind["macd"]>0 else "red"}'>{ind['macd']:+.2f}</span></td></tr>
 <tr><td style='padding:6px 12px;color:#888;font-size:11px;'>Volume Ratio</td><td style='padding:6px 12px;'><span class='mono {"green" if ind["vol_ratio"]>1.5 else "white"}'>{ind['vol_ratio']}x avg</span></td></tr>
 </table></div>
-<div class='sec'><div class='stitle'>📡 Moving Averages & Key Levels</div><table>
-<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>MA 20</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>✅¹{ind['ma20']:,}</span> <span style='color:{"#00c851" if cp>ind["ma20"] else "#ff4444"};font-size:10px;'>{"✅²" if cp>ind["ma20"] else "✅¼"}</span></td></tr>
-<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>MA 50</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>✅¹{ind['ma50_display']:,}</span> <span style='color:{"#00c851" if cp>ind["ma50_display"] else "#ff4444"};font-size:10px;'>{"✅²" if cp>ind["ma50_display"] else "✅¼"}</span></td></tr>
-<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>MA 200</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>✅¹{ind['ma200']:,}</span> <span style='color:{"#00c851" if cp>ind["ma200"] else "#ff4444"};font-size:10px;'>{"✅²" if cp>ind["ma200"] else "✅¼"}</span></td></tr>
-<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>Donchian</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>✅¹{ind['don_low']:,} ✅ ✅¹{ind['don_high']:,}</span></td></tr>
-<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>Bollinger Bands</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>✅¹{ind['bb_dn']:,} ✅ ✅¹{ind['bb_up']:,}</span></td></tr>
-<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>ATR (14)</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>✅¹{ind['atr']}</span></td></tr>
-<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>52-Week Range</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>✅¹{ind['wk52_low']:,} ✅ ✅¹{ind['wk52_high']:,}</span></td></tr>
+<div class='sec'><div class='stitle'>📡 Moving Averages & Key Levels</div><table>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>MA 20</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>✅¹{ind['ma20']:,}</span> <span style='color:{"#00c851" if cp>ind["ma20"] else "#ff4444"};font-size:10px;'>{"✅²" if cp>ind["ma20"] else "✅¼"}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>MA 50</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>✅¹{ind['ma50_display']:,}</span> <span style='color:{"#00c851" if cp>ind["ma50_display"] else "#ff4444"};font-size:10px;'>{"✅²" if cp>ind["ma50_display"] else "✅¼"}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>MA 200</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>✅¹{ind['ma200']:,}</span> <span style='color:{"#00c851" if cp>ind["ma200"] else "#ff4444"};font-size:10px;'>{"✅²" if cp>ind["ma200"] else "✅¼"}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>Donchian</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>✅¹{ind['don_low']:,} ✅ ✅¹{ind['don_high']:,}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>Bollinger Bands</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>✅¹{ind['bb_dn']:,} ✅ ✅¹{ind['bb_up']:,}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>ATR (14)</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>✅¹{ind['atr']}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>52-Week Range</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>✅¹{ind['wk52_low']:,} ✅ ✅¹{ind['wk52_high']:,}</span></td></tr>
 <tr><td style='padding:6px 12px;color:#888;font-size:11px;'>52W Position</td><td style='padding:6px 12px;'><span class='mono white'>{ind['wk52_pct']}% of range</span></td></tr>
 </table></div>
 </div>
 <div class='grid'>
-<div class='sec'><div class='stitle'>📡¯ Signal Checklist</div><table>{_sl_rows}</table></div>
-<div class='sec'><div class='stitle'>📡° Recent News & Filings</div><table>{_news_rows}</table></div>
+<div class='sec'><div class='stitle'>📡¯ Signal Checklist</div><table>{_sl_rows}</table></div>
+<div class='sec'><div class='stitle'>📡° Recent News & Filings</div><table>{_news_rows}</table></div>
 </div>
-<div class='disc'>✅ ï¸ <strong>Nifty Sniper ✅ For educational purposes only. Not registered with SEBI. Not financial advice. Always do your own research.</strong></div>
+<div class='disc'>✅ ï¸ <strong>Nifty Sniper ✅ For educational purposes only. Not registered with SEBI. Not financial advice. Always do your own research.</strong></div>
 </body></html>"""
     _col1, _col2, _col3 = st.columns([1,2,1])
     with _col2:
         st.download_button(
-            label="✅¬ï¸  DOWNLOAD REPORT (PDF)",
+            label="✅¬ï¸  DOWNLOAD REPORT (PDF)",
             data=_pdf,
             file_name=f"NiftySniper_{symbol}_{datetime.now().strftime('%Y%m%d')}.html",
             mime="text/html",
             use_container_width=True,
         )
-    st.caption("Opens in browser ✅ click **✅¬ SAVE AS PDF** inside ✅ Print ✅ Save as PDF")
+    st.caption("Opens in browser ✅ click **✅¬ SAVE AS PDF** inside ✅ Print ✅ Save as PDF")
