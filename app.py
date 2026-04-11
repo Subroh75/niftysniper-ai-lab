@@ -263,7 +263,7 @@ def fetch_bse_filings(symbol: str) -> list:
         "ADANIENT":"512599","ADANIPORTS":"532921","ASIANPAINT":"500820","TITAN":"500114",
         "NESTLEIND":"500790","ULTRACEMCO":"532538","DRREDDY":"500124","CIPLA":"500087",
         "BAJAJFINSV":"532978","TECHM":"532755","KOTAKBANK":"500247","POWERGRID":"532898",
-        "NTPC":"532555","DIVISLAB":"532488","JSWSTEEL":"500228","HINDALCO":"500440",
+        "NTPC":"532555","DIVISLAB":"532488","JSWSTEEL":"500228","HINDALCO":"500440","BEL":"500049","BAJAJ-AUTO":"532977","HDFCLIFE":"540777","SBILIFE":"540719","BRITANNIA":"500825","GRASIM":"500300","BPCL":"500547","HEROMOTOCO":"500182","EICHERMOT":"505200","APOLLOHOSP":"508869","TATACONSUM":"500800","PIDILITIND":"500331","DMART":"540376","NAUKRI":"663532","MUTHOOTFIN":"533398","HAVELLS":"517354","BOSCHLTD":"500530","SIEMENS":"500550","TRENT":"500251","ZOMATO":"543320","PAYTM":"543396","IRCTC":"542830","POLYCAB":"542652","GODREJCP":"532424","MARICO":"531642","COLPAL":"500830","DABUR":"500096","EMAMILTD":"531162","ALKEM":"539523","TORNTPHARM":"500420","AUROPHARMA":"524804","GLAXO":"500660","PFIZER":"500680","ABBOTINDIA":"500488","CHOLAFIN":"500878","MFSL":"500271","ICICIGI":"540716","ICICIPRULI":"540133","SBICARD":"543066","SHRIRAMFIN":"511218","RECLTD":"532955","PFC":"532810","IRFC":"543257","NHPC":"533098","SJVN":"533206","HAL":"541154","BDL":"541143","COCHINSHIP":"526881","GRSE":"543582","MAZAGON":"543237","RVNL":"542649","RAILTEL":"543265","IRCON":"541956","HUDCO":"540530","NBCC":"534309","BEML":"500048","BHEL":"500103","NLC":"513683","SAIL":"500113","NMDC":"526371","MOIL":"532756","NALCO":"532234","HINDZINC":"500188","VEDL":"500295","HINDCOPPER":"513599","GMRINFRA":"532754","ADANIPOWER":"533096","ADANITRANS":"542066","ADANIGREEN":"541578","ADANIENT":"512599","ADANIPORTS":"532921","AWL":"543458",
     }
     code = BSE_CODE.get(symbol.upper(), "")
     results = []
@@ -644,7 +644,7 @@ def render_ticker_velocity(ind: dict, symbol: str):
     pct_chg   = ind.get("change_pct", 0)
     adx       = ind.get("adx", 0)
     # Velocity score: weighted composite of Miro + volume surge + ADX
-    vel = min(100, int(miro*6 + min(vol_ratio-1,4)*8 + (adx/50)*20))
+    vel = min(100, int(miro * 7 + min(max(vol_ratio - 1, 0), 4) * 7 + min(adx / 50, 1) * 20))
     vel_col = "#00c851" if vel>=70 else "#ffaa00" if vel>=40 else "#ff4444"
     vel_lbl = "Hot ⚡" if vel>=70 else "Building" if vel>=40 else "Quiet"
     # Narrative drivers derived from indicators
@@ -907,19 +907,33 @@ def fetch_ohlcv(symbol: str) -> pd.DataFrame:
 
 @st.cache_data(ttl=3600)
 def fetch_fundamentals(symbol: str) -> dict:
-    """Pull key fundamental metrics from yfinance ticker.info."""
+    """Pull key fundamental metrics from yfinance ticker.info with fast_info fallback."""
     try:
-        tk = yf.Ticker(symbol.upper().strip() + ".NS")
-        info = tk.info or {}
+        tk   = yf.Ticker(symbol.upper().strip() + ".NS")
+        info = {}
+        try:
+            info = tk.info or {}
+        except Exception:
+            pass
+        # fast_info fallback for market cap / price if info is sparse
+        fi = {}
+        try:
+            fi = tk.fast_info or {}
+        except Exception:
+            pass
         def _pct(v): return f"{v*100:.1f}%" if v is not None else "—"
         def _x(v,d=1): return f"{v:.{d}f}x" if v is not None else "—"
         def _n(v,d=1): return f"{v:.{d}f}" if v is not None else "—"
         def _cr(v): return f"₹{v/1e7:,.0f} Cr" if v is not None else "—"
+        # Try getting missing fields from fast_info
+        mkt_cap = info.get("marketCap") or getattr(fi, "market_cap", None)
+        if not info and not mkt_cap:
+            return {}
         return {
             "pe":          _n(info.get("trailingPE"),1),
             "fwd_pe":      _n(info.get("forwardPE"),1),
             "ev_ebitda":   _x(info.get("enterpriseToEbitda")),
-            "pb":          _x(info.get("priceToBook")),
+            "pb":          _x(info.get("priceToBook") or getattr(fi,"price_to_book",None)),
             "ps":          _x(info.get("priceToSalesTrailing12Months")),
             "revenue":     _cr(info.get("totalRevenue")),
             "net_income":  _cr(info.get("netIncomeToCommon")),
@@ -933,6 +947,7 @@ def fetch_fundamentals(symbol: str) -> dict:
             "payout":      _pct(info.get("payoutRatio")),
             "sector":      info.get("sector") or info.get("industry") or "—",
             "employees":   f"{info.get('fullTimeEmployees',0):,}" if info.get("fullTimeEmployees") else "—",
+            "mkt_cap":     _cr(mkt_cap),
             "_pe_raw":     info.get("trailingPE"),
             "_de_raw":     info.get("debtToEquity"),
             "_pm_raw":     info.get("profitMargins"),
@@ -1714,91 +1729,79 @@ if analyse and symbol:
     with left:
         ll, lr = st.columns([1, 1])
 
-        # ── Left sub-col: Fundamentals + Filings ───────────────────────
         with ll:
+            # ── Fundamentals ────────────────────────────────────────────
             st.markdown('<div class="section-card">', unsafe_allow_html=True)
             st.markdown('<div class="section-title">📐 Fundamentals</div>', unsafe_allow_html=True)
             render_fundamentals(fund, symbol)
             st.markdown('</div>', unsafe_allow_html=True)
-
+            # ── Filings ──────────────────────────────────────────────────
             st.markdown('<div class="section-card">', unsafe_allow_html=True)
             st.markdown(f'<div class="section-title">📋 Filings — {display_symbol}</div>', unsafe_allow_html=True)
             render_filings(filings, symbol)
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # ── Right sub-col: Miro Backtest + Monte Carlo ──────────────────
         with lr:
+            # ── Signal Summary ───────────────────────────────────────────
             st.markdown('<div class="section-card">', unsafe_allow_html=True)
-            st.markdown('<div class="section-title">📊 Miro Performance Backtest</div>', unsafe_allow_html=True)
-            render_miro_backtest(backtest, display_symbol)
+            st.markdown('<div class="section-title">🎯 Signal Summary</div>', unsafe_allow_html=True)
+            signals = [
+                ("Miro Score",   f"{miro}/10 — {'Strong' if miro>=6.5 else 'Weak' if miro<4 else 'Moderate'}", miro >= 6.5),
+                ("MA Alignment", "✅ Bullish" if cp > ind["ma50"] > ind["ma200"] else "❌ Bearish",              cp > ind["ma50"] > ind["ma200"]),
+                ("Z-Score",      "✅ Oversold" if z < -0.5 else ("❌ Extended" if z > 1.5 else "⚠️ Neutral"), z < -0.5),
+                ("Weekly Trend", ind.get("weekly_trend","—"),                                                       ind.get("weekly_chg",0) > 0),
+            ]
+            bull_count = sum(1 for _, _, b in signals if b)
+            for label, val, bull in signals:
+                col_s = "#00c851" if bull else "#ff4444" if "❌" in val else "#ff8800"
+                st.markdown(f'<div style="padding:6px 0;border-bottom:1px solid #1a1a1a;font-size:0.8rem;"><span style="color:#888;font-family:monospace;">{label}&nbsp;&nbsp;</span><span style="color:{col_s};font-weight:600;font-family:monospace;">{val}</span></div>', unsafe_allow_html=True)
+            bull_signals = bull_count
+            verdict = "STRONG BUY" if bull_signals >= 4 else "BUY" if bull_signals >= 3 else "AVOID" if bull_signals <= 1 else "HOLD"
+            v_col   = "#00c851" if "BUY" in verdict else "#ff4444" if verdict == "AVOID" else "#ffaa00"
+            st.markdown(f'<div style="margin-top:14px;display:flex;justify-content:flex-start;"><div style="background:#0d0d0d;border:1px solid #2a2a2a;border-top:2px solid {v_col};border-radius:6px;padding:10px 16px;text-align:center;min-width:110px;"><div style="font-size:0.58rem;color:#555;font-family:monospace;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;">Signal Verdict</div><div style="font-size:1.3rem;font-weight:700;font-family:monospace;color:{v_col};">{verdict}</div><div style="font-size:0.62rem;color:#444;font-family:monospace;margin-top:3px;">{bull_signals}/4 bullish</div></div></div>', unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
+            # ── Ticker Velocity ──────────────────────────────────────────
             st.markdown('<div class="section-card">', unsafe_allow_html=True)
-            st.markdown('<div class="section-title">🎲 Monte Carlo — Probability Cone</div>', unsafe_allow_html=True)
-            render_monte_carlo(mc)
+            st.markdown('<div class="section-title">⚡ Ticker Velocity</div>', unsafe_allow_html=True)
+            render_ticker_velocity(ind, display_symbol)
             st.markdown('</div>', unsafe_allow_html=True)
+
     with right:
-        # ── Sentiment Tracker ────────────────────────────────────────────────
+        # ── Miro Backtest ────────────────────────────────────────────────
+        st.markdown('<div class="section-card">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">📊 Miro Performance Backtest</div>', unsafe_allow_html=True)
+        render_miro_backtest(backtest, display_symbol)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # ── Probability Cone ─────────────────────────────────────────────
+        st.markdown('<div class="section-card">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">📈 Probability Cone</div>', unsafe_allow_html=True)
+        render_probability_cone(ind, mc)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # ── Rubber Band ───────────────────────────────────────────────────
+        st.markdown('<div class="section-card">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">🎯 Rubber Band Index</div>', unsafe_allow_html=True)
+        render_rubber_band(ind)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # ── Sentiment ─────────────────────────────────────────────────────
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.markdown('<div class="section-title">📡 Market Sentiment</div>', unsafe_allow_html=True)
         render_sentiment(sentiment)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # Signal summary
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">🎯 Signal Summary</div>', unsafe_allow_html=True)
-        signals = [
-            ("Miro Score",   f"{miro}/10 — {'Strong' if miro>=6.5 else 'Weak' if miro<4 else 'Moderate'}", miro >= 6.5),
-            ("MA Alignment", "✅ Bullish" if cp > ind["ma50"] > ind["ma200"] else "❌ Bearish",              cp > ind["ma50"] > ind["ma200"]),
-            ("Z-Score",      "✅ Oversold" if z < -0.5 else ("❌ Extended" if z > 1.5 else "⚠️ Neutral"), z < -0.5),
-            ("Weekly Trend", ind.get("weekly_trend","—"),                                                       ind.get("weekly_chg",0) > 0),
-        ]
-        bull_count = sum(1 for _, _, b in signals if b)
-        for label, val, bull in signals:
-            col_s = "#00c851" if bull else "#ff4444" if "❌" in val else "#ff8800"
-            st.markdown(f'<div style="padding:6px 0;border-bottom:1px solid #1a1a1a;font-size:0.8rem;"><span style="color:#888;font-family:monospace;">{label}&nbsp;&nbsp;</span><span style="color:{col_s};font-weight:600;font-family:monospace;">{val}</span></div>', unsafe_allow_html=True)
-        bull_signals = bull_count
-        verdict = "STRONG BUY" if bull_signals >= 4 else "BUY" if bull_signals >= 3 else "AVOID" if bull_signals <= 1 else "HOLD"
-        v_col   = "#00c851" if "BUY" in verdict else "#ff4444" if verdict == "AVOID" else "#ffaa00"
-        st.markdown(f'<div style="margin-top:14px;display:flex;justify-content:flex-start;"><div style="background:#0d0d0d;border:1px solid #2a2a2a;border-top:2px solid {v_col};border-radius:6px;padding:10px 16px;text-align:center;min-width:110px;"><div style="font-size:0.58rem;color:#555;font-family:monospace;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;">Signal Verdict</div><div style="font-size:1.3rem;font-weight:700;font-family:monospace;color:{v_col};">{verdict}</div><div style="font-size:0.62rem;color:#444;font-family:monospace;margin-top:3px;">{bull_signals}/4 bullish</div></div></div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        # Analyst recs
+        # ── Analyst Recs ──────────────────────────────────────────────────
         if rec:
             st.markdown('<div class="section-card">', unsafe_allow_html=True)
             st.markdown('<div class="section-title">🏦 Analyst Consensus</div>', unsafe_allow_html=True)
             total = (rec.get("buy",0) + rec.get("hold",0) + rec.get("sell",0) + rec.get("strongBuy",0) + rec.get("strongSell",0)) or 1
-            for label, key, col in [("Strong Buy","strongBuy","#ff6600"),("Buy","buy","#ff8800"),("Hold","hold","#ff8800"),("Sell","sell","#cc3300"),("Strong Sell","strongSell","#991100")]:
+            for label, key, col in [("Strong Buy","strongBuy","#ff6600"),("Buy","buy","#00c851"),("Hold","hold","#ffaa00"),("Sell","sell","#ff4444"),("Strong Sell","strongSell","#cc0000")]:
                 n_rec = rec.get(key, 0)
                 pct   = int(n_rec / total * 100)
-                st.markdown(f"""
-<div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-  <span style="color:#9ca3af; font-size:0.75rem; width:70px;">{label}</span>
-  <div style="flex:1; background:#1a1a1a; border-radius:3px; height:6px;">
-    <div style="width:{pct}%; background:{col}; border-radius:3px; height:6px;"></div>
-  </div>
-  <span style="color:{col}; font-size:0.75rem; width:20px;">{n_rec}</span>
-</div>""", unsafe_allow_html=True)
+                st.markdown(f'<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><span style="color:#888;font-size:0.75rem;width:80px;">{label}</span><div style="flex:1;background:#1a1a1a;border-radius:2px;height:5px;"><div style="width:{pct}%;background:{col};height:5px;border-radius:2px;"></div></div><span style="color:{col};font-size:0.72rem;font-family:monospace;width:32px;text-align:right;">{pct}%</span></div>', unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
-
-
-        # ── Ticker Velocity ──────────────────────────────────────────────────
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">⚡ Ticker Velocity</div>', unsafe_allow_html=True)
-        render_ticker_velocity(ind, display_symbol)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        # ── Probability Cone ────────────────────────────────────────────────
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">📊 Probability Cone</div>', unsafe_allow_html=True)
-        render_probability_cone(ind, mc)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        # ── Rubber Band Index ───────────────────────────────────────────────
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">🎯 Rubber Band Index</div>', unsafe_allow_html=True)
-        render_rubber_band(ind)
-        st.markdown('</div>', unsafe_allow_html=True)
 
     # ── AI Agent Debate ───────────────────────────────────────────────────────
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
