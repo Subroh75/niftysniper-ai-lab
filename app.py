@@ -73,163 +73,58 @@ st.set_page_config(
 # ✅✅ Styling ------------------------------------------------------------
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
-    * { font-family: 'Space Grotesk', sans-serif; }
-.main { background: #080808; }
-.stApp { background: #080808; color: #cccccc; }
-#MainMenu, footer, header { visibility: hidden; }
-
-/* Force all Streamlit default text to be readable */
-.stApp p, .stApp span, .stApp div, .stApp label { color: #cccccc; }
-.stMarkdown { color: #cccccc; }
-
-.hero {
-    background: linear-gradient(135deg, #0a0500 0%, #111111 60%, #0a0500 100%);
-    border: 1px solid #ff660022; border-top: 2px solid #ff6600;
-    border-radius: 10px; padding: 32px; margin-bottom: 24px;
-    text-align: center; box-shadow: 0 0 40px #ff660011;
-}
-.hero h1 {
-    font-size: 2rem; font-weight: 700; color: #ff6600;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    margin: 0 0 8px 0; font-family: 'JetBrains Mono', monospace;
-}
-.hero p { color: #999999; font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin: 0; }
-
-.metric-card {
-    background: #111; border: 1px solid #222; border-radius: 8px;
-    padding: 14px; text-align: center; transition: border-color 0.2s;
-}
-.metric-card:hover { border-color: #ff660055; }
-.metric-label { color: #777; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
-.metric-value { font-size: 1.4rem; font-weight: 700; color: #ffffff; font-family: 'JetBrains Mono', monospace; }
-.metric-sub { color: #666; font-size: 0.72rem; margin-top: 4px; }
-
-.signal-bull { color: #00c851 !important; }
-.signal-bear { color: #ff4444 !important; }
-.signal-neutral { color: #ffaa00 !important; }
-
-.section-card { background: #111; border: 1px solid #1a1a1a; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
-.section-title {
-    color: #ff6600; font-size: 0.72rem; font-weight: 600;
-    letter-spacing: 0.12em; text-transform: uppercase;
-    margin-bottom: 14px; padding-bottom: 10px;
-    border-bottom: 1px solid #ff660022;
-    font-family: 'JetBrains Mono', monospace;
-}
-
-.agent-msg {
-    background: #0d0d0d; border-left: 3px solid #ff6600;
-    border-radius: 0 6px 6px 0; padding: 12px 16px;
-    margin-bottom: 10px; color: #cccccc; font-size: 0.875rem; line-height: 1.8; font-family: 'Space Grotesk', sans-serif; letter-spacing: 0.01em;
-}
-.agent-name {
-    font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em;
-    text-transform: uppercase; margin-bottom: 6px;
-    font-family: 'JetBrains Mono', monospace;
-}
-.agent-bull .agent-msg  { border-left-color: #00c851; }
-.agent-bear .agent-msg  { border-left-color: #ff4444; }
-.agent-trader .agent-msg{ border-left-color: #ffaa00; }
-.agent-risk .agent-msg  { border-left-color: #3399ff; }
-.agent-fund .agent-msg  { border-left-color: #aa88ff; }
-
-.news-item {
-    background: #0d0d0d; border: 1px solid #1a1a1a;
-    border-left: 2px solid #ff660044;
-    border-radius: 0 6px 6px 0; padding: 12px; margin-bottom: 8px;
-}
-.news-headline { color: #e2e8f0; font-size: 0.875rem; font-weight: 500; }
-.news-meta { color: #666; font-size: 0.75rem; margin-top: 4px; }
-
-.news-tag { font-size: 9px; padding: 2px 7px; border-radius: 3px; font-weight: 600; text-transform: uppercase; }
-.news-sentiment-pos { background: #00c85122; color: #00c851; border: 1px solid #00c85133; }
-.news-sentiment-neg { background: #ff444422; color: #ff4444; border: 1px solid #ff444433; }
-.news-sentiment-neu { background: #1f1f1f; color: #9ca3af; border: 1px solid #2a2a2a; }
-.news-source { color: #666; }
-.news-time { color: #555; }
-
-.fund-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
-.fund-item { background: #0d0d0d; border: 1px solid #1a1a1a; border-radius: 6px; padding: 10px 12px; }
-.fund-label { color: #555; font-size: 0.62rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; font-family: 'JetBrains Mono',monospace; }
-.fund-value { color: #e2e8f0; font-size: 1rem; font-weight: 600; font-family: 'JetBrains Mono',monospace; }
-.fund-value.good { color: #00c851; }
-.fund-value.warn { color: #ffaa00; }
-.fund-value.bad  { color: #ff4444; }
-.fund-section-head { color: #444; font-size: 0.62rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; margin: 12px 0 7px; font-family: 'JetBrains Mono',monospace; border-top: 1px solid #1a1a1a; padding-top: 10px; }
-
-.score-bar-bg { background: #1a1a1a; border-radius: 2px; height: 4px; margin-top: 8px; }
-.score-bar-fill { border-radius: 2px; height: 4px; }
-
-.verdict-box {
-    background: linear-gradient(135deg, #0a0500, #111);
-    border: 1px solid #ff660033; border-top: 2px solid #ff6600;
-    border-radius: 8px; padding: 20px; text-align: center;
-    margin-top: 8px; box-shadow: 0 0 20px #ff660011;
-}
-.verdict-label { color: #777; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px; font-family: 'JetBrains Mono', monospace; }
-.verdict-text { font-size: 1.8rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.05em; }
-
-/* ✅✅ INPUT: force white text ------------------------------------------------------------ */
-[data-testid="stTextInput"] > div > div > input {
-    background-color: #1a1a1a !important;
-    border: 1px solid #ff660066 !important;
-    border-radius: 6px !important;
-    color: #ffffff !important;
-    -webkit-text-fill-color: #ffffff !important;
-    caret-color: #ff6600 !important;
-    font-size: 1rem !important;
-    padding: 12px 16px !important;
-    font-family: 'JetBrains Mono', monospace !important;
-    box-shadow: none !important;
-}
-[data-testid="stTextInput"] > div > div > input:focus {
-    border-color: #ff6600 !important;
-    box-shadow: 0 0 0 2px #ff660033 !important;
-    outline: none !important;
-}
-[data-testid="stTextInput"] > div > div > input::placeholder {
-    color: #555 !important;
-    -webkit-text-fill-color: #555 !important;
-}
-
-.stDownloadButton > button {
-    background: #ff6600 !important;
-    color: #000000 !important;
-    -webkit-text-fill-color: #000000 !important;
-    font-weight: 700 !important;
-    border: none !important;
-    border-radius: 6px !important;
-    padding: 14px 24px !important;
-    font-size: 0.9rem !important;
-    width: 100% !important;
-    letter-spacing: 0.08em !important;
-    text-transform: uppercase !important;
-    font-family: 'JetBrains Mono', monospace !important;
-    transition: background 0.2s !important;
-}
-.stDownloadButton > button:hover { background: #ff8800 !important; }
-.stDownloadButton > button p { color: #000 !important; -webkit-text-fill-color: #000 !important; }
-.stButton > button {
-    background: #ff6600 !important;
-    color: #000000 !important;
-    -webkit-text-fill-color: #000000 !important;
-    font-weight: 700 !important;
-    border: none !important;
-    border-radius: 6px !important;
-    padding: 12px 24px !important;
-    font-size: 0.85rem !important;
-    width: 100% !important;
-    letter-spacing: 0.08em !important;
-    text-transform: uppercase !important;
-    font-family: 'JetBrains Mono', monospace !important;
-    transition: background 0.2s !important;
-}
-.stButton > button:hover { background: #ff8800 !important; }
-.stButton > button p { color: #000000 !important; -webkit-text-fill-color: #000000 !important; }
-
-hr { border-color: #1a1a1a !important; }
-div[data-testid="stHorizontalBlock"] { gap: 10px; }
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap');
+*{box-sizing:border-box;}.stApp{background:#080808!important;}.block-container{padding:0!important;max-width:100%!important;}.stMarkdown p{margin:0!important;}
+header[data-testid="stHeader"]{background:#080808!important;border-bottom:1px solid #1a1a1a!important;}
+.stTextInput input{font-family:'JetBrains Mono',monospace!important;background:#111!important;border:1px solid #222!important;border-radius:6px!important;color:#ccc!important;}
+.stButton button{font-family:'JetBrains Mono',monospace!important;font-weight:700!important;}
+.ns-hero{background:#0d0d0d;border-bottom:1px solid #1a1a1a;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;}
+.ns-badge{font-size:9px;color:#ff6600;letter-spacing:.14em;text-transform:uppercase;font-family:'JetBrains Mono',monospace;margin-bottom:4px;}
+.ns-name{font-size:28px;font-weight:700;color:#fff;letter-spacing:.04em;font-family:'JetBrains Mono',monospace;line-height:1.1;}
+.ns-co{font-size:12px;color:#555;font-family:'JetBrains Mono',monospace;margin-top:2px;}
+.ns-price{font-size:32px;font-weight:700;color:#fff;font-family:'JetBrains Mono',monospace;text-align:right;}
+.ns-chg{font-size:13px;font-family:'JetBrains Mono',monospace;text-align:right;margin-top:2px;}
+.ns-kpi{background:#0a0a0a;border-bottom:1px solid #1a1a1a;display:grid;grid-template-columns:repeat(7,1fr);}
+.ns-kc{padding:10px 14px;border-right:1px solid #111;text-align:center;}.ns-kc:last-child{border-right:none;}
+.ns-kl{font-size:8px;color:#333;letter-spacing:.12em;text-transform:uppercase;font-family:'JetBrains Mono',monospace;margin-bottom:4px;}
+.ns-kv{font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace;}
+.ns-ks{font-size:9px;color:#555;font-family:'JetBrains Mono',monospace;margin-top:2px;}
+.ns-body{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1.4fr) minmax(0,1.6fr);border-bottom:1px solid #111;align-items:start;}
+.ns-col{padding:16px;border-right:1px solid #111;}.ns-col:last-child{border-right:none;}
+.ns-ct{font-size:8px;color:#333;letter-spacing:.14em;text-transform:uppercase;font-family:'JetBrains Mono',monospace;margin:14px 0 10px;display:flex;align-items:center;gap:6px;padding-left:8px;border-left:2px solid #ff6600;}.ns-ct:first-child{margin-top:0;}
+.ns-tag{font-size:7px;color:#ff6600;background:#1a0800;border:1px solid #331500;border-radius:3px;padding:1px 5px;margin-left:auto;}
+.ns-ma{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px;}
+.ns-mc{background:#0d0d0d;border:1px solid #111;border-radius:6px;padding:10px;text-align:center;}
+.ns-ml{font-size:8px;color:#333;letter-spacing:.1em;text-transform:uppercase;font-family:'JetBrains Mono',monospace;margin-bottom:5px;}
+.ns-mv{font-size:13px;font-weight:700;color:#ccc;font-family:'JetBrains Mono',monospace;}
+.ns-mp{font-size:9px;font-family:'JetBrains Mono',monospace;margin-top:3px;}
+.ns-sr{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:#0d0d0d;border-radius:5px;border:1px solid #111;margin-bottom:4px;}
+.ns-sn{font-size:10px;color:#555;font-family:'JetBrains Mono',monospace;}.ns-sv2{font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;}
+.ns-vbox{background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:14px;margin-bottom:14px;}
+.ns-vl{font-size:8px;color:#333;letter-spacing:.12em;text-transform:uppercase;font-family:'JetBrains Mono',monospace;margin-bottom:8px;}
+.ns-vn{font-size:22px;font-weight:700;font-family:'JetBrains Mono',monospace;margin-bottom:3px;}
+.ns-vs{font-size:9px;color:#555;font-family:'JetBrains Mono',monospace;margin-bottom:10px;}
+.ns-vmini{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding-top:10px;border-top:1px solid #111;}
+.ns-vm{background:#111;border-radius:4px;padding:6px;text-align:center;}
+.ns-vml{font-size:7px;color:#333;text-transform:uppercase;letter-spacing:.08em;font-family:'JetBrains Mono',monospace;margin-bottom:3px;}
+.ns-vmv{font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace;}
+.ns-card{background:#0d0d0d;border:1px solid #111;border-radius:6px;padding:10px 12px;margin-bottom:10px;}
+.ns-dr{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #0f0f0f;font-family:'JetBrains Mono',monospace;}.ns-dr:last-child{border-bottom:none;}.ns-dl{font-size:10px;color:#444;}.ns-dv{font-size:10px;font-weight:700;}
+.ns-fg{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;}
+.ns-fc{background:#0d0d0d;border:1px solid #111;border-radius:6px;padding:8px 10px;}
+.ns-fl{font-size:8px;color:#333;letter-spacing:.1em;text-transform:uppercase;font-family:'JetBrains Mono',monospace;margin-bottom:3px;}
+.ns-fv{font-size:14px;font-weight:700;color:#ccc;font-family:'JetBrains Mono',monospace;}
+.ns-bg{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:10px;}
+.ns-bc{background:#0d0d0d;border:1px solid #111;border-radius:6px;padding:10px;text-align:center;}
+.ns-bl{font-size:8px;color:#333;letter-spacing:.1em;text-transform:uppercase;font-family:'JetBrains Mono',monospace;margin-bottom:4px;}
+.ns-bv{font-size:16px;font-weight:700;font-family:'JetBrains Mono',monospace;}
+.ns-pg{background:#001a08;border:1px solid #003318;color:#00c851;padding:6px 10px;border-radius:4px;font-size:9px;font-weight:700;font-family:'JetBrains Mono',monospace;text-align:center;margin-top:8px;}
+.ns-pb{background:#001a3a;border:1px solid #003377;color:#3399ff;padding:6px 10px;border-radius:4px;font-size:9px;font-weight:700;font-family:'JetBrains Mono',monospace;text-align:center;margin-top:8px;}
+.ns-pa{background:#1a1000;border:1px solid #332200;color:#ffaa00;padding:6px 10px;border-radius:4px;font-size:9px;font-weight:700;font-family:'JetBrains Mono',monospace;text-align:center;margin-top:8px;}
+.ns-footer{background:#0a0a0a;border-top:1px solid #111;padding:8px 24px;display:flex;align-items:center;justify-content:space-between;}
+.ns-fd{font-size:9px;color:#444;font-weight:700;font-family:'JetBrains Mono',monospace;}
+.ns-fw{padding:18px 24px;border-top:1px solid #111;}
+.ns-vw{height:6px;background:#1a1a1a;border-radius:3px;margin:8px 0 6px;}.ns-vf{height:6px;border-radius:3px;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1784,21 +1679,17 @@ if analyse and symbol:
     # ✅✅ Stock Header ------------------------------------------------------------
     display_symbol = symbol.replace(".NS","").replace(".BO","")
     company_name = (quote.get('name', symbol) or symbol).replace('.NS','').replace('.BO','')
-    st.markdown(f"""
-<div class="section-card" style="margin-bottom:20px; border-top:2px solid #ff6600;">
-  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-    <div>
-      <div style="color:#ff6600; font-size:0.7rem; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; font-family:'JetBrains Mono',monospace; margin-bottom:2px;">NSE · EQUITY</div>
-      <div style="color:#ffffff; font-size:1.8rem; font-weight:700; font-family:'JetBrains Mono',monospace; letter-spacing:0.05em; line-height:1.1;">{display_symbol}</div>
-      <div style="color:#aaaaaa; font-size:0.95rem; margin-top:3px;">{company_name}</div>
-    </div>
-    <div style="text-align:right;">
-      <div style="color:#ffffff; font-size:2.2rem; font-weight:700; font-family:'JetBrains Mono',monospace;">&#8377;{cp:,.2f}</div>
-      <div style="color:{chg_col}; font-size:1rem; font-weight:600;">{chg_sym} {abs(chg):.2f}%</div>
-    </div>
+    st.markdown(f'''<div class="ns-hero">
+  <div>
+    <div class="ns-badge">NSE &middot; EQUITY &middot; {fund.get('sector','Equity').upper()}</div>
+    <div class="ns-name">{display_symbol}</div>
+    <div class="ns-co">{company_name}</div>
   </div>
-</div>
-""", unsafe_allow_html=True)
+  <div>
+    <div class="ns-price">&#8377;{cp:,.2f}</div>
+    <div class="ns-chg" style="color:{chg_col}">{chg_sym} {abs(chg):.2f}%</div>
+  </div>
+</div>''', unsafe_allow_html=True)
 
     # ✅✅ Key Metrics Row ------------------------------------------------------------
     miro     = ind["miro_score"]
@@ -1821,39 +1712,45 @@ if analyse and symbol:
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
     # ✅✅ Metric cards row 2: MA20 / MA50 / MA200 ------------------------------------------------------------
-    cm1, cm2, cm3 = st.columns(3)
-    cm1.markdown(render_metric("MA 20",  f"&#8377;{ind['ma20']:,}",         "<span style='color:#00c851'>&#9650; Above</span>" if cp > ind["ma20"]         else "<span style='color:#ff4444'>&#9660; Below</span>"), unsafe_allow_html=True)
-    cm2.markdown(render_metric("MA 50",  f"&#8377;{ind['ma50_display']:,}",  "<span style='color:#00c851'>&#9650; Above</span>" if cp > ind["ma50_display"]  else "<span style='color:#ff4444'>&#9660; Below</span>"), unsafe_allow_html=True)
-    cm3.markdown(render_metric("MA 200", f"&#8377;{ind['ma200']:,}",         "<span style='color:#00c851'>&#9650; Above</span>" if cp > ind["ma200"]         else "<span style='color:#ff4444'>&#9660; Below</span>"), unsafe_allow_html=True)
+    _ma20v2=ind.get('ma20',cp);_ma50v2=ind.get('ma50',cp);_ma200v=ind.get('ma200',cp)
+    _ma20c="#00c851" if cp>_ma20v2 else "#ff4444";_ma20s="&#9650; Above" if cp>_ma20v2 else "&#9660; Below"
+    _ma50c="#00c851" if cp>_ma50v2 else "#ff4444";_ma50s="&#9650; Above" if cp>_ma50v2 else "&#9660; Below"
+    _ma200c="#00c851" if cp>_ma200v else "#ff4444";_ma200s="&#9650; Above" if cp>_ma200v else "&#9660; Below"
+    st.markdown(f'''<div class="ns-ma">
+  <div class="ns-mc"><div class="ns-ml">MA 20</div><div class="ns-mv">&#8377;{_ma20v2:,.1f}</div><div class="ns-mp" style="color:{_ma20c}">{_ma20s}</div></div>
+  <div class="ns-mc"><div class="ns-ml">MA 50</div><div class="ns-mv">&#8377;{_ma50v2:,.2f}</div><div class="ns-mp" style="color:{_ma50c}">{_ma50s}</div></div>
+  <div class="ns-mc"><div class="ns-ml">MA 200</div><div class="ns-mv">&#8377;{_ma200v:,.1f}</div><div class="ns-mp" style="color:{_ma200c}">{_ma200s}</div></div>
+</div>''', unsafe_allow_html=True)
 
     st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 
     # ✅✅ Two column layout: News + Chart data left, Signals right ------------------------------------------------------------
-    left, right = st.columns([3, 2])
+    st.markdown('<div class="ns-body">', unsafe_allow_html=True)
+    left, mid, right = st.columns([2, 1.4, 1.6])
 
     # ── Sector Correlation data ------------------------------------------------------------
     sector_label = COMPANY_META.get(symbol, ("", "", ""))[1]
     sc = compute_sector_correlation(symbol, sector_label)
 
     with left:
-        ll, lr = st.columns([1, 1])
+        pass  # signals in mid col
 
         with ll:
             # ✅✅ Fundamentals ------------------------------------------------------------
-            st.markdown('<div class="section-card">', unsafe_allow_html=True)
-            st.markdown('<div class="section-title">📡 Fundamentals</div>', unsafe_allow_html=True)
+            st.markdown('<div class="ns-card">', unsafe_allow_html=True)
+            st.markdown('<div class="ns-ct">📡 Fundamentals</div>', unsafe_allow_html=True)
             render_fundamentals(fund, symbol)
             st.markdown('</div>', unsafe_allow_html=True)
             # ✅✅ Filings ------------------------------------------------------------
-            st.markdown('<div class="section-card">', unsafe_allow_html=True)
-            st.markdown(f'<div class="section-title">📡 Filings ✅ {display_symbol}</div>', unsafe_allow_html=True)
+            st.markdown('<div class="ns-card">', unsafe_allow_html=True)
+            st.markdown(f'<div class="ns-ct">📡 Filings ✅ {display_symbol}</div>', unsafe_allow_html=True)
             render_filings(filings, symbol)
             st.markdown('</div>', unsafe_allow_html=True)
 
         with lr:
             # ✅✅ Signal Summary ------------------------------------------------------------
-            st.markdown('<div class="section-card">', unsafe_allow_html=True)
-            st.markdown('<div class="section-title">&#128225; Signal Summary</div>', unsafe_allow_html=True)
+            st.markdown('<div class="ns-card">', unsafe_allow_html=True)
+            st.markdown('<div class="ns-ct">&#128225; Signal Summary</div>', unsafe_allow_html=True)
             signals = [
                 ("Miro Score",   f"{miro}/10 ✅ {'Strong' if miro>=6.5 else 'Weak' if miro<4 else 'Moderate'}", miro >= 6.5),
                 ("MA Alignment", "✅ Bullish" if cp > ind["ma50"] > ind["ma200"] else "✅ Bearish",              cp > ind["ma50"] > ind["ma200"]),
@@ -1914,46 +1811,46 @@ if analyse and symbol:
             st.markdown('</div>', unsafe_allow_html=True)
 
             # ✅✅ Ticker Velocity ------------------------------------------------------------
-            st.markdown('<div class="section-card">', unsafe_allow_html=True)
-            st.markdown('<div class="section-title">&#127919; Ticker Velocity</div>', unsafe_allow_html=True)
+            st.markdown('<div class="ns-card">', unsafe_allow_html=True)
+            st.markdown('<div class="ns-ct">&#127919; Ticker Velocity</div>', unsafe_allow_html=True)
             render_ticker_velocity(ind, display_symbol)
             st.markdown('</div>', unsafe_allow_html=True)
 
             # ── Sector Correlation ------------------------------------------------------------
-            st.markdown('<div class="section-card">', unsafe_allow_html=True)
-            st.markdown('<div class="section-title">📡 Sector Correlation</div>', unsafe_allow_html=True)
+            st.markdown('<div class="ns-card">', unsafe_allow_html=True)
+            st.markdown('<div class="ns-ct">📡 Sector Correlation</div>', unsafe_allow_html=True)
             render_sector_correlation(sc, sector_label)
             st.markdown('</div>', unsafe_allow_html=True)
 
     with right:
         # ✅✅ Miro Backtest ------------------------------------------------------------
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">📡 Miro Performance Backtest</div>', unsafe_allow_html=True)
+        st.markdown('<div class="ns-card">', unsafe_allow_html=True)
+        st.markdown('<div class="ns-ct">📡 Miro Performance Backtest</div>', unsafe_allow_html=True)
         render_miro_backtest(backtest, display_symbol)
         st.markdown('</div>', unsafe_allow_html=True)
 
         # ✅✅ Probability Cone ------------------------------------------------------------
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">📡 Probability Cone</div>', unsafe_allow_html=True)
+        st.markdown('<div class="ns-card">', unsafe_allow_html=True)
+        st.markdown('<div class="ns-ct">📡 Probability Cone</div>', unsafe_allow_html=True)
         render_probability_cone(ind, mc)
         st.markdown('</div>', unsafe_allow_html=True)
 
         # ✅✅ Rubber Band ------------------------------------------------------------
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">&#128225; Rubber Band Index</div>', unsafe_allow_html=True)
+        st.markdown('<div class="ns-card">', unsafe_allow_html=True)
+        st.markdown('<div class="ns-ct">&#128225; Rubber Band Index</div>', unsafe_allow_html=True)
         render_rubber_band(ind)
         st.markdown('</div>', unsafe_allow_html=True)
 
         # ✅✅ Sentiment ------------------------------------------------------------
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">&#128225; Market Sentiment</div>', unsafe_allow_html=True)
+        st.markdown('<div class="ns-card">', unsafe_allow_html=True)
+        st.markdown('<div class="ns-ct">&#128225; Market Sentiment</div>', unsafe_allow_html=True)
         render_sentiment(sentiment)
         st.markdown('</div>', unsafe_allow_html=True)
 
         # ✅✅ Analyst Recs ------------------------------------------------------------
         if rec:
-            st.markdown('<div class="section-card">', unsafe_allow_html=True)
-            st.markdown('<div class="section-title">&#128225; Analyst Consensus</div>', unsafe_allow_html=True)
+            st.markdown('<div class="ns-card">', unsafe_allow_html=True)
+            st.markdown('<div class="ns-ct">&#128225; Analyst Consensus</div>', unsafe_allow_html=True)
             total = (rec.get("buy",0) + rec.get("hold",0) + rec.get("sell",0) + rec.get("strongBuy",0) + rec.get("strongSell",0)) or 1
             for label, key, col in [("Strong Buy","strongBuy","#ff6600"),("Buy","buy","#00c851"),("Hold","hold","#ffaa00"),("Sell","sell","#ff4444"),("Strong Sell","strongSell","#cc0000")]:
                 n_rec = rec.get(key, 0)
@@ -1963,8 +1860,296 @@ if analyse and symbol:
 
     # ✅✅ AI Agent Debate ------------------------------------------------------------
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-    st.markdown('<div class="section-card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">&#128225; AI Agent Debate</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ns-card">', unsafe_allow_html=True)
+    st.markdown('<div class="ns-ct">&#128225; AI Agent Debate</div>', unsafe_allow_html=True)
+
+    client = get_anthropic()
+    if not client:
+        st.warning("Add ANTHROPIC_API_KEY to Streamlit secrets to enable AI agent debate.")
+    else:
+        context = build_context(display_symbol, ind, quote, fund, news, rec)
+        for agent_name, agent_key, color, persona in AGENTS:
+            st.markdown(f"""
+<div class="agent-{agent_key}">
+  <div class="agent-name" style="color:{color};">{agent_name}</div>
+</div>""", unsafe_allow_html=True)
+            placeholder = st.empty()
+            stream_agent(client, agent_name, persona, context, placeholder)
+            st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # Disclaimer
+    st.markdown("""
+<div style="text-align:center; color:#333333; font-size:0.75rem; margin-top:24px; padding:12px; border-top:1px solid #1a1a1a;">
+&#9888;&#65039; <strong>Not SEBI registered. Not financial advice. For educational purposes only. Always do your own research.</strong>
+</div>""", unsafe_allow_html=True)
+
+
+    # ✅✅ PDF Report ------------------------------------------------------------
+    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+    _vc = "#00c851" if "BUY" in verdict else "#ff4444" if verdict == "AVOID" else "#ffaa00"
+    _cc = "#00c851" if chg >= 0 else "#ff4444"
+    _co = quote.get('name', symbol) or symbol
+    _dt = datetime.now().strftime('%d %B %Y, %H:%M IST')
+    _sl_rows = ""
+    for _sln,_slv,_slb in [
+        ("MA Alignment","Bullish" if cp>ind["ma50_display"]>ind["ma200"] else "Bearish",cp>ind["ma50_display"]>ind["ma200"]),
+        ("RSI (14)",f"{ind['rsi']} ✅ Buy Zone" if ind['rsi']<40 else f"{ind['rsi']} ✅ Hot" if ind['rsi']>65 else f"{ind['rsi']} ✅ Neutral",ind['rsi']<40),
+        ("Z-Score",f"{ind['z_score']} ✅ Oversold" if ind['z_score']<-0.5 else f"{ind['z_score']} ✅ Extended" if ind['z_score']>1.5 else f"{ind['z_score']} ✅ Neutral",ind['z_score']<-0.5),
+        ("IBS",f"{ind['ibs']} ✅ Buy" if ind['ibs']<0.3 else f"{ind['ibs']} ✅ Sell" if ind['ibs']>0.75 else f"{ind['ibs']} ✅ Neutral",ind['ibs']<0.3),
+        ("Donchian","Near High" if cp>ind['don_high']*0.97 else "Mid Range",cp>ind['don_high']*0.97),
+        ("MACD","Positive" if ind['macd']>0 else "Negative",ind['macd']>0),
+        ("Volume",f"{ind['vol_ratio']}x Surge" if ind['vol_ratio']>1.5 else f"{ind['vol_ratio']}x Normal",ind['vol_ratio']>1.5),
+    ]:
+        _sc2 = "#00c851" if _slb else "#ff4444"
+        _sl_rows += f"<tr><td style='padding:6px 12px;color:#888;font-size:12px;border-bottom:1px solid #1e1e1e;'>{_sln}</td><td style='padding:6px 12px;color:{_sc2};font-size:12px;font-weight:600;border-bottom:1px solid #1e1e1e;'>{'✅' if _slb else '✅'} {_slv}</td></tr>"
+    _news_rows = ""
+    if news:
+        for _n2 in news[:5]:
+            _nh2 = (_n2.get('title') or _n2.get('headline',''))[:85]
+            _ns2 = datetime.fromtimestamp(_n2.get('datetime',0)).strftime('%d %b') if _n2.get('datetime') else ''
+            _news_rows += f"<tr><td style='padding:5px 12px;color:#ccc;font-size:11px;border-bottom:1px solid #1e1e1e;'>{_nh2}</td><td style='padding:5px 12px;color:#666;font-size:11px;border-bottom:1px solid #1e1e1e;white-space:nowrap;'>{_n2.get('source','')} · {_ns2}</td></tr>"
+    if not _news_rows:
+        _news_rows = "<tr><td colspan='2' style='padding:8px 12px;color:#555;font-size:11px;'>No news data ✅ add FINNHUB_API_KEY to Streamlit secrets</td></tr>"
+    _miro_w = int(ind['miro_score']/10*100)
+    _pdf = f"""<!DOCTYPE html><html><head><meta charset='UTF-8'><title>NiftySniper ✅ {symbol}</title>
+<link href='https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap' rel='stylesheet'>
+<style>*{{margin:0;padding:0;box-sizing:border-box}}body{{background:#080808;color:#ccc;font-family:Inter,sans-serif;padding:32px;max-width:900px;margin:0 auto}}
+@media print{{body{{padding:16px;background:#000}}@page{{size:A4;margin:12mm;background:#000}}.no-print{{display:none}}}}
+.btn{{background:#ff6600;color:#000;border:none;padding:11px 28px;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;letter-spacing:.08em;font-family:'JetBrains Mono',monospace;margin-bottom:24px;}}
+.btn:hover{{background:#ff8800}}
+.hdr{{background:#0f0f0f;border-top:3px solid #ff6600;border-radius:8px;padding:22px 24px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:flex-start}}
+.logo{{color:#ff6600;font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:700;letter-spacing:.1em}}
+.logo-sub{{color:#555;font-size:9px;letter-spacing:.15em;margin-top:3px}}
+.sym{{color:#fff;font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:700;text-align:right}}
+.co{{color:#aaa;font-size:12px;margin-top:2px;text-align:right}}
+.px{{color:#fff;font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;text-align:right;margin-top:3px}}
+.vbox{{background:#0f0f0f;border:1px solid {_vc}44;border-left:4px solid {_vc};border-radius:8px;padding:14px 20px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center}}
+.vlbl{{color:#666;font-size:9px;letter-spacing:.1em;text-transform:uppercase;font-family:'JetBrains Mono',monospace}}
+.vval{{color:{_vc};font-size:26px;font-weight:700;font-family:'JetBrains Mono',monospace}}
+.vsub{{color:#888;font-size:11px;margin-top:2px}}
+.grid{{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}}
+.sec{{background:#0f0f0f;border:1px solid #1e1e1e;border-radius:8px;overflow:hidden}}
+.stitle{{background:#141414;color:#ff6600;font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:7px 12px;font-family:'JetBrains Mono',monospace;border-bottom:1px solid #1e1e1e}}
+table{{width:100%;border-collapse:collapse}}
+.mbar{{height:3px;background:#1a1a1a;border-radius:2px;margin-top:3px}}.mfill{{height:3px;background:#00c851;border-radius:2px;width:{_miro_w}%}}
+.green{{color:#00c851}}.red{{color:#ff4444}}.amber{{color:#ffaa00}}.white{{color:#fff}}.mono{{font-family:'JetBrains Mono',monospace;font-weight:600}}
+.disc{{color:#444;font-size:9px;text-align:center;margin-top:18px;padding-top:12px;border-top:1px solid #1a1a1a;line-height:1.7}}
+</style></head><body>
+<button class='btn no-print' onclick='window.print()'>&#128438; SAVE AS PDF (Ctrl+P)</button>
+<div class='hdr'>
+  <div><div class='logo'>&#127919; NIFTY SNIPER</div><div class='logo-sub'>SINGLE-STOCK INTELLIGENCE REPORT</div></div>
+  <div><div class='sym'>{symbol}</div><div class='co'>{_co}</div><div class='px'>&#8377;{cp:,.2f} <span style='color:{_cc};font-size:13px;'>{'+' if chg>=0 else ''}{chg:.2f}%</span></div><div class='logo-sub' style='text-align:right;margin-top:3px;'>NSE · {_dt}</div></div>
+</div>
+<div class='vbox'>
+  <div><div class='vlbl'>AI Technical Verdict</div><div class='vsub'>{bull_signals}/8 signals · Miro Score {ind['miro_score']}/10</div></div>
+  <div class='vval'>{verdict}</div>
+</div>
+<div class='grid'>
+<div class='sec'><div class='stitle'>📡 Technical Indicators</div><table>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>Miro Score</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono {"green" if ind["miro_score"]>=6.5 else "red" if ind["miro_score"]<4 else "amber"}'>{ind['miro_score']}/10</span><div class='mbar'><div class='mfill'></div></div></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>Trend</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono {"green" if "Up" in ind["trend"] else "red" if "Down" in ind["trend"] else "amber"}'>{ind['trend']}</span> <span style='color:#555;font-size:10px;'>ADX {ind['adx']}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>Weekly Trend</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono {"green" if ind.get("weekly_chg",0)>0.5 else "red" if ind.get("weekly_chg",0)<-0.5 else "amber"}'>{ind.get("weekly_trend","✅")} ({ind.get("weekly_chg",0):+.2f}%)</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>RSI (14)</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono {"green" if ind["rsi"]<40 else "red" if ind["rsi"]>65 else "amber"}'>{ind['rsi']}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>Z-Score</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono {"green" if ind["z_score"]<-0.5 else "red" if ind["z_score"]>1.5 else "amber"}'>{ind['z_score']}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>IBS</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono'>{ind['ibs']}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>MACD</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono {"green" if ind["macd"]>0 else "red"}'>{ind['macd']:+.2f}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;'>Volume Ratio</td><td style='padding:6px 12px;'><span class='mono {"green" if ind["vol_ratio"]>1.5 else "white"}'>{ind['vol_ratio']}x avg</span></td></tr>
+</table></div>
+<div class='sec'><div class='stitle'>📡 Moving Averages & Key Levels</div><table>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>MA 20</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>&#8377;{ind['ma20']:,}</span> <span style='color:{"#00c851" if cp>ind["ma20"] else "#ff4444"};font-size:10px;'>{"&#9650;" if cp>ind["ma20"] else "&#9660;"}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>MA 50</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>&#8377;{ind['ma50_display']:,}</span> <span style='color:{"#00c851" if cp>ind["ma50_display"] else "#ff4444"};font-size:10px;'>{"&#9650;" if cp>ind["ma50_display"] else "&#9660;"}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>MA 200</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>&#8377;{ind['ma200']:,}</span> <span style='color:{"#00c851" if cp>ind["ma200"] else "#ff4444"};font-size:10px;'>{"&#9650;" if cp>ind["ma200"] else "&#9660;"}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>Donchian</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>&#8377;{ind['don_low']:,} ✅ &#8377;{ind['don_high']:,}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>Bollinger Bands</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>&#8377;{ind['bb_dn']:,} ✅ &#8377;{ind['bb_up']:,}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>ATR (14)</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>&#8377;{ind['atr']}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;border-bottom:1px solid #1e1e1e;'>52-Week Range</td><td style='padding:6px 12px;border-bottom:1px solid #1e1e1e;'><span class='mono white'>&#8377;{ind['wk52_low']:,} ✅ &#8377;{ind['wk52_high']:,}</span></td></tr>
+<tr><td style='padding:6px 12px;color:#888;font-size:11px;'>52W Position</td><td style='padding:6px 12px;'><span class='mono white'>{ind['wk52_pct']}% of range</span></td></tr>
+</table></div>
+</div>
+<div class='grid'>
+<div class='sec'><div class='stitle'>&#128225; Signal Checklist</div><table>{_sl_rows}</table></div>
+<div class='sec'><div class='stitle'>&#128225; Recent News & Filings</div><table>{_news_rows}</table></div>
+</div>
+<div class='disc'>&#9888;&#65039; <strong>Nifty Sniper ✅ For educational purposes only. Not registered with SEBI. Not financial advice. Always do your own research.</strong></div>
+</body></html>"""
+    _col1, _col2, _col3 = st.columns([1,2,1])
+    with _col2:
+        st.download_button(
+            label="&#128438;  DOWNLOAD REPORT (PDF)",
+            data=_pdf,
+            file_name=f"NiftySniper_{symbol}_{datetime.now().strftime('%Y%m%d')}.html",
+            mime="text/html",
+            use_container_width=True,
+        )
+    st.caption("Opens in browser ✅ click **&#128438; SAVE AS PDF** inside ✅ Print ✅ Save as PDF")    # KPI strip
+    _z=ind.get("z_score",0);_m=ind.get("miro_score",0);_vr=ind.get("vol_ratio",1)
+    _adx=ind.get("adx",0);_wchg=ind.get("weekly_chg",0);_ma20v=ind.get("ma20",cp);_ma50v=ind.get("ma50",cp)
+    _wk52h=ind.get("wk52_high",cp*1.2);_wk52l=ind.get("wk52_low",cp*0.8);_pos52=int(((cp-_wk52l)/max(_wk52h-_wk52l,1))*100)
+    _m_col="#00c851" if _m>=7 else "#ff8800" if _m>=4 else "#ff4444";_m_lbl="Strong" if _m>=7 else "Building" if _m>=4 else "Weak"
+    _z_col="#ff8800" if abs(_z)>2 else "#ffaa00" if abs(_z)>1 else "#00c851";_z_lbl="Extended" if _z>2 else "Oversold" if _z<-1 else "Neutral"
+    _vr_col="#ff6600" if _vr>=2 else "#ffaa00" if _vr>=1.5 else "#555";_vr_lbl="Surge" if _vr>=2 else "Elevated" if _vr>=1.5 else "Normal"
+    _adx_col="#00c851" if _adx>=25 else "#555";_adx_lbl="Strong" if _adx>=25 else "Weak"
+    _w_col="#00c851" if _wchg>0.5 else "#ff4444" if _wchg<-0.5 else "#555"
+    _ma_bull=cp>_ma20v>_ma50v;_ma_col="#00c851" if _ma_bull else "#ff4444";_ma_lbl="Bullish" if _ma_bull else "Bearish"
+    st.markdown(f'''<div class="ns-kpi">
+  <div class="ns-kc"><div class="ns-kl">Miro Score</div><div class="ns-kv" style="color:{_m_col}">{_m:.1f}<span style="font-size:9px;color:#555">/10</span></div><div class="ns-ks">{_m_lbl}</div></div>
+  <div class="ns-kc"><div class="ns-kl">Z-Score</div><div class="ns-kv" style="color:{_z_col}">{_z:+.2f}&#963;</div><div class="ns-ks">{_z_lbl}</div></div>
+  <div class="ns-kc"><div class="ns-kl">Vol Ratio</div><div class="ns-kv" style="color:{_vr_col}">{_vr:.1f}x</div><div class="ns-ks">{_vr_lbl}</div></div>
+  <div class="ns-kc"><div class="ns-kl">ADX</div><div class="ns-kv" style="color:{_adx_col}">{_adx:.1f}</div><div class="ns-ks">{_adx_lbl}</div></div>
+  <div class="ns-kc"><div class="ns-kl">Weekly</div><div class="ns-kv" style="color:{_w_col}">{_wchg:+.2f}%</div><div class="ns-ks">7-day return</div></div>
+  <div class="ns-kc"><div class="ns-kl">MA Align</div><div class="ns-kv" style="color:{_ma_col};font-size:11px">{_ma_lbl}</div><div class="ns-ks">vs MA20/50</div></div>
+  <div class="ns-kc"><div class="ns-kl">52W Pos</div><div class="ns-kv" style="color:#888">{_pos52}%</div><div class="ns-ks">of range</div></div>
+</div>''', unsafe_allow_html=True)
+
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+    # ✅✅ Metric cards row 2: MA20 / MA50 / MA200 ------------------------------------------------------------
+    cm1, cm2, cm3 = st.columns(3)
+    cm1.markdown(render_metric("MA 20",  f"&#8377;{ind['ma20']:,}",         "<span style='color:#00c851'>&#9650; Above</span>" if cp > ind["ma20"]         else "<span style='color:#ff4444'>&#9660; Below</span>"), unsafe_allow_html=True)
+    cm2.markdown(render_metric("MA 50",  f"&#8377;{ind['ma50_display']:,}",  "<span style='color:#00c851'>&#9650; Above</span>" if cp > ind["ma50_display"]  else "<span style='color:#ff4444'>&#9660; Below</span>"), unsafe_allow_html=True)
+    cm3.markdown(render_metric("MA 200", f"&#8377;{ind['ma200']:,}",         "<span style='color:#00c851'>&#9650; Above</span>" if cp > ind["ma200"]         else "<span style='color:#ff4444'>&#9660; Below</span>"), unsafe_allow_html=True)
+
+    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+
+    # ✅✅ Two column layout: News + Chart data left, Signals right ------------------------------------------------------------
+    left, right = st.columns([3, 2])
+
+    # ── Sector Correlation data ------------------------------------------------------------
+    sector_label = COMPANY_META.get(symbol, ("", "", ""))[1]
+    sc = compute_sector_correlation(symbol, sector_label)
+
+    with left:
+        ll, lr = st.columns([1, 1])
+
+        with ll:
+            # ✅✅ Fundamentals ------------------------------------------------------------
+            st.markdown('<div class="ns-card">', unsafe_allow_html=True)
+            st.markdown('<div class="ns-ct">📡 Fundamentals</div>', unsafe_allow_html=True)
+            render_fundamentals(fund, symbol)
+            st.markdown('</div>', unsafe_allow_html=True)
+            # ✅✅ Filings ------------------------------------------------------------
+            st.markdown('<div class="ns-card">', unsafe_allow_html=True)
+            st.markdown(f'<div class="ns-ct">📡 Filings ✅ {display_symbol}</div>', unsafe_allow_html=True)
+            render_filings(filings, symbol)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        with lr:
+            # ✅✅ Signal Summary ------------------------------------------------------------
+            st.markdown('<div class="ns-card">', unsafe_allow_html=True)
+            st.markdown('<div class="ns-ct">&#128225; Signal Summary</div>', unsafe_allow_html=True)
+            signals = [
+                ("Miro Score",   f"{miro}/10 ✅ {'Strong' if miro>=6.5 else 'Weak' if miro<4 else 'Moderate'}", miro >= 6.5),
+                ("MA Alignment", "✅ Bullish" if cp > ind["ma50"] > ind["ma200"] else "✅ Bearish",              cp > ind["ma50"] > ind["ma200"]),
+                ("Z-Score",      "✅ Oversold" if z < -0.5 else ("✅ Extended" if z > 1.5 else "&#9888;&#65039; Neutral"), z < -0.5),
+                ("Weekly Trend", ind.get("weekly_trend","✅"),                                                       ind.get("weekly_chg",0) > 0),
+            ]
+            bull_count = sum(1 for _, _, b in signals if b)
+            for label, val, bull in signals:
+                col_s = "#00c851" if bull else "#ff4444" if "✅" in val else "#ff8800"
+                st.markdown(f'<div style="padding:6px 0;border-bottom:1px solid #1a1a1a;font-size:0.8rem;"><span style="color:#888;font-family:monospace;">{label}&nbsp;&nbsp;</span><span style="color:{col_s};font-weight:600;font-family:monospace;">{val}</span></div>', unsafe_allow_html=True)
+            bull_signals = bull_count
+            # ── Composite Signal Matrix: Z-Score + Miro + Volume ───────────────
+            _z  = ind.get("z_score", 0)
+            _m  = ind.get("miro_score", 0)
+            _vr = ind.get("vol_ratio", 1)
+            if _z > 3.0:
+                verdict, v_col, v_sub, v_icon = "BLOW-OFF TOP", "#cc0000", f"Z={_z:+.1f}σ · mean-reversion likely", "&#9888;&#65039;"
+            elif _m >= 8 and 0.5 <= _z <= 1.5:
+                verdict, v_col, v_sub, v_icon = "FRESH BREAKOUT", "#00c851", f"Miro {_m}/10 · room to run", "&#9650;"
+            elif _m >= 8 and _z > 2.5:
+                verdict, v_col, v_sub, v_icon = "EXHAUSTION", "#ff8800", f"Z={_z:+.1f}σ · wait for pullback", "&#9888;&#65039;"
+            elif 3 <= _m <= 5 and _z > 2.0 and _vr < 1.5:
+                verdict, v_col, v_sub, v_icon = "TRAP ALERT", "#ff4444", f"Price high · volume absent", "&#9660;"
+            elif bull_signals >= 4 or _m >= 7:
+                verdict, v_col, v_sub, v_icon = "STRONG BUY", "#00c851", f"{bull_signals}/4 signals · Miro {_m}/10", "&#9650;"
+            elif bull_signals >= 3 or _m >= 5:
+                verdict, v_col, v_sub, v_icon = "BUY", "#00c851", f"{bull_signals}/4 signals · Miro {_m}/10", "&#9650;"
+            elif bull_signals <= 1:
+                verdict, v_col, v_sub, v_icon = "AVOID", "#ff4444", f"{bull_signals}/4 signals · Miro {_m}/10", "&#9660;"
+            else:
+                verdict, v_col, v_sub, v_icon = "HOLD", "#ffaa00", f"{bull_signals}/4 signals · Miro {_m}/10", "—"
+            _z_col = "#ff8800" if abs(_z) > 2 else "#00c851" if abs(_z) < 1 else "#ffaa00"
+            _vr_col = "#ff6600" if _vr >= 2 else "#ffaa00" if _vr >= 1.5 else "#555"
+            st.markdown(f"""<div style="margin-top:14px;">
+  <div style="background:#0d0d0d;border:1px solid #2a2a2a;border-top:2px solid {v_col};border-radius:6px;padding:12px 16px;">
+    <div style="font-size:0.52rem;color:#555;font-family:monospace;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">Signal Verdict</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+      <span style="font-size:1.0rem;">{v_icon}</span>
+      <span style="font-size:1.2rem;font-weight:700;font-family:monospace;color:{v_col};">{verdict}</span>
+    </div>
+    <div style="font-size:0.62rem;color:#666;font-family:monospace;margin-bottom:8px;">{v_sub}</div>
+    <div style="padding-top:8px;border-top:1px solid #1a1a1a;display:flex;gap:8px;">
+      <div style="flex:1;text-align:center;background:#111;border-radius:4px;padding:6px 4px;">
+        <div style="font-size:0.5rem;color:#444;font-family:monospace;text-transform:uppercase;margin-bottom:2px;">Z-Score</div>
+        <div style="font-size:0.82rem;font-weight:700;font-family:monospace;color:{_z_col};">{_z:+.2f}&sigma;</div>
+      </div>
+      <div style="flex:1;text-align:center;background:#111;border-radius:4px;padding:6px 4px;">
+        <div style="font-size:0.5rem;color:#444;font-family:monospace;text-transform:uppercase;margin-bottom:2px;">Miro</div>
+        <div style="font-size:0.82rem;font-weight:700;font-family:monospace;color:{v_col};">{_m}/10</div>
+      </div>
+      <div style="flex:1;text-align:center;background:#111;border-radius:4px;padding:6px 4px;">
+        <div style="font-size:0.5rem;color:#444;font-family:monospace;text-transform:uppercase;margin-bottom:2px;">Vol Ratio</div>
+        <div style="font-size:0.82rem;font-weight:700;font-family:monospace;color:{_vr_col};">{_vr:.1f}x</div>
+      </div>
+    </div>
+  </div>
+</div>""", unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            # ✅✅ Ticker Velocity ------------------------------------------------------------
+            st.markdown('<div class="ns-card">', unsafe_allow_html=True)
+            st.markdown('<div class="ns-ct">&#127919; Ticker Velocity</div>', unsafe_allow_html=True)
+            render_ticker_velocity(ind, display_symbol)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            # ── Sector Correlation ------------------------------------------------------------
+            st.markdown('<div class="ns-card">', unsafe_allow_html=True)
+            st.markdown('<div class="ns-ct">📡 Sector Correlation</div>', unsafe_allow_html=True)
+            render_sector_correlation(sc, sector_label)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    with right:
+        # ✅✅ Miro Backtest ------------------------------------------------------------
+        st.markdown('<div class="ns-card">', unsafe_allow_html=True)
+        st.markdown('<div class="ns-ct">📡 Miro Performance Backtest</div>', unsafe_allow_html=True)
+        render_miro_backtest(backtest, display_symbol)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # ✅✅ Probability Cone ------------------------------------------------------------
+        st.markdown('<div class="ns-card">', unsafe_allow_html=True)
+        st.markdown('<div class="ns-ct">📡 Probability Cone</div>', unsafe_allow_html=True)
+        render_probability_cone(ind, mc)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # ✅✅ Rubber Band ------------------------------------------------------------
+        st.markdown('<div class="ns-card">', unsafe_allow_html=True)
+        st.markdown('<div class="ns-ct">&#128225; Rubber Band Index</div>', unsafe_allow_html=True)
+        render_rubber_band(ind)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # ✅✅ Sentiment ------------------------------------------------------------
+        st.markdown('<div class="ns-card">', unsafe_allow_html=True)
+        st.markdown('<div class="ns-ct">&#128225; Market Sentiment</div>', unsafe_allow_html=True)
+        render_sentiment(sentiment)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # ✅✅ Analyst Recs ------------------------------------------------------------
+        if rec:
+            st.markdown('<div class="ns-card">', unsafe_allow_html=True)
+            st.markdown('<div class="ns-ct">&#128225; Analyst Consensus</div>', unsafe_allow_html=True)
+            total = (rec.get("buy",0) + rec.get("hold",0) + rec.get("sell",0) + rec.get("strongBuy",0) + rec.get("strongSell",0)) or 1
+            for label, key, col in [("Strong Buy","strongBuy","#ff6600"),("Buy","buy","#00c851"),("Hold","hold","#ffaa00"),("Sell","sell","#ff4444"),("Strong Sell","strongSell","#cc0000")]:
+                n_rec = rec.get(key, 0)
+                pct   = int(n_rec / total * 100)
+                st.markdown(f'<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><span style="color:#888;font-size:0.75rem;width:80px;">{label}</span><div style="flex:1;background:#1a1a1a;border-radius:2px;height:5px;"><div style="width:{pct}%;background:{col};height:5px;border-radius:2px;"></div></div><span style="color:{col};font-size:0.72rem;font-family:monospace;width:32px;text-align:right;">{pct}%</span></div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    # ✅✅ AI Agent Debate ------------------------------------------------------------
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+    st.markdown('<div class="ns-card">', unsafe_allow_html=True)
+    st.markdown('<div class="ns-ct">&#128225; AI Agent Debate</div>', unsafe_allow_html=True)
 
     client = get_anthropic()
     if not client:
