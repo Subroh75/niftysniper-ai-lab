@@ -1,4 +1,5 @@
 import streamlit as st
+from kronos_streamlit import render_kronos_forecast
 import pandas as pd
 import numpy as np
 import requests
@@ -1832,7 +1833,7 @@ if analyse and symbol:
         # ✅✅ Probability Cone ------------------------------------------------------------
         st.markdown('<div class="ns-card">', unsafe_allow_html=True)
         st.markdown('<div class="ns-ct">📡 Probability Cone</div>', unsafe_allow_html=True)
-        render_probability_cone(ind, mc)
+        render_kronos_forecast(display_symbol, cp)
         st.markdown('</div>', unsafe_allow_html=True)
 
         # ✅✅ Rubber Band ------------------------------------------------------------
@@ -2120,7 +2121,7 @@ table{{width:100%;border-collapse:collapse}}
         # ✅✅ Probability Cone ------------------------------------------------------------
         st.markdown('<div class="ns-card">', unsafe_allow_html=True)
         st.markdown('<div class="ns-ct">📡 Probability Cone</div>', unsafe_allow_html=True)
-        render_probability_cone(ind, mc)
+        render_kronos_forecast(display_symbol, cp)
         st.markdown('</div>', unsafe_allow_html=True)
 
         # ✅✅ Rubber Band ------------------------------------------------------------
