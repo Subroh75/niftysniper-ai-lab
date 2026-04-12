@@ -1,62 +1,116 @@
 """
-kronos_streamlit.py - Drop-in replacement for render_probability_cone()
-in niftysniper-ai-lab/app.py
-
-Usage:
-    from kronos_streamlit import render_kronos_forecast
-    render_kronos_forecast(display_symbol, cp)
+kronos_streamlit.py
+Self-contained Kronos-style AI forecast panel for NiftySniper AI Lab.
+Runs entirely inside Streamlit — no external service needed.
+Uses AR1 + volatility model on real yfinance data as a drop-in for
+the GBM Probability Cone until real Kronos GPU service is available.
 """
-import os, requests
-import streamlit as st
-import pandas as pd
 import numpy as np
+import pandas as pd
+import yfinance as yf
+import streamlit as st
 
-KRONOS_URL = os.getenv("KRONOS_SERVICE_URL", "https://niftysniper-kronos.onrender.com")
 
-@st.cache_data(ttl=1800, show_spinner=False)
-def fetch_kronos_forecast(symbol: str, pred_len: int = 15) -> dict | None:
+@st.cache_data(ttl=3600, show_spinner=False)
+def _fetch_and_forecast(symbol: str, pred_len: int = 15) -> dict:
+    """Fetch OHLCV and run AR1 forecast — cached 1 hour."""
     try:
-        r = requests.post(f"{KRONOS_URL}/forecast",
-            json={"symbol": symbol, "lookback": 120, "pred_len": pred_len, "interval": "1d"},
-            timeout=30)
-        if r.status_code == 200:
-            return r.json()
+        sym = symbol.upper() + ".NS" if not symbol.upper().endswith(".NS") else symbol.upper()
+        df = yf.download(sym, period="6mo", interval="1d", auto_adjust=True, progress=False)
+        if df.empty:
+            return None
+
+        df = df.rename(columns={"Open":"open","High":"high","Low":"low","Close":"close","Volume":"volume"})
+        closes = df["close"].dropna().values.astype(float)
+        if len(closes) < 10:
+            return None
+
+        # Compute volatility and drift from last 60 days
+        returns = np.diff(np.log(closes[-60:]))
+        mu  = float(np.mean(returns))
+        sig = float(np.std(returns))
+        last_close = float(closes[-1])
+
+        # AR1 forecast with mean reversion
+        ar1_coef = 0.3  # mild mean reversion
+        pred_closes, pred_highs, pred_lows, pred_opens = [], [], [], []
+        c = last_close
+        long_mean = float(np.mean(closes[-20:]))
+        for _ in range(pred_len):
+            shock  = np.random.normal(mu, sig)
+            revert = ar1_coef * (long_mean - c) / long_mean
+            c_new  = c * np.exp(shock + revert)
+            h = c_new * (1 + abs(np.random.normal(0, sig * 0.5)))
+            l = c_new * (1 - abs(np.random.normal(0, sig * 0.5)))
+            o = c * (1 + np.random.normal(0, sig * 0.3))
+            pred_closes.append(round(c_new, 2))
+            pred_highs.append(round(h, 2))
+            pred_lows.append(round(l, 2))
+            pred_opens.append(round(o, 2))
+            c = c_new
+
+        # Derive signals
+        dir_pct   = round((pred_closes[-1] - last_close) / last_close * 100, 2)
+        direction = "bullish" if dir_pct > 1.5 else "bearish" if dir_pct < -1.5 else "neutral"
+        up_moves  = sum(1 for i in range(1, len(pred_closes)) if pred_closes[i] > pred_closes[i-1])
+        conviction= round(max(up_moves, pred_len-1-up_moves) / max(pred_len-1, 1) * 100, 1)
+
+        return {
+            "direction":    direction,
+            "direction_pct":dir_pct,
+            "target_price": round(max(pred_closes), 2),
+            "support_price":round(min(pred_lows), 2),
+            "conviction":   conviction,
+            "pred_closes":  pred_closes,
+            "last_close":   last_close,
+        }
     except Exception as e:
-        st.warning(f"Kronos unavailable: {e}")
-    return None
+        return None
+
 
 def render_kronos_forecast(symbol: str, cp: float):
-    data = fetch_kronos_forecast(symbol)
+    """
+    Drop-in replacement for render_probability_cone().
+    Call from app.py right column with the current symbol and price.
+    """
+    data = _fetch_and_forecast(symbol)
+
     if data is None:
-        st.markdown('<div class="ns-card" style="text-align:center;color:#333;font-size:10px;">Kronos forecast unavailable</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="ns-card" style="text-align:center;color:#333;font-size:10px;padding:16px;">'
+            'Kronos forecast unavailable for this symbol</div>',
+            unsafe_allow_html=True
+        )
         return
 
-    direction  = data.get("direction","neutral")
-    dir_pct    = data.get("direction_pct", 0)
-    target     = data.get("target_price", cp)
-    support    = data.get("support_price", cp)
-    conviction = data.get("conviction", 0)
-    candles    = data.get("candles", [])
-    is_mock    = data.get("mock", False)
+    direction   = data["direction"]
+    dir_pct     = data["direction_pct"]
+    target      = data["target_price"]
+    support     = data["support_price"]
+    conviction  = data["conviction"]
+    closes      = data["pred_closes"]
+    last_close  = data["last_close"]
 
-    dir_col  = "#00c851" if direction=="bullish" else "#ff4444" if direction=="bearish" else "#ffaa00"
-    dir_icon = "&#9650;" if direction=="bullish" else "&#9660;" if direction=="bearish" else "&#8212;"
-    mock_badge = '<span style="font-size:8px;background:#1a1a00;border:1px solid #333;color:#666;border-radius:3px;padding:1px 4px;margin-left:6px;">DEMO</span>' if is_mock else ""
+    dir_col  = "#00c851" if direction == "bullish" else "#ff4444" if direction == "bearish" else "#ffaa00"
+    dir_icon = "&#9650;" if direction == "bullish" else "&#9660;" if direction == "bearish" else "&#8212;"
+    conv_col = "#00c851" if conviction >= 70 else "#ffaa00" if conviction >= 50 else "#ff4444"
+    target_pct  = round((target  - last_close) / last_close * 100, 1)
+    support_pct = round((support - last_close) / last_close * 100, 1)
 
-    target_pct  = round((target  - cp) / cp * 100, 1)
-    support_pct = round((support - cp) / cp * 100, 1)
-    conv_col = "#00c851" if conviction>=70 else "#ffaa00" if conviction>=50 else "#ff4444"
-
-    closes = [c["close"] for c in candles]
-    all_p  = [cp] + closes
-    min_p, max_p = min(all_p), max(all_p)
-    rng = max_p - min_p or 1
-    W, H = 220, 48
-    pts = " ".join([f"L{((i+1)/max(len(closes),1))*W:.1f},{H-((c-min_p)/rng)*H:.1f}" for i,c in enumerate(closes)])
-    sp  = f"M0,{H-((cp-min_p)/rng)*H:.1f} {pts}"
+    # Mini sparkline
+    all_p  = [last_close] + closes
+    min_p  = min(all_p); max_p = max(all_p); rng = max_p - min_p or 1
+    W, H   = 220, 48
+    pts    = " ".join([
+        f"L{((i+1)/len(closes))*W:.1f},{H-((c-min_p)/rng)*H:.1f}"
+        for i, c in enumerate(closes)
+    ])
+    sp     = f"M0,{H-((last_close-min_p)/rng)*H:.1f} {pts}"
 
     st.markdown(f"""
-<div class="ns-ct">&#127919; Kronos AI Forecast<span class="ns-tag">AAAI 2026</span>{mock_badge}</div>
+<div class="ns-ct">&#127919; Kronos AI Forecast
+  <span class="ns-tag">AR1 MODEL</span>
+</div>
 <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-top:2px solid {dir_col};border-radius:6px;padding:12px;margin-bottom:10px;">
   <div style="font-size:8px;color:#333;letter-spacing:.12em;text-transform:uppercase;font-family:'JetBrains Mono',monospace;margin-bottom:6px;">15-day AI direction</div>
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
@@ -64,16 +118,17 @@ def render_kronos_forecast(symbol: str, cp: float):
     <span style="font-size:18px;font-weight:700;color:{dir_col};font-family:'JetBrains Mono',monospace;">{direction.upper()}</span>
   </div>
   <div style="font-size:9px;color:#555;font-family:'JetBrains Mono',monospace;">
-    Predicted move: <span style="color:{dir_col};font-weight:700;">{'+' if dir_pct>0 else ''}{dir_pct}%</span> over 15 days
+    Predicted move: <span style="color:{dir_col};font-weight:700;">{'+' if dir_pct > 0 else ''}{dir_pct}%</span> over 15 days
   </div>
 </div>
 <div style="background:#111;border-radius:5px;padding:8px 10px;margin-bottom:10px;">
   <svg width="{W}" height="{H}" style="display:block;overflow:visible;">
-    <circle cx="0" cy="{H-((cp-min_p)/rng)*H:.1f}" r="3" fill="#ff6600"/>
+    <circle cx="0" cy="{H-((last_close-min_p)/rng)*H:.1f}" r="3" fill="#ff6600"/>
     <path d="{sp}" fill="none" stroke="{dir_col}" stroke-width="1.5"/>
   </svg>
   <div style="display:flex;justify-content:space-between;font-size:8px;color:#333;font-family:'JetBrains Mono',monospace;margin-top:4px;">
-    <span>Now &#8377;{cp:,.0f}</span><span>+15d &#8377;{closes[-1] if closes else cp:,.0f}</span>
+    <span>Now &#8377;{last_close:,.0f}</span>
+    <span>+15d &#8377;{closes[-1]:,.0f}</span>
   </div>
 </div>
 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px;">
@@ -94,5 +149,5 @@ def render_kronos_forecast(symbol: str, cp: float):
   </div>
 </div>
 <div style="font-size:8px;color:#222;text-align:center;font-family:'JetBrains Mono',monospace;">
-  {data.get('model','kronos')} &middot; NSE daily &middot; 15-candle AI forecast
+  AR1 + mean reversion &middot; NSE daily &middot; 15-candle forecast
 </div>""", unsafe_allow_html=True)
