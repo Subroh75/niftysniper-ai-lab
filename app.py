@@ -1734,7 +1734,7 @@ if analyse and symbol:
     sc = compute_sector_correlation(symbol, sector_label)
 
     with left:
-        pass  # signals in mid col
+        ll, lr = st.columns([1, 1])
 
         with ll:
             # ✅✅ Fundamentals ------------------------------------------------------------
