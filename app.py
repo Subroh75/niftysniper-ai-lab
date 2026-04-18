@@ -234,8 +234,16 @@ def chart_to_png(fig, width=780, height=320):
     except Exception:
         return None
 
+# INTERVAL_MAP: label -> (fetch_period, chart_bars_to_display)
+# fetch_period is always >= 2y so EMA200 (needs 200 bars) always has enough data
+# chart_bars controls how many candles are shown in the price chart
 INTERVAL_MAP = {
-    "1D":"5d","1W":"1mo","1M":"3mo","3M":"6mo","6M":"1y","1Y":"2y"
+    "1D": ("2y",   1),    # show last 1 day = most recent candle context
+    "1W": ("2y",   5),    # show last 5 trading days
+    "1M": ("2y",  22),    # ~22 trading days
+    "3M": ("2y",  66),    # ~66 trading days
+    "6M": ("2y", 130),    # ~130 trading days
+    "1Y": ("2y", 252),    # ~252 trading days
 }
 
 @st.cache_data(ttl=300,show_spinner=False)
@@ -246,7 +254,9 @@ def fetch(ticker, period="6mo"):
     if ticker.endswith(".NS"):
         candidates.append(ticker.replace(".NS", ".BO"))
     # If period is very short and might return empty, also try longer period
-    fallback_periods = [period, "1y", "6mo"] if period in ("5d","1mo") else [period, "6mo"]
+    # Always fetch at least 2y so EMA200/ATR/ADX have enough bars to compute
+    primary = period if period in ("2y","1y") else "2y"
+    fallback_periods = [primary, "2y", "1y", "6mo"]
 
     df = None
     for t in candidates:
@@ -315,8 +325,8 @@ Close:{r['Close']:.2f} EMA20:{r['EMA20']:.2f} EMA50:{r['EMA50']:.2f} EMA200:{r['
 BB:{r['BB_upper']:.2f}/{r['BB_lower']:.2f} RSI:{r['RSI']:.1f} ADX:{r['ADX']:.1f}
 ATR:{r['ATR']:.4f}({r['ATR']/r['Close']*100:.2f}%) Stop:{r['Close']-1.5*r['ATR']:.2f} {ema_ok}""".strip()
 
-def price_chart(df,symbol):
-    d=df.tail(90).copy()
+def price_chart(df,symbol,chart_bars=90):
+    d=df.tail(max(chart_bars,30)).copy()
     fig=go.Figure()
     fig.add_trace(go.Scatter(x=d.index,y=d["BB_upper"],
         line=dict(color="rgba(255,255,255,0.3)",width=1,dash="dot"),name="BB+",hovertemplate="%{y:.2f}"))
@@ -659,7 +669,7 @@ with sc2:
 # Interval selector
 interval=st.radio("interval",list(INTERVAL_MAP.keys()),
     index=3,horizontal=True,label_visibility="collapsed")
-period=INTERVAL_MAP[interval]
+fetch_period, chart_bars = INTERVAL_MAP[interval]
 
 api_key=st.secrets.get("ANTHROPIC_API_KEY","") if hasattr(st,"secrets") else ""
 
@@ -674,7 +684,7 @@ if not symbol:
 ticker=SYMBOLS.get(symbol,f"{symbol}.NS")
 with st.spinner(f"Loading {symbol}..."):
     try:
-        df=fetch(ticker,period)
+        df=fetch(ticker,fetch_period)
     except Exception as _e:
         df=None
 
@@ -725,7 +735,7 @@ st.markdown('</div>',unsafe_allow_html=True)
 # 03 Price Chart
 st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 03 &mdash; PRICE CHART <span class="ns-dot">&#9679;</span></div>',unsafe_allow_html=True)
 st.markdown('<div class="ns-chart-wrap">',unsafe_allow_html=True)
-st.plotly_chart(price_chart(df,symbol),use_container_width=True,config=pcfg())
+st.plotly_chart(price_chart(df,symbol,chart_bars),use_container_width=True,config=pcfg())
 st.markdown('</div>',unsafe_allow_html=True)
 
 # 04 Timing Quality — 3x2 metric cards
@@ -823,7 +833,7 @@ else:
 # 07 Export
 st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 07 &mdash; EXPORT <span class="ns-dot">&#9679;</span></div>',unsafe_allow_html=True)
 try:
-    _pfig = price_chart(df, symbol)
+    _pfig = price_chart(df, symbol, chart_bars)
     _kfig = kronos_chart(df, kr)
     _pfig.update_layout(paper_bgcolor="white",plot_bgcolor="#f9fafb",font=dict(color="#333"))
     _pfig.update_yaxes(gridcolor="#e5e7eb")
