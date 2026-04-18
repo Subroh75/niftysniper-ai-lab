@@ -742,7 +742,7 @@ st.markdown(
     }}
 
     .stTextInput label, .stRadio label[data-testid="stWidgetLabel"] {{ display:none !important; }}
-    .stTextInput > div > div > input {
+    .stTextInput > div > div > input {{
         background: linear-gradient(180deg, #0a1530 0%, #081120 100%) !important;
         color: #ffffff !important;
         border-radius: 18px !important;
@@ -757,12 +757,12 @@ st.markdown(
         text-align: center !important;
         letter-spacing: 0.05em !important;
         vertical-align: middle !important;
-    }
-    div[data-testid="stTextInput"] input::placeholder {
+    }}
+    div[data-testid="stTextInput"] input::placeholder {{
         color: #d9deea !important;
         opacity: 0.9 !important;
-    }
-    div[data-testid="stButton"] button {
+    }}
+    div[data-testid="stButton"] button {{
         height: 60px !important;
         border-radius: 16px !important;
         background: linear-gradient(90deg, #ff8c00, #ff6a00) !important;
@@ -773,7 +773,7 @@ st.markdown(
         letter-spacing: 0.10em !important;
         box-shadow: 0 8px 18px rgba(255,106,0, 0.20);
         margin-bottom: 6px !important;
-    }
+    }}
     div[data-testid="stDownloadButton"] button {{
         height: 58px !important;
         border-radius: 16px !important;
