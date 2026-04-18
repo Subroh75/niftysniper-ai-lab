@@ -855,11 +855,10 @@ st.markdown("<div class='top-sub'>REAL-TIME · MULTI-FACTOR · AI-POWERED</div>"
 
 timeframe = st.radio("Timeframe", ["1m", "5m", "15m", "30m", "1H", "4H", "1D"], index=1, horizontal=True, label_visibility="collapsed")
 
-c1, c2 = st.columns([6.2, 1.5])
+c1, c2 = st.columns([6.2, 1.5], vertical_alignment="bottom")
 with c1:
     stock_input = st.text_input("Ticker", value="BTC" if False else "", placeholder="RELIANCE", label_visibility="collapsed")
 with c2:
-    st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
     analyse = st.button("ANALYSE", use_container_width=True)
 
 if analyse:
