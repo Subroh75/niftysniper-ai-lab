@@ -238,12 +238,18 @@ def verdict_cls(v):
 def pcfg(): return {"displayModeBar":False}
 
 def chart_to_png(fig, width=780, height=320):
-    """Export a Plotly figure to PNG bytes for PDF embedding."""
+    """Export a Plotly figure to PNG bytes for PDF embedding via kaleido."""
     try:
-        img_bytes = fig.to_image(format="png", width=width, height=height, scale=2)
+        import plotly.io as pio
+        img_bytes = pio.to_image(fig, format="png", width=width, height=height, scale=1.5)
         return img_bytes
-    except Exception:
-        return None
+    except Exception as _e:
+        try:
+            # Fallback: direct method
+            img_bytes = fig.to_image(format="png", width=width, height=height, scale=1.5)
+            return img_bytes
+        except Exception:
+            return None
 
 # INTERVAL_MAP: label -> (fetch_period, chart_bars_to_display)
 # fetch_period is always >= 2y so EMA200 (needs 200 bars) always has enough data
@@ -536,23 +542,26 @@ class PDF(FPDF):
         """Render KV rows inside a dark card."""
         self.set_fill_color(*P_CARD)
         row_h = 7
-        total_h = len(rows)*row_h + 4
+        total_h = len(rows) * row_h + 4
         self.rect(x, y, w, total_h, "F")
-        self.set_draw_color(*P_BG)
-        self.set_line_width(0.3)
-        cy = y+2
+        cy = y + 2
         for label, value, val_color in rows:
-            self.set_xy(x+3, cy)
-            self.set_font("Helvetica","",7.5)
+            # Label
+            self.set_xy(x + 3, cy)
+            self.set_font("Helvetica", "", 7.5)
             self.set_text_color(*P_MGREY)
-            self.cell(col_w, row_h, safe(label))
-            self.set_font("Courier","B",8)
+            self.cell(col_w, row_h, safe(str(label)))
+            # Value — use set_xy so cursor doesn't auto-advance
+            self.set_xy(x + 3 + col_w, cy)
+            self.set_font("Courier", "B", 8)
             self.set_text_color(*val_color)
-            self.cell(w-col_w-6, row_h, safe(str(value)), ln=1)
-            self.set_draw_color(25,30,40)
+            self.cell(w - col_w - 6, row_h, safe(str(value)))
+            # Hairline divider
+            self.set_draw_color(25, 30, 40)
             self.set_line_width(0.2)
-            self.line(x+3, cy+row_h, x+w-3, cy+row_h)
+            self.line(x + 2, cy + row_h, x + w - 2, cy + row_h)
             cy += row_h
+        self.set_xy(x, cy + 2)
         return total_h + 2
 
     def _metric_box(self, x, y, w, h, label, value, sub, val_color, bg_color=None):
@@ -742,7 +751,7 @@ def gen_pdf(symbol, sc, df, debate, kr,
     pdf._footer_bar(symbol, interval, "3 / 5")
 
     # Left half: Timing metrics (2x3 grid)
-    mx = 8; my = 24; mw = 88; mh = 38; mgap = 3
+    mx = 8; my = 24; mw = 72; mh = 38; mgap = 3
     timing = [
         ("RSI 14",     f"{r['RSI']:.1f}",  "Overbought" if r['RSI']>70 else "Oversold" if r['RSI']<30 else "Neutral",
          RED if r['RSI']>70 else GRN if r['RSI']<30 else BLK),
@@ -760,8 +769,8 @@ def gen_pdf(symbol, sc, df, debate, kr,
         col = i % 3; row = i // 3
         pdf._metric_box(mx + col*(mw+mgap), my + row*(mh+mgap), mw, mh, lbl, val, sub, vc_, P_OFF_WHT)
 
-    # Right half: Market Structure KV
-    kv_x = 8 + 3*(mw+mgap) + 5; kv_y = 24; kv_w = 285 - kv_x
+    # Right half: Market Structure KV — starts after 3 metric columns
+    kv_x = mx + 3*(mw+mgap) + 5; kv_y = 24; kv_w = 289 - kv_x
 
     # Section label
     pdf.set_xy(kv_x, kv_y-1)
@@ -1095,12 +1104,16 @@ try:
     _kfig.update_layout(paper_bgcolor="#060a0f", plot_bgcolor="#0a0f14",
                         margin=dict(l=8,r=8,t=8,b=8))
     # Render at slide proportions: w=2130px = 213mm@10dpi*10, h proportional
-    price_png  = chart_to_png(_pfig, width=2130, height=950)
-    kronos_png = chart_to_png(_kfig, width=2000, height=1200)
+    # Moderate resolution: enough for A4 landscape print without OOM
+    price_png  = chart_to_png(_pfig, width=1200, height=480)
+    kronos_png = chart_to_png(_kfig, width=1200, height=520)
     pdf_bytes=gen_pdf(symbol,sc,df,debate,kr,price_png,kronos_png,interval)
     fname=f"NiftySniper_{symbol}_{interval}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
     st.download_button(label="Download Report (PDF)",data=pdf_bytes,
         file_name=fname,mime="application/pdf",use_container_width=True)
-except Exception as e: st.error(f"PDF error: {e}")
+except Exception as e:
+    st.error(f"PDF error: {e}")
+    import traceback
+    st.code(traceback.format_exc())
 
 st.markdown(f'<div style="text-align:center;font-size:10px;color:{MUTED};margin-top:2.5rem;padding-top:1rem;border-top:1px solid {BORDER}">Data via Yahoo Finance / NSE. Signals are not financial advice.<br>Past performance does not guarantee future results.</div>',unsafe_allow_html=True)
