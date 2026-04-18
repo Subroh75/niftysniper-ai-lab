@@ -461,36 +461,19 @@ def ai_lab(signal_pack, trend_state, timing_label, kronos_pack, df):
 def make_price_chart(df: pd.DataFrame, symbol: str, timeframe: str) -> str:
     recent = df.tail(80).copy()
     ap = [
-        mpf.make_addplot(recent["EMA20"], color="#00c2a0", width=1.45),
-        mpf.make_addplot(recent["EMA50"], color="#7b86ff", width=1.35),
-        mpf.make_addplot(recent["EMA200"], color="#f0a04b", width=1.35),
-        mpf.make_addplot(recent["BB_UPPER"], color="#334f7d", width=0.95, linestyle="--", alpha=0.85),
-        mpf.make_addplot(recent["BB_LOWER"], color="#334f7d", width=0.95, linestyle="--", alpha=0.85),
+        mpf.make_addplot(recent["EMA20"], color="#FF8C00", width=1.0),
+        mpf.make_addplot(recent["EMA50"], color="#222222", width=1.0),
+        mpf.make_addplot(recent["EMA200"], color="#666666", width=1.0),
+        mpf.make_addplot(recent["BB_UPPER"], color="#FFB347", width=0.8),
+        mpf.make_addplot(recent["BB_LOWER"], color="#FFB347", width=0.8),
     ]
     style = mpf.make_mpf_style(
         base_mpf_style="nightclouds",
         facecolor=BLACK,
         figcolor=BLACK,
         edgecolor=BORDER,
-        gridcolor="#16233a",
-        gridstyle="-",
-        y_on_right=False,
-        marketcolors=mpf.make_marketcolors(
-            up="#16d6a4",
-            down="#ff6b6b",
-            edge={"up": "#16d6a4", "down": "#ff6b6b"},
-            wick={"up": "#16d6a4", "down": "#ff6b6b"},
-            volume={"up": "#16d6a4", "down": "#ff6b6b"},
-            ohlc="inherit",
-        ),
-        rc={
-            "axes.labelcolor": TEXT,
-            "xtick.color": "#6f7f99",
-            "ytick.color": "#6f7f99",
-            "text.color": TEXT,
-            "axes.titlecolor": "#9aa8bf",
-            "font.size": 9,
-        },
+        gridcolor="#1A1A1A",
+        rc={"axes.labelcolor": TEXT, "xtick.color": TEXT, "ytick.color": TEXT, "text.color": TEXT},
     )
     tmp = NamedTemporaryFile(delete=False, suffix=".png")
     mpf.plot(
@@ -502,7 +485,6 @@ def make_price_chart(df: pd.DataFrame, symbol: str, timeframe: str) -> str:
         figsize=(10, 3),
         tight_layout=True,
         xrotation=0,
-        datetime_format="%H:%M",
         title=f"{symbol} · {timeframe} · Market Structure",
         savefig=dict(fname=tmp.name, dpi=150, bbox_inches="tight", pad_inches=0.05),
     )
@@ -512,12 +494,8 @@ def make_price_chart(df: pd.DataFrame, symbol: str, timeframe: str) -> str:
 def make_forecast_chart(df: pd.DataFrame, kronos_pack: dict, symbol: str, timeframe: str, white=False) -> str:
     bg = "white" if white else BLACK
     fg = "black" if white else TEXT
-    grid = "#DDDDDD" if white else "#16233a"
-    hist_color = "#8fa0bb" if not white else "#55657d"
-    forecast_color = "#ff7b7b"
-    band_color = "#4a2ca8" if not white else "#7a63d1"
-    current_color = "#cfd6e4" if not white else "#666666"
-
+    grid = "#D9D9D9" if white else "#1D1D1D"
+    line = ORANGE
     fig, ax = plt.subplots(figsize=(10, 3), facecolor=bg)
     fig.subplots_adjust(left=0.06, right=0.98, top=0.88, bottom=0.12)
     ax.set_facecolor(bg)
@@ -527,22 +505,20 @@ def make_forecast_chart(df: pd.DataFrame, kronos_pack: dict, symbol: str, timefr
     series = np.array([hist.iloc[-1]] + kronos_pack["series"])
     upper = np.array([hist.iloc[-1]] + kronos_pack["upper"])
     lower = np.array([hist.iloc[-1]] + kronos_pack["lower"])
-
-    ax.plot(x_hist, hist.values, linewidth=1.55, color=hist_color, label="Historical Close")
-    ax.plot(x_fc, series, linewidth=2.15, color=forecast_color, label="Predicted Close")
-    ax.fill_between(x_fc, lower, upper, color=band_color, alpha=0.22, label="High/Low Band")
-    ax.axhline(hist.iloc[-1], linestyle=(0, (4, 3)), linewidth=1.0, color=current_color, alpha=0.9)
+    ax.plot(x_hist, hist.values, linewidth=2, label="Historical Close")
+    ax.plot(x_fc, series, linewidth=2, color=line, label="Kronos Forecast")
+    ax.fill_between(x_fc, lower, upper, color=line, alpha=0.18, label="Forecast Band")
+    ax.axhline(hist.iloc[-1], linestyle="--", linewidth=1)
     ax.set_title(f"{symbol} · {timeframe} · Kronos Forecast", color=fg, pad=6)
-    ax.grid(True, color=grid, linestyle="-", alpha=0.55, linewidth=0.8)
-    ax.tick_params(colors=fg, labelsize=8.5)
-    plt.margins(x=0)
+    ax.grid(True, color=grid, linestyle="--", alpha=0.5)
+    ax.tick_params(colors=fg)
     for spine in ax.spines.values():
         spine.set_color(grid)
-        spine.set_linewidth(0.8)
-    leg = ax.legend(frameon=False, fontsize=8, ncol=3, loc="upper right")
+    leg = ax.legend(frameon=False, fontsize=8)
     for text in leg.get_texts():
         text.set_color(fg)
     tmp = NamedTemporaryFile(delete=False, suffix=".png")
+    plt.margins(x=0)
     fig.savefig(tmp.name, dpi=150, bbox_inches="tight", pad_inches=0.05, facecolor=bg)
     plt.close(fig)
     return tmp.name
@@ -690,6 +666,7 @@ def compact_metric_card(label: str, value: str, sub: str = "", accent: str = TEX
     )
 
 
+
 APP_CSS = r"""
 <style>
 :root {
@@ -704,328 +681,137 @@ APP_CSS = r"""
   --green: #26C281;
   --red: #E74C3C;
 }
-.stApp {
-  background: radial-gradient(circle at top, #010c1f 0%, #000814 38%, #000000 100%);
-  color: var(--text);
-}
-.block-container {
-  max-width: 1500px;
-  padding-top: 0.65rem;
-  padding-bottom: 1.8rem;
-}
+.stApp { background: radial-gradient(circle at top, #031026 0%, #010814 38%, #000000 100%); color: var(--text); }
+.block-container { max-width: 1460px; padding-top: 1.0rem; padding-bottom: 2rem; }
 p, li, div { font-size: 13px; }
-h1, h2, h3, h4 { letter-spacing: 0.02em; }
-[data-testid="stAppViewContainer"] { background: transparent; }
-[data-testid="stHeader"] { background: transparent; }
-
-.top-sub {
-  text-align: center;
-  color: #8e99ab;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.26em;
-  text-transform: uppercase;
-  margin: 4px 0 18px;
-}
-
-div[data-baseweb="radio"] > div {
-  gap: 18px;
-  justify-content: center;
-  flex-wrap: wrap;
-  margin-bottom: 8px;
-}
+h1,h2,h3,h4 { letter-spacing: 0.02em; }
+div[data-testid="stVerticalBlock"] > div:has(> .top-hero) { gap: 0.2rem; }
+.top-kicker { text-align:center; color:#8f56ff; font-size:14px; font-weight:700; letter-spacing:0.34em; text-transform:uppercase; margin-top:4px; }
+.top-logo { text-align:center; margin: 10px 0 2px; }
+.top-sub { text-align:center; color:#8c99ae; font-size:14px; font-weight:600; letter-spacing:0.22em; text-transform:uppercase; margin-bottom: 24px; }
+div[data-baseweb="radio"] > div { gap: 14px; justify-content:center; flex-wrap: wrap; }
 div[role="radiogroup"] label {
-  background: rgba(11,22,44,0.92);
-  border: 1.3px solid #375074;
-  border-radius: 15px;
-  min-width: 118px;
-  height: 60px;
-  display: flex !important;
-  align-items: center;
-  justify-content: center;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03);
-  transition: all .18s ease;
-  padding: 0 16px !important;
+    background: rgba(10,23,47,0.88);
+    border: 1px solid #375074;
+    border-radius: 16px;
+    min-width: 112px;
+    height: 58px;
+    display:flex !important;
+    align-items:center;
+    justify-content:center;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+    transition: all .18s ease;
+    padding: 0 18px !important;
 }
-div[role="radiogroup"] label p {
-  font-size: 11px !important;
-  font-weight: 800 !important;
-  color: #F7FAFF !important;
-  letter-spacing: 0.05em;
-}
-div[role="radiogroup"] label[data-selected="true"] {
-  border-color: #ff8c00;
-  box-shadow: 0 0 0 1px rgba(255,140,0,.30), 0 0 16px rgba(255,140,0,.18);
-}
-
-.stTextInput label,
-.stRadio label[data-testid="stWidgetLabel"] {
-  display: none !important;
-}
+div[role="radiogroup"] label p { font-size: 13px !important; font-weight: 800 !important; color: #F3F6FB !important; letter-spacing: 0.03em; }
+div[role="radiogroup"] label[data-selected="true"] { border-color:#8b49ff; box-shadow: 0 0 0 1px rgba(139,73,255,.35), 0 0 20px rgba(139,73,255,.22); }
+div[role="radiogroup"] label[data-selected="true"] p { color:#fff !important; }
+.stTextInput label, .stRadio label[data-testid="stWidgetLabel"] { display:none !important; }
 .stTextInput > div > div > input {
-  background: linear-gradient(180deg, #0a1530 0%, #081120 100%) !important;
-  color: #ffffff !important;
-  border-radius: 18px !important;
-  border: 2px solid rgba(241,244,251,0.88) !important;
-  box-shadow: 0 0 0 2px rgba(255,255,255,0.06) inset !important;
-  padding: 0 20px !important;
-  height: 72px !important;
-  min-height: 72px !important;
-  line-height: 72px !important;
-  font-size: 28px !important;
-  font-weight: 800 !important;
-  text-align: center !important;
-  letter-spacing: 0.05em !important;
-  vertical-align: middle !important;
+    background: linear-gradient(180deg, #0b1630 0%, #0a1326 100%) !important;
+    color: #ffffff !important;
+    border-radius: 20px !important;
+    border: 2px solid rgba(245,247,255,0.78) !important;
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.08) inset;
+    padding: 0 22px !important;
+    height: 72px !important;
+    min-height: 72px !important;
+    line-height: 72px !important;
+    font-size: 24px !important;
+    font-weight: 800 !important;
+    text-align: center !important;
+    letter-spacing: 0.04em !important;
+    vertical-align: middle !important;
 }
-div[data-testid="stTextInput"] input::placeholder {
-  color: #d9deea !important;
-  opacity: 0.9 !important;
-}
+div[data-testid="stTextInput"] input::placeholder { color: #d9deea !important; opacity: 0.9 !important; }
+.stTextInput > div { margin-top: 0 !important; }
 div[data-testid="stButton"] button {
-  height: 60px !important;
-  border-radius: 16px !important;
-  background: linear-gradient(90deg, #ff8c00, #ff6a00) !important;
-  color: white !important;
-  border: 0 !important;
-  font-size: 16px !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.10em !important;
-  box-shadow: 0 8px 18px rgba(255,106,0, 0.20);
-  margin-bottom: 6px !important;
+    height: 60px !important;
+    border-radius: 16px !important;
+    background: linear-gradient(90deg, #7b42f6, #38b6ff) !important;
+    color: white !important;
+    border: 0 !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.08em !important;
+    box-shadow: 0 8px 24px rgba(57, 136, 255, 0.22);
 }
 div[data-testid="stDownloadButton"] button {
-  height: 58px !important;
-  border-radius: 16px !important;
-  background: linear-gradient(180deg, #0b1630 0%, #081120 100%) !important;
-  color: #cfd7e5 !important;
-  border: 1px solid #223453 !important;
-  font-size: 16px !important;
-  font-weight: 700 !important;
+    height: 64px !important;
+    border-radius: 18px !important;
+    background: linear-gradient(180deg, #0b1630 0%, #081120 100%) !important;
+    color: #cfd7e5 !important;
+    border: 1px solid #223453 !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
 }
-
-.section-wrap {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin: 26px 0 12px;
-}
-.section-line {
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(90deg, rgba(32,48,79,0.9), rgba(32,48,79,0.1));
-}
-.section-center {
-  color: #A6B0C1;
-  font-size: 11px;
-  letter-spacing: 0.20em;
-  font-weight: 800;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-.section-dot { font-size: 12px; }
-
+.section-wrap { display:flex; align-items:center; gap:18px; margin: 38px 0 18px; }
+.section-line { flex:1; height:1px; background: linear-gradient(90deg, rgba(32,48,79,0.9), rgba(32,48,79,0.1)); }
+.section-center { color:#A6B0C1; font-size:13px; letter-spacing:0.24em; font-weight:800; text-transform:uppercase; white-space:nowrap; }
+.section-dot { font-size:15px; }
 .hero-signal {
-  background: linear-gradient(90deg, rgba(48,19,0,0.95), rgba(73,32,0,0.95));
-  border: 1.5px solid rgba(255,153,0,0.82);
-  border-radius: 26px;
-  padding: 30px 24px;
-  text-align: center;
-  box-shadow: inset 0 0 0 1px rgba(255,153,0,0.08);
+    background: linear-gradient(90deg, rgba(48,19,0,0.95), rgba(73,32,0,0.95));
+    border: 2px solid rgba(255,153,0,0.82);
+    border-radius: 30px;
+    padding: 34px 28px;
+    text-align:center;
+    box-shadow: inset 0 0 0 1px rgba(255,153,0,0.08);
 }
-.hero-head {
-  color: #aeb8ca;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-.hero-word {
-  color: #FFA300;
-  font-size: 54px;
-  line-height: 1.0;
-  font-weight: 900;
-  margin: 14px 0 8px;
-  letter-spacing: 0.02em;
-}
-.hero-score {
-  color: #FFA300;
-  font-size: 24px;
-  font-weight: 900;
-  margin-bottom: 14px;
-}
-.hero-strip {
-  display: flex;
-  justify-content: center;
-  gap: 18px;
-  flex-wrap: wrap;
-  color: #AAB5C8;
-  font-size: 16px;
-  letter-spacing: 0.03em;
-}
-.hero-strip .pos { color: #1fd39a; }
-.hero-strip .down { color: #ff8a8a; }
-
-.component-grid {
-  display: grid;
-  grid-template-columns: 180px minmax(180px, 1fr) 58px 220px;
-  gap: 10px;
-  align-items: center;
-  margin-bottom: 10px;
-}
-.component-name {
-  font-size: 13px;
-  font-weight: 800;
-  color: #E4E9F3;
-}
-.component-rail {
-  height: 10px;
-  background: #081733;
-  border-radius: 999px;
-  overflow: hidden;
-}
-.component-fill {
-  height: 10px;
-  border-radius: 999px;
-}
-.component-score {
-  font-size: 13px;
-  font-weight: 900;
-  text-align: right;
-  color: #F3F6FB;
-}
-.component-detail {
-  color: #95A2B7;
-  font-size: 12px;
-  text-align: left;
-}
-
-div[data-testid="stImage"] { margin-top: -6px; margin-bottom: -6px; }
+.hero-head { color:#aeb8ca; font-size:12px; font-weight:800; letter-spacing:0.20em; text-transform:uppercase; }
+.hero-word { color:#FFA300; font-size:54px; line-height:1.0; font-weight:900; margin: 16px 0 8px; letter-spacing:0.02em; }
+.hero-score { color:#FFA300; font-size:24px; font-weight:900; margin-bottom: 16px; }
+.hero-strip { display:flex; justify-content:center; gap:24px; flex-wrap:wrap; color:#AAB5C8; font-size:16px; letter-spacing:0.04em; }
+.hero-strip .pos { color:#1fd39a; font-weight:800; }
+.component-grid { display:grid; grid-template-columns: 200px minmax(180px, 1fr) 70px 240px; gap: 10px; align-items:center; margin-bottom: 10px; }
+.component-name { font-size:14px; font-weight:800; color:#E4E9F3; }
+.component-rail { height:12px; background:#081733; border-radius:999px; overflow:hidden; }
+.component-fill { height:12px; border-radius:999px; }
+.component-score { font-size:14px; font-weight:900; text-align:right; color:#F3F6FB; }
+.component-detail { color:#95A2B7; font-size:13px; text-align:left; }
+div[data-testid="stImage"] { margin-top: -8px; margin-bottom: -8px; }
 div[data-testid="stImage"] img { border-radius: 10px; }
-
-.table-shell {
-  border: 1px solid rgba(20,34,58,.75);
-  border-radius: 0;
-  overflow: hidden;
-  margin-top: 4px;
-}
-.table-row {
-  display: grid;
-  grid-template-columns: 1.05fr 1.45fr;
-  border-bottom: 1px solid rgba(20,34,58,.75);
-}
-.table-row:last-child { border-bottom: none; }
-.table-key, .table-val {
-  padding: 13px 16px;
-  font-size: 13px;
-}
-.table-key {
-  color: #98A5B8;
-  background: rgba(3,11,25,.58);
-  font-weight: 700;
-}
-.table-val {
-  color: #F5F7FB;
-  font-weight: 800;
-}
-.up { color: #18d08e; }
-.down { color: #ff7b7b; }
-
-.metric-card {
-  background: linear-gradient(180deg, #081530 0%, #071224 100%);
-  border: 1px solid #203659;
-  border-radius: 18px;
-  padding: 20px 18px;
-  min-height: 145px;
-}
-.metric-kicker {
-  color: #AAB5C8;
-  font-size: 10px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  font-weight: 800;
-  margin-bottom: 18px;
-}
-.metric-main {
-  color: #F7FAFF;
-  font-size: 27px;
-  font-weight: 900;
-  line-height: 1.0;
-}
-.metric-sub {
-  color: #93A1B5;
-  font-size: 12px;
-  margin-top: 12px;
-  line-height: 1.4;
-}
-
-.debate-card {
-  border-radius: 20px;
-  padding: 22px 22px 18px;
-  min-height: 220px;
-  border: 1px solid transparent;
-}
+.table-shell { border: 1px solid rgba(20,34,58,.75); border-radius: 0px; overflow:hidden; margin-top: 4px; }
+.table-row { display:grid; grid-template-columns: 1.1fr 1.4fr; border-bottom:1px solid rgba(20,34,58,.75); }
+.table-row:last-child { border-bottom:none; }
+.table-key, .table-val { padding: 14px 18px; font-size: 14px; }
+.table-key { color:#98A5B8; background: rgba(3,11,25,.58); font-weight:700; }
+.table-val { color:#F5F7FB; font-weight:800; }
+.up { color:#18d08e; }
+.down { color:#ff7b7b; }
+.metric-card { background: linear-gradient(180deg, #081530 0%, #071224 100%); border:1px solid #203659; border-radius: 22px; padding: 22px 20px; min-height: 150px; }
+.metric-kicker { color:#AAB5C8; font-size:11px; letter-spacing:0.22em; text-transform:uppercase; font-weight:800; margin-bottom: 18px; }
+.metric-main { color:#F7FAFF; font-size:28px; font-weight:900; line-height:1.0; }
+.metric-sub { color:#93A1B5; font-size:13px; margin-top: 12px; line-height:1.4; }
+.debate-card { border-radius: 24px; padding: 24px 24px 20px; min-height: 230px; border:1px solid transparent; }
 .debate-green { background: rgba(0,72,28,.42); border-color: rgba(0,193,108,.62); }
 .debate-red { background: rgba(73,0,0,.42); border-color: rgba(234,76,76,.62); }
 .debate-violet { background: rgba(35,17,86,.34); border-color: rgba(136,93,255,.62); }
-.debate-title {
-  color: #f5f7fb;
-  font-size: 14px;
-  font-weight: 900;
-  margin: 10px 0 10px;
-}
-.debate-kicker {
-  font-size: 10px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  font-weight: 800;
-}
-.debate-body {
-  color: #D7DDE8;
-  font-size: 13px;
-  line-height: 1.55;
-}
-.verdict-pill {
-  display: inline-block;
-  margin-top: 14px;
-  background: #2138a8;
-  color: #d7e0ff;
-  border-radius: 999px;
-  padding: 7px 13px;
-  font-size: 11px;
-  font-weight: 800;
-}
-.watch-pill {
-  display: inline-block;
-  background: rgba(255,160,0,.12);
-  color: #ffb21f;
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-size: 11px;
-  font-weight: 800;
-  float: right;
-}
-
+.debate-title { color:#f5f7fb; font-size:15px; font-weight:900; margin: 10px 0 12px; }
+.debate-kicker { font-size:11px; letter-spacing:0.20em; text-transform:uppercase; font-weight:800; }
+.debate-body { color:#D7DDE8; font-size:14px; line-height:1.55; }
+.verdict-pill { display:inline-block; margin-top:18px; background:#2138a8; color:#d7e0ff; border-radius:999px; padding:8px 16px; font-size:13px; font-weight:800; }
+.watch-pill { display:inline-block; background: rgba(255,160,0,.12); color:#ffb21f; border-radius:999px; padding:8px 16px; font-size:13px; font-weight:800; float:right; }
 .export-shell { max-width: 720px; margin: 0 auto; }
-
 @media (max-width: 1100px) {
-  .component-grid { grid-template-columns: 1fr; gap: 5px; }
-  .hero-word { font-size: 38px; }
-  .hero-strip { gap: 10px; font-size: 14px; }
+  .component-grid { grid-template-columns: 1fr; gap:6px; }
+  .hero-word { font-size:42px; }
+  .hero-strip { gap:12px; font-size:15px; }
   .table-row { grid-template-columns: 1fr; }
 }
 </style>
 """
+
 st.markdown(APP_CSS, unsafe_allow_html=True)
 
-st.markdown("<div class='top-sub'>REAL-TIME · MULTI-FACTOR · AI-POWERED</div>", unsafe_allow_html=True)
+st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
 timeframe = st.radio("Timeframe", ["1m", "5m", "15m", "30m", "1H", "4H", "1D"], index=1, horizontal=True, label_visibility="collapsed")
 
-c1, c2 = st.columns([6.2, 1.5], vertical_alignment="bottom")
+c1, c2 = st.columns([5.2, 1.7])
 with c1:
     stock_input = st.text_input("Ticker", value="BTC" if False else "", placeholder="RELIANCE", label_visibility="collapsed")
 with c2:
+    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
     analyse = st.button("ANALYSE", use_container_width=True)
 
 if analyse:
@@ -1052,11 +838,11 @@ if analyse:
 
         recent = df.tail(80).copy()
         ap = [
-            mpf.make_addplot(recent["EMA20"], color="#00c2a0", width=1.45),
-            mpf.make_addplot(recent["EMA50"], color="#7b86ff", width=1.35),
-            mpf.make_addplot(recent["EMA200"], color="#f0a04b", width=1.35),
-            mpf.make_addplot(recent["BB_UPPER"], color="#8ea0bf", width=0.9, linestyle="--"),
-            mpf.make_addplot(recent["BB_LOWER"], color="#8ea0bf", width=0.9, linestyle="--"),
+            mpf.make_addplot(recent["EMA20"], color=ORANGE, width=1.0),
+            mpf.make_addplot(recent["EMA50"], color="#000000", width=1.0),
+            mpf.make_addplot(recent["EMA200"], color="#777777", width=1.0),
+            mpf.make_addplot(recent["BB_UPPER"], color="#FFB347", width=0.8),
+            mpf.make_addplot(recent["BB_LOWER"], color="#FFB347", width=0.8),
         ]
         style_white = mpf.make_mpf_style(
             base_mpf_style="classic",
@@ -1064,16 +850,7 @@ if analyse:
             figcolor="white",
             edgecolor="#DDDDDD",
             gridcolor="#E5E5E5",
-            gridstyle="-",
-            marketcolors=mpf.make_marketcolors(
-                up="#16d6a4",
-                down="#ff6b6b",
-                edge={"up": "#16d6a4", "down": "#ff6b6b"},
-                wick={"up": "#16d6a4", "down": "#ff6b6b"},
-                volume={"up": "#16d6a4", "down": "#ff6b6b"},
-                ohlc="inherit",
-            ),
-            rc={"axes.labelcolor": "black", "xtick.color": "#667085", "ytick.color": "#667085", "text.color": "black", "font.size": 9},
+            rc={"axes.labelcolor": "black", "xtick.color": "black", "ytick.color": "black", "text.color": "black"},
         )
         price_chart_white = NamedTemporaryFile(delete=False, suffix=".png").name
         mpf.plot(
@@ -1083,11 +860,8 @@ if analyse:
             addplot=ap,
             volume=False,
             figsize=(10, 3),
-            tight_layout=True,
-            xrotation=0,
-            datetime_format="%H:%M",
             title=f"{symbol} · {timeframe} · Market Structure",
-            savefig=dict(fname=price_chart_white, dpi=150, bbox_inches="tight", pad_inches=0.05),
+            savefig=dict(fname=price_chart_white, dpi=150, bbox_inches="tight"),
         )
 
         pdf_bytes = make_pdf(
@@ -1116,15 +890,15 @@ if analyse:
           <div class='hero-word'>{signal_pack['signal']}</div>
           <div class='hero-score'>{signal_pack['score']} / {signal_pack['max_score']}</div>
           <div class='hero-strip'>
-            <span>CLOSE {fmt_num(row['Close'],2)}</span>
+            <span>CLOSE&nbsp;&nbsp;{fmt_num(row['Close'],2)}</span>
             <span>•</span>
             <span class='{change_cls}'>{row['DAY_CHANGE_PCT']:+.2f}%</span>
             <span>•</span>
-            <span>VOL {fmt_num(row['RVOL'],1)}×</span>
+            <span>VOL&nbsp;&nbsp;{fmt_num(row['RVOL'],1)}×</span>
             <span>•</span>
-            <span>RSI {fmt_num(row['RSI14'],0)}</span>
+            <span>RSI&nbsp;&nbsp;{fmt_num(row['RSI14'],0)}</span>
             <span>•</span>
-            <span>ADX {fmt_num(row['ADX14'],0)}</span>
+            <span>ADX&nbsp;&nbsp;{fmt_num(row['ADX14'],0)}</span>
           </div>
         </div>
         """,
@@ -1134,8 +908,7 @@ if analyse:
     section_divider("02", "Signal Components", "#7f8cff")
     component_colors = [ORANGE, ORANGE, ORANGE, "#c084fc", "#ffb454", "#ff7f7f"]
     for idx, (name, item) in enumerate(signal_pack["components"].items()):
-        label_map = {'V - Volume Strength':'V Volume','P - Price Expansion':'P Momentum','R - Position in Range':'R Range Pos','T - Trend Alignment':'T Trend','RS - Relative Strength':'RS Strength','X - Risk Penalty':'X Risk'}
-        label = label_map.get(name, name.replace(" - ", " "))
+        label = name.replace(" - ", " ")
         pct = 0 if item["max"] <= 0 else max(0, min(100, int(item["score"] / item["max"] * 100)))
         shown = f"{int(item['score'])}/{int(item['max'])}" if item["max"] > 0 else f"{item['score']}"
         color = component_colors[idx % len(component_colors)]
@@ -1152,7 +925,7 @@ if analyse:
         )
 
     section_divider("03", "Market Structure", "#39b6ff")
-    st.image(price_chart, width=900)
+    st.image(price_chart, use_container_width=True)
     st.markdown("<div class='table-shell'>", unsafe_allow_html=True)
     for key, val in structure_rows:
         value_html = str(val)
@@ -1186,7 +959,7 @@ if analyse:
             compact_metric_card(k, v.split(' (')[0] if k == 'ATR 14' else v, timing_subs.get(k, ''), timing_accents.get(k, TEXT))
 
     section_divider("05", "Kronos AI Forecast", "#8f56ff")
-    st.image(kronos_chart_dark, width=900)
+    st.image(kronos_chart_dark, use_container_width=True)
     cards = list(kronos_pack["cards"].items())
     kcols = st.columns(3)
     for idx, (k, v) in enumerate(cards):
