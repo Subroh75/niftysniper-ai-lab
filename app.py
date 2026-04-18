@@ -107,6 +107,63 @@ div.stDownloadButton>button{{background:transparent;color:{ACCENT};border:1px so
 div.stDownloadButton>button:hover{{background:{ACCENT};color:#000;}}
 div[data-testid="stSelectbox"]>div{{background:{CARD};border-color:{BORDER};}}
 .stSpinner>div{{border-top-color:{ACCENT} !important;}}
+
+/* ── Interval radio pill buttons ─────────────────────── */
+div[data-testid="stRadio"] > label {{
+    display: none;
+}}
+div[data-testid="stRadio"] > div {{
+    display: flex;
+    gap: 6px;
+    background: {CARD};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    padding: 4px;
+    width: fit-content;
+    margin-bottom: .5rem;
+}}
+div[data-testid="stRadio"] > div > label {{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    color: {TEXT};
+    transition: all .15s ease;
+    border: 1px solid transparent;
+    min-width: 40px;
+    text-align: center;
+    background: transparent;
+}}
+div[data-testid="stRadio"] > div > label:hover {{
+    color: #fff;
+    background: {BORDER};
+}}
+div[data-testid="stRadio"] > div > label[data-baseweb="radio"] {{
+    background: transparent;
+}}
+/* Selected state */
+div[data-testid="stRadio"] > div > label:has(input:checked) {{
+    background: {ACCENT};
+    color: #000;
+    border-color: {ACCENT};
+    font-weight: 700;
+}}
+/* Hide the actual radio input circles */
+div[data-testid="stRadio"] > div > label > div:first-child {{
+    display: none !important;
+}}
+/* The text span */
+div[data-testid="stRadio"] > div > label > div:last-child {{
+    margin-left: 0 !important;
+    color: inherit;
+    font-size: 12px;
+    font-weight: inherit;
+}}
 </style>""", unsafe_allow_html=True)
 
 SYMBOLS = {
