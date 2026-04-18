@@ -21,7 +21,7 @@ st.set_page_config(page_title="NiftySniper AI Lab", page_icon="127919",
                    layout="centered", initial_sidebar_state="collapsed")
 
 BG="#060a0f"; CARD="#0d1117"; ACCENT="#ff6600"; AMBER="#ffaa00"
-GREEN="#00c851"; RED="#ff4444"; PURPLE="#7c3aed"; BLUE="#3b82f6"
+GREEN="#00ff6e"; RED="#ff2d55"; PURPLE="#7c3aed"; BLUE="#3b82f6"
 TEXT="#e8e8e8"; MUTED="#6b7280"; BORDER="#1f2937"; PLOT_BG="#0a0f14"
 
 st.markdown(f"""<style>
@@ -92,11 +92,11 @@ section[data-testid="stMain"]>div{{padding-top:0;}}
 .ns-agent-body{{font-size:12px;color:{MUTED};line-height:1.65;margin-bottom:.8rem;}}
 .ns-verdict{{display:inline-block;padding:3px 12px;border-radius:20px;
   font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;}}
-.vd-buy{{background:#003d12;color:{GREEN};border:1px solid {GREEN};}}
-.vd-sell{{background:#3d0000;color:{RED};border:1px solid {RED};}}
+.vd-buy{{background:#003d1a;color:{GREEN};border:1px solid {GREEN};}}
+.vd-sell{{background:#3d0011;color:{RED};border:1px solid {RED};}}
 .vd-hold{{background:#0d1a3d;color:{BLUE};border:1px solid {BLUE};}}
 .vd-watch{{background:#2d1a00;color:{AMBER};border:1px solid {AMBER};}}
-.vd-avoid{{background:#2d0d0d;color:{RED};border:1px solid #7a0000;}}
+.vd-avoid{{background:#2d0d0d;color:{RED};border:1px solid #ff2d55;}}
 .vd-wait{{background:#1a1a1a;color:{MUTED};border:1px solid {MUTED};}}
 
 div.stButton>button{{background:{ACCENT};color:#000;font-weight:700;border:none;border-radius:8px;
