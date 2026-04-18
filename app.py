@@ -1,10 +1,4 @@
-"""
-NiftySniper AI Lab — NSE Signal Intelligence
-Mirror of CryptoSniper: single column, top to bottom
-Sections: Signal Output -> Components -> Market Structure
-       -> Timing Quality -> Kronos AI -> AI Agent Council -> Export
-Theme: #ff6600 orange on #060a04 black
-"""
+"""NiftySniper AI Lab -- exact CryptoSniper layout from screenshots"""
 
 import streamlit as st
 import yfinance as yf
@@ -12,6 +6,7 @@ import pandas as pd
 import numpy as np
 import anthropic
 import time
+import plotly.graph_objects as go
 from datetime import datetime, timezone, timedelta
 from fpdf import FPDF
 
@@ -21,732 +16,579 @@ try:
 except Exception:
     KRONOS_AVAILABLE = False
 
-# ── Page config ──────────────────────────────────────────────────────────────
-st.set_page_config(
-    page_title="NiftySniper AI Lab",
-    page_icon="🎯",
-    layout="centered",
-    initial_sidebar_state="collapsed",
-)
+st.set_page_config(page_title="NiftySniper AI Lab", page_icon="127919",
+                   layout="centered", initial_sidebar_state="collapsed")
 
-# ── Design tokens ─────────────────────────────────────────────────────────────
-BG     = "#060a04"
-CARD   = "#0d1a0d"
-ACCENT = "#ff6600"
-AMBER  = "#ffaa00"
-GREEN  = "#00c851"
-RED    = "#ff4444"
-TEXT   = "#e8e8e8"
-MUTED  = "#888888"
-BORDER = "#1a2e1a"
+BG="#060a0f"; CARD="#0d1117"; ACCENT="#ff6600"; AMBER="#ffaa00"
+GREEN="#00c851"; RED="#ff4444"; PURPLE="#7c3aed"; BLUE="#3b82f6"
+TEXT="#e8e8e8"; MUTED="#6b7280"; BORDER="#1f2937"; PLOT_BG="#0a0f14"
 
-# ── CSS ───────────────────────────────────────────────────────────────────────
-st.markdown(f"""
-<style>
+st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap');
+html,body,[data-testid="stApp"]{{background:{BG};color:{TEXT};font-family:'Inter',sans-serif;}}
+[data-testid="stAppViewContainer"],[data-testid="stHeader"]{{background:{BG};}}
+#MainMenu,footer,header{{visibility:hidden;}}
+.block-container{{padding:1.5rem 1.5rem 3rem;max-width:880px;margin:0 auto;}}
+section[data-testid="stMain"]>div{{padding-top:0;}}
 
-html, body, [data-testid="stApp"] {{
-    background: {BG}; color: {TEXT};
-    font-family: 'Inter', sans-serif;
-}}
-[data-testid="stAppViewContainer"], [data-testid="stHeader"] {{ background: {BG}; }}
-#MainMenu, footer, header {{ visibility: hidden; }}
-.block-container {{ padding: 1.5rem 1.5rem 3rem; max-width: 780px; margin: 0 auto; }}
-section[data-testid="stMain"] > div {{ padding-top: 0; }}
+.ns-sec{{display:flex;align-items:center;justify-content:center;gap:10px;margin:2.25rem 0 1.25rem;
+  font-size:9px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:{MUTED};}}
+.ns-sec::before,.ns-sec::after{{content:'';flex:1;height:1px;background:{BORDER};}}
+.ns-dot{{color:{ACCENT};font-size:7px;}}
 
-/* Hero */
-.ns-hero {{
-    text-align: center;
-    padding: 2rem 0 1.5rem;
-    border-bottom: 1px solid {BORDER};
-    margin-bottom: 1.5rem;
-}}
-.ns-hero-logo {{
-    font-size: 11px; font-weight: 600; letter-spacing: 0.2em;
-    color: {ACCENT}; text-transform: uppercase; margin-bottom: 0.5rem;
-}}
-.ns-hero-title {{
-    font-size: 36px; font-weight: 700; color: {TEXT};
-    letter-spacing: -1px; margin-bottom: 0.25rem;
-}}
-.ns-hero-sub {{
-    font-size: 13px; color: {MUTED};
-    letter-spacing: 0.05em;
-}}
+.ns-hero{{text-align:center;padding:2.5rem 0 2rem;border-bottom:1px solid {BORDER};margin-bottom:.5rem;}}
+.ns-hero-eye{{font-size:10px;letter-spacing:.25em;color:{ACCENT};text-transform:uppercase;margin-bottom:.5rem;}}
+.ns-hero-title{{font-size:40px;font-weight:700;color:{TEXT};letter-spacing:-1.5px;margin-bottom:.3rem;line-height:1;}}
+.ns-hero-sub{{font-size:12px;color:{MUTED};letter-spacing:.08em;}}
 
-/* Signal badge */
-.ns-badge {{
-    text-align: center;
-    background: {CARD};
-    border: 1px solid {BORDER};
-    border-radius: 12px;
-    padding: 2rem 1rem 1.5rem;
-    margin-bottom: 1.25rem;
-}}
-.ns-badge-label {{
-    font-size: 11px; letter-spacing: 0.15em;
-    color: {MUTED}; text-transform: uppercase;
-    margin-bottom: 0.5rem;
-}}
-.ns-badge-signal {{
-    font-size: 38px; font-weight: 700;
-    font-family: 'JetBrains Mono', monospace;
-    margin-bottom: 0.25rem;
-}}
-.ns-badge-score {{
-    font-size: 16px; color: {MUTED};
-    font-family: 'JetBrains Mono', monospace;
-    margin-bottom: 0.5rem;
-}}
-.ns-badge-time {{ font-size: 12px; color: {MUTED}; }}
-.sig-strong  {{ color: {ACCENT}; }}
-.sig-building{{ color: {AMBER};  }}
-.sig-low     {{ color: {MUTED};  }}
-.sig-none    {{ color: {RED};    }}
+.ns-signal-card{{background:linear-gradient(135deg,#1a0800 0%,#2d1200 50%,#1a0800 100%);
+  border:1px solid {ACCENT};border-radius:14px;padding:2rem 2rem 1.75rem;text-align:center;margin-bottom:.25rem;}}
+.ns-signal-meta{{font-size:10px;letter-spacing:.18em;color:{MUTED};text-transform:uppercase;
+  margin-bottom:.9rem;font-family:'JetBrains Mono',monospace;}}
+.ns-signal-name{{font-size:48px;font-weight:700;letter-spacing:-1px;
+  font-family:'JetBrains Mono',monospace;margin-bottom:.4rem;line-height:1;}}
+.ns-signal-score{{font-size:22px;font-weight:600;margin-bottom:1rem;font-family:'JetBrains Mono',monospace;}}
+.ns-signal-bar{{display:flex;justify-content:center;align-items:center;gap:14px;
+  font-size:11px;color:{MUTED};font-family:'JetBrains Mono',monospace;flex-wrap:wrap;}}
+.ns-signal-bar .sep{{color:{BORDER};}}
+.sig-strong{{color:{ACCENT};}} .sig-building{{color:{AMBER};}} .sig-low{{color:{MUTED};}} .sig-none{{color:{RED};}}
+.pct-up{{color:{GREEN};}} .pct-down{{color:{RED};}}
 
-/* Section cards */
-.ns-card {{
-    background: {CARD};
-    border: 1px solid {BORDER};
-    border-left: 3px solid {ACCENT};
-    border-radius: 8px;
-    padding: 1rem 1.25rem;
-    margin-bottom: 1rem;
-}}
-.ns-card-title {{
-    font-size: 10px; font-weight: 600;
-    letter-spacing: 0.18em; text-transform: uppercase;
-    color: {ACCENT}; margin-bottom: 0.75rem;
-}}
+.ns-comp-wrap{{background:{CARD};border:1px solid {BORDER};border-radius:12px;padding:.75rem 1.25rem;margin-bottom:.25rem;}}
+.ns-comp-row{{display:flex;align-items:center;padding:7px 0;border-bottom:1px solid {BORDER};gap:12px;}}
+.ns-comp-row:last-child{{border-bottom:none;}}
+.ns-comp-lbl{{font-size:12px;font-weight:600;color:{TEXT};min-width:110px;}}
+.ns-bar-wrap{{flex:1;background:#1f2937;border-radius:3px;height:5px;}}
+.ns-bar{{height:5px;border-radius:3px;}}
+.bar-orange{{background:{ACCENT};}} .bar-purple{{background:#8b5cf6;}}
+.bar-green{{background:{GREEN};}} .bar-dim{{background:#374151;}}
+.ns-comp-sc{{font-size:12px;font-weight:700;color:{TEXT};font-family:'JetBrains Mono',monospace;min-width:32px;text-align:right;}}
+.ns-comp-raw{{font-size:11px;color:{MUTED};min-width:160px;text-align:right;}}
 
-/* KV rows */
-.ns-row {{
-    display: flex; justify-content: space-between;
-    align-items: center; padding: 5px 0;
-    border-bottom: 1px solid {BORDER}; font-size: 13px;
-}}
-.ns-row:last-child {{ border-bottom: none; }}
-.ns-lbl {{ color: {MUTED}; }}
-.ns-val {{ font-family: 'JetBrains Mono', monospace; font-weight: 600; }}
-.up   {{ color: {GREEN}; }}
-.down {{ color: {RED};   }}
-.neu  {{ color: {TEXT};  }}
+.ns-chart-wrap{{background:{CARD};border:1px solid {BORDER};border-radius:12px;
+  padding:.85rem 1rem 0;margin-bottom:.25rem;overflow:hidden;}}
 
-/* Component bars */
-.ns-comp {{
-    display: flex; align-items: center;
-    padding: 6px 0; border-bottom: 1px solid {BORDER};
-    gap: 10px;
-}}
-.ns-comp:last-child {{ border-bottom: none; }}
-.ns-comp-lbl  {{ font-size: 11px; color: {MUTED}; min-width: 140px; }}
-.ns-bar-wrap  {{ flex: 1; background: #0a150a; border-radius: 3px; height: 5px; }}
-.ns-bar       {{ height: 5px; border-radius: 3px; background: {ACCENT}; }}
-.ns-comp-sc   {{ font-family: 'JetBrains Mono', monospace; font-size: 13px;
-                 min-width: 40px; text-align: right; color: {TEXT}; }}
-.ns-comp-raw  {{ font-size: 11px; color: {MUTED}; min-width: 110px; text-align: right; }}
+.ns-metric{{background:{CARD};border:1px solid {BORDER};border-radius:12px;padding:1.1rem .9rem;text-align:center;}}
+.ns-metric-lbl{{font-size:8px;font-weight:700;letter-spacing:.18em;color:{MUTED};text-transform:uppercase;margin-bottom:.5rem;}}
+.ns-metric-val{{font-size:28px;font-weight:700;line-height:1;font-family:'JetBrains Mono',monospace;margin-bottom:.3rem;}}
+.ns-metric-sub{{font-size:11px;}}
+.m-green{{color:{GREEN};}} .m-red{{color:{RED};}} .m-amber{{color:{AMBER};}}
+.m-white{{color:{TEXT};}} .m-muted{{color:{MUTED};}} .m-blue{{color:{BLUE};}}
 
-/* Kronos */
-.kron-dir-up   {{ font-size: 28px; font-weight: 700; color: {GREEN};
-                  font-family: 'JetBrains Mono', monospace; }}
-.kron-dir-down {{ font-size: 28px; font-weight: 700; color: {RED};
-                  font-family: 'JetBrains Mono', monospace; }}
-.kron-badge    {{ font-size: 10px; color: {MUTED}; letter-spacing: 0.1em; }}
+.ns-kron-card{{background:{CARD};border:1px solid {BORDER};border-radius:12px;padding:1.1rem .9rem;text-align:center;}}
+.ns-kron-lbl{{font-size:8px;font-weight:700;letter-spacing:.18em;color:{MUTED};text-transform:uppercase;margin-bottom:.5rem;}}
+.ns-kron-val{{font-size:20px;font-weight:700;line-height:1.25;font-family:'JetBrains Mono',monospace;margin-bottom:.3rem;}}
+.ns-kron-sub{{font-size:11px;color:{MUTED};line-height:1.4;}}
 
-/* Agent blocks */
-.ns-agent {{
-    background: #060f06; border: 1px solid {BORDER};
-    border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem;
-}}
-.ns-agent-name {{
-    font-size: 10px; font-weight: 600;
-    letter-spacing: 0.15em; text-transform: uppercase;
-    margin-bottom: 6px;
-}}
-.ag-bull {{ color: {GREEN};  }}
-.ag-bear {{ color: {RED};    }}
-.ag-risk {{ color: {AMBER};  }}
-.ag-cio  {{ color: {ACCENT}; }}
-.ns-agent-text {{ font-size: 13px; color: {TEXT}; line-height: 1.65; }}
+.card-bull{{background:#071407;border:1.5px solid #1c4a1c;border-radius:12px;padding:1.25rem;}}
+.card-bear{{background:#140707;border:1.5px solid #4a1c1c;border-radius:12px;padding:1.25rem;}}
+.card-risk{{background:#07090f;border:1.5px solid #1c2a4a;border-radius:12px;padding:1.25rem;}}
+.card-cio{{background:#0f0714;border:1.5px solid #3a1c4a;border-radius:12px;padding:1.25rem;}}
+.ns-agent-tag{{font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+  margin-bottom:.4rem;display:flex;align-items:center;gap:5px;}}
+.tag-bull{{color:{GREEN};}} .tag-bear{{color:{RED};}} .tag-risk{{color:{BLUE};}} .tag-cio{{color:{PURPLE};}}
+.ns-agent-name{{font-size:19px;font-weight:700;color:{TEXT};margin-bottom:.8rem;line-height:1.2;}}
+.ns-agent-body{{font-size:12px;color:{MUTED};line-height:1.65;margin-bottom:.8rem;}}
+.ns-verdict{{display:inline-block;padding:3px 12px;border-radius:20px;
+  font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;}}
+.vd-buy{{background:#003d12;color:{GREEN};border:1px solid {GREEN};}}
+.vd-sell{{background:#3d0000;color:{RED};border:1px solid {RED};}}
+.vd-hold{{background:#0d1a3d;color:{BLUE};border:1px solid {BLUE};}}
+.vd-watch{{background:#2d1a00;color:{AMBER};border:1px solid {AMBER};}}
+.vd-avoid{{background:#2d0d0d;color:{RED};border:1px solid #7a0000;}}
+.vd-wait{{background:#1a1a1a;color:{MUTED};border:1px solid {MUTED};}}
 
-/* Verdict */
-.verdict {{
-    display: inline-block; padding: 4px 14px;
-    border-radius: 20px; font-size: 11px;
-    font-weight: 700; letter-spacing: 0.1em;
-    text-transform: uppercase; margin-top: 8px;
-}}
-.v-buy  {{ background:#003d12; color:{GREEN}; border:1px solid {GREEN}; }}
-.v-sell {{ background:#3d0000; color:{RED};   border:1px solid {RED};   }}
-.v-hold {{ background:#3d2000; color:{AMBER}; border:1px solid {AMBER}; }}
-.v-wait {{ background:#1a1a1a; color:{MUTED}; border:1px solid {MUTED}; }}
+div.stButton>button{{background:{ACCENT};color:#000;font-weight:700;border:none;border-radius:8px;
+  width:100%;padding:.65rem 1.5rem;font-size:14px;letter-spacing:.04em;}}
+div.stButton>button:hover{{background:#ff8533;}}
+div.stDownloadButton>button{{background:transparent;color:{ACCENT};border:1px solid {ACCENT};
+  border-radius:8px;font-weight:600;width:100%;padding:.6rem;font-size:13px;}}
+div.stDownloadButton>button:hover{{background:{ACCENT};color:#000;}}
+div[data-testid="stSelectbox"]>div{{background:{CARD};border-color:{BORDER};}}
+.stSpinner>div{{border-top-color:{ACCENT} !important;}}
+</style>""", unsafe_allow_html=True)
 
-/* Streamlit overrides */
-div.stButton > button {{
-    background: {ACCENT}; color: #000; font-weight: 700;
-    border: none; border-radius: 8px; width: 100%;
-    padding: 0.6rem 1.5rem; font-size: 14px; letter-spacing: 0.04em;
-}}
-div.stButton > button:hover {{ background: #ff8533; }}
-div.stDownloadButton > button {{
-    background: transparent; color: {ACCENT};
-    border: 1px solid {ACCENT}; border-radius: 8px;
-    font-weight: 600; width: 100%; padding: 0.5rem;
-}}
-div.stDownloadButton > button:hover {{ background: {ACCENT}; color: #000; }}
-div[data-testid="stSelectbox"] > div {{
-    background: {CARD}; border-color: {BORDER};
-}}
-.stSpinner > div {{ border-top-color: {ACCENT} !important; }}
-</style>
-""", unsafe_allow_html=True)
-
-# ── Symbol dictionary ─────────────────────────────────────────────────────────
 SYMBOLS = {
-    "NIFTY 50":    "^NSEI",      "BANKNIFTY":   "^NSEBANK",
-    "RELIANCE":    "RELIANCE.NS","TCS":          "TCS.NS",
-    "HDFCBANK":    "HDFCBANK.NS","INFY":         "INFY.NS",
-    "ICICIBANK":   "ICICIBANK.NS","SBIN":        "SBIN.NS",
-    "WIPRO":       "WIPRO.NS",   "AXISBANK":     "AXISBANK.NS",
-    "KOTAKBANK":   "KOTAKBANK.NS","LT":          "LT.NS",
-    "BAJFINANCE":  "BAJFINANCE.NS","TATAMOTORS": "TATAMOTORS.NS",
-    "MARUTI":      "MARUTI.NS",  "SUNPHARMA":    "SUNPHARMA.NS",
-    "ONGC":        "ONGC.NS",    "NTPC":         "NTPC.NS",
-    "POWERGRID":   "POWERGRID.NS","BPCL":        "BPCL.NS",
-    "BHARTIARTL":  "BHARTIARTL.NS","HINDUNILVR": "HINDUNILVR.NS",
-    "ASIANPAINT":  "ASIANPAINT.NS","NESTLEIND":  "NESTLEIND.NS",
-    "TITAN":       "TITAN.NS",   "ULTRACEMCO":   "ULTRACEMCO.NS",
-    "GRASIM":      "GRASIM.NS",  "ADANIENT":     "ADANIENT.NS",
-    "ADANIPORTS":  "ADANIPORTS.NS","JSWSTEEL":   "JSWSTEEL.NS",
-    "TATASTEEL":   "TATASTEEL.NS","HINDALCO":    "HINDALCO.NS",
-    "BEL":         "BEL.NS",     "HAL":          "HAL.NS",
-    "BHEL":        "BHEL.NS",    "COALINDIA":    "COALINDIA.NS",
-    "VEDL":        "VEDL.NS",    "DRREDDY":      "DRREDDY.NS",
-    "CIPLA":       "CIPLA.NS",   "DIVISLAB":     "DIVISLAB.NS",
-    "APOLLOHOSP":  "APOLLOHOSP.NS","EICHERMOT":  "EICHERMOT.NS",
-    "BAJAJ-AUTO":  "BAJAJ-AUTO.NS","HEROMOTOCO": "HEROMOTOCO.NS",
-    "M&M":         "M&M.NS",     "TATACONSUM":   "TATACONSUM.NS",
-    "ITC":         "ITC.NS",     "HCLTECH":      "HCLTECH.NS",
-    "TECHM":       "TECHM.NS",   "LTIM":         "LTIM.NS",
-    "BAJAJFINSV":  "BAJAJFINSV.NS","HDFCLIFE":   "HDFCLIFE.NS",
-    "SBILIFE":     "SBILIFE.NS", "DLF":          "DLF.NS",
-    "INDUSINDBK":  "INDUSINDBK.NS","PNB":        "PNB.NS",
-    "BANKBARODA":  "BANKBARODA.NS","FEDERALBNK": "FEDERALBNK.NS",
+    "NIFTY 50":"^NSEI","BANKNIFTY":"^NSEBANK","RELIANCE":"RELIANCE.NS","TCS":"TCS.NS",
+    "HDFCBANK":"HDFCBANK.NS","INFY":"INFY.NS","ICICIBANK":"ICICIBANK.NS","SBIN":"SBIN.NS",
+    "WIPRO":"WIPRO.NS","AXISBANK":"AXISBANK.NS","KOTAKBANK":"KOTAKBANK.NS","LT":"LT.NS",
+    "BAJFINANCE":"BAJFINANCE.NS","TATAMOTORS":"TATAMOTORS.NS","MARUTI":"MARUTI.NS",
+    "SUNPHARMA":"SUNPHARMA.NS","ONGC":"ONGC.NS","NTPC":"NTPC.NS","POWERGRID":"POWERGRID.NS",
+    "BPCL":"BPCL.NS","BHARTIARTL":"BHARTIARTL.NS","HINDUNILVR":"HINDUNILVR.NS",
+    "ASIANPAINT":"ASIANPAINT.NS","NESTLEIND":"NESTLEIND.NS","TITAN":"TITAN.NS",
+    "ULTRACEMCO":"ULTRACEMCO.NS","GRASIM":"GRASIM.NS","ADANIENT":"ADANIENT.NS",
+    "ADANIPORTS":"ADANIPORTS.NS","JSWSTEEL":"JSWSTEEL.NS","TATASTEEL":"TATASTEEL.NS",
+    "HINDALCO":"HINDALCO.NS","BEL":"BEL.NS","HAL":"HAL.NS","BHEL":"BHEL.NS",
+    "COALINDIA":"COALINDIA.NS","VEDL":"VEDL.NS","DRREDDY":"DRREDDY.NS","CIPLA":"CIPLA.NS",
+    "DIVISLAB":"DIVISLAB.NS","APOLLOHOSP":"APOLLOHOSP.NS","EICHERMOT":"EICHERMOT.NS",
+    "BAJAJ-AUTO":"BAJAJ-AUTO.NS","HEROMOTOCO":"HEROMOTOCO.NS","M&M":"M&M.NS",
+    "TATACONSUM":"TATACONSUM.NS","ITC":"ITC.NS","HCLTECH":"HCLTECH.NS","TECHM":"TECHM.NS",
+    "LTIM":"LTIM.NS","BAJAJFINSV":"BAJAJFINSV.NS","HDFCLIFE":"HDFCLIFE.NS",
+    "SBILIFE":"SBILIFE.NS","DLF":"DLF.NS","INDUSINDBK":"INDUSINDBK.NS",
+    "PNB":"PNB.NS","BANKBARODA":"BANKBARODA.NS","FEDERALBNK":"FEDERALBNK.NS",
 }
 
 AGENTS = [
-    {"key":"BULL", "label":"Bull Agent",   "cls":"ag-bull",
-     "system":"You are the BULL AGENT for NiftySniper NSE intelligence. Make the strongest bullish case using trend alignment, momentum, and institutional support. Cite specific numbers from the data. 3-4 sentences max."},
-    {"key":"BEAR", "label":"Bear Agent",   "cls":"ag-bear",
-     "system":"You are the BEAR AGENT for NiftySniper NSE intelligence. Make the strongest bearish case: overbought signals, resistance, weak volume, macro risks. Cite specific numbers. 3-4 sentences max."},
-    {"key":"RISK", "label":"Risk Manager", "cls":"ag-risk",
-     "system":"You are the RISK MANAGER for NiftySniper. Focus only on position sizing and risk. Calculate stop loss using 1.5x ATR below close. Suggest max position size as % of capital. Give risk/reward ratio. 3-4 sentences. No directional view."},
-    {"key":"CIO",  "label":"CIO Verdict",  "cls":"ag-cio",
-     "system":"You are the CIO of NiftySniper giving the final synthesis. Weigh bull and bear against risk. State a clear verdict: BUY / SELL / HOLD / WAIT. Give a confidence score 1-10. Cite the signal score and one decisive data point. 3-4 sentences max."},
+    {"key":"BULL","name":"Alex — Long Desk","tag":"BULL CASE","icon":"Bull",
+     "card":"card-bull","tag_cls":"tag-bull",
+     "system":"""You are ALEX, Long Desk analyst at NiftySniper. Make the strongest bullish case for this NSE stock. Be specific with exact numbers from the data provided. Write 3-4 sentences. On the very last line write only one word: BUY, HOLD, or WATCH."""},
+    {"key":"BEAR","name":"Sam — Short Desk","tag":"BEAR CASE","icon":"Bear",
+     "card":"card-bear","tag_cls":"tag-bear",
+     "system":"""You are SAM, Short Desk analyst at NiftySniper. Make the strongest bearish case. Cite overbought signals, resistance, weak volume, macro risks with exact numbers. Write 3-4 sentences. On the very last line write only one word: SELL, HOLD, or WATCH."""},
+    {"key":"RISK","name":"Jordan — Risk","tag":"RISK MANAGER","icon":"Risk",
+     "card":"card-risk","tag_cls":"tag-risk",
+     "system":"""You are JORDAN, Risk Manager at NiftySniper. State the ATR stop loss (1.5x ATR below close), max position size as % of capital, and risk/reward ratio using exact numbers. Write 3-4 sentences. On the very last line write only one word: BUY, HOLD, or WATCH."""},
+    {"key":"CIO","name":"Morgan — CIO","tag":"CIO VERDICT","icon":"CIO",
+     "card":"card-cio","tag_cls":"tag-cio",
+     "system":"""You are MORGAN, CIO at NiftySniper. Synthesise the bull, bear and risk views. State a clear verdict citing the signal score and one decisive data point. Write 3-4 sentences. On the very last line write only one word: BUY, SELL, HOLD, WATCH, or AVOID."""},
 ]
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
 def ist_now():
-    ist = timezone(timedelta(hours=5, minutes=30))
-    return datetime.now(ist).strftime("%d %b %Y  %H:%M IST")
+    return datetime.now(timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %Y  %H:%M IST")
 
-def safe(text: str) -> str:
-    """Strip characters outside Latin-1 for fpdf2 Helvetica."""
-    subs = {
-        "\u2014":"-", "\u2013":"-", "\u2019":"'", "\u2018":"'",
-        "\u201c":'"', "\u201d":'"', "\u2022":"*", "\u00b7":".",
-        "\u25b2":"UP", "\u25bc":"DOWN", "\u2192":"->", "\u20b9":"Rs",
-        "\u00d7":"x",  "\u2026":"...",
-    }
-    t = str(text)
-    for c, r in subs.items():
-        t = t.replace(c, r)
-    return t.encode("latin-1", errors="replace").decode("latin-1")
+def safe(t):
+    s={"\u2014":"-","\u2013":"-","\u2019":"'","\u2018":"'","\u201c":'"',"\u201d":'"',
+       "\u2022":"*","\u25b2":"UP","\u25bc":"DOWN","\u2192":"->","\u20b9":"Rs","\u2026":"..."}
+    t=str(t)
+    for c,r in s.items(): t=t.replace(c,r)
+    return t.encode("latin-1",errors="replace").decode("latin-1")
 
-# ── Data fetch ────────────────────────────────────────────────────────────────
-@st.cache_data(ttl=300, show_spinner=False)
-def fetch_data(ticker: str):
-    tk = yf.Ticker(ticker)
-    df = tk.history(period="1y", auto_adjust=True)
-    if df.empty:
-        return None
-    df = df[["Open","High","Low","Close","Volume"]].dropna()
+def verdict_label(text):
+    words=[w.strip().upper() for w in text.strip().splitlines() if w.strip()]
+    last=words[-1] if words else ""
+    for w in ["BUY","SELL","HOLD","WATCH","AVOID"]:
+        if w==last: return w
+    for w in ["BUY","SELL","HOLD","WATCH","AVOID"]:
+        if w in text.upper(): return w
+    return "WAIT"
 
-    df["EMA20"]  = df["Close"].ewm(span=20,  adjust=False).mean()
-    df["EMA50"]  = df["Close"].ewm(span=50,  adjust=False).mean()
-    df["EMA200"] = df["Close"].ewm(span=200, adjust=False).mean()
-    df["VWAP"]   = (df["Close"]*df["Volume"]).cumsum() / df["Volume"].cumsum()
+def verdict_cls(v):
+    return {"BUY":"vd-buy","SELL":"vd-sell","HOLD":"vd-hold",
+            "WATCH":"vd-watch","AVOID":"vd-avoid"}.get(v,"vd-wait")
 
-    df["BB_mid"]   = df["Close"].rolling(20).mean()
-    df["BB_std"]   = df["Close"].rolling(20).std()
-    df["BB_upper"] = df["BB_mid"] + 2*df["BB_std"]
-    df["BB_lower"] = df["BB_mid"] - 2*df["BB_std"]
+def pcfg(): return {"displayModeBar":False}
 
-    delta = df["Close"].diff()
-    gain  = delta.clip(lower=0).rolling(14).mean()
-    loss  = (-delta.clip(upper=0)).rolling(14).mean()
-    df["RSI"] = 100 - (100 / (1 + gain/loss.replace(0, np.nan)))
-
-    df["TR"] = pd.concat([
-        df["High"]-df["Low"],
-        (df["High"]-df["Close"].shift()).abs(),
-        (df["Low"] -df["Close"].shift()).abs()
-    ], axis=1).max(axis=1)
-    df["ATR"] = df["TR"].rolling(14).mean()
-
-    up   = df["High"].diff().clip(lower=0)
-    down = (-df["Low"].diff()).clip(lower=0)
-    up[up <= down] = 0; down[down <= up] = 0
-    atr14 = df["TR"].rolling(14).sum()
-    df["DI_pos"] = 100 * up.rolling(14).sum()   / atr14.replace(0, np.nan)
-    df["DI_neg"] = 100 * down.rolling(14).sum() / atr14.replace(0, np.nan)
-    dx = 100*(df["DI_pos"]-df["DI_neg"]).abs() / (df["DI_pos"]+df["DI_neg"]).replace(0, np.nan)
-    df["ADX"] = dx.rolling(14).mean()
-
+@st.cache_data(ttl=300,show_spinner=False)
+def fetch(ticker):
+    tk=yf.Ticker(ticker)
+    df=tk.history(period="6mo",auto_adjust=True)
+    if df.empty: return None
+    df=df[["Open","High","Low","Close","Volume"]].dropna()
+    df["EMA20"]=df["Close"].ewm(span=20,adjust=False).mean()
+    df["EMA50"]=df["Close"].ewm(span=50,adjust=False).mean()
+    df["EMA200"]=df["Close"].ewm(span=200,adjust=False).mean()
+    df["VWAP"]=(df["Close"]*df["Volume"]).cumsum()/df["Volume"].cumsum()
+    df["BB_mid"]=df["Close"].rolling(20).mean()
+    df["BB_std"]=df["Close"].rolling(20).std()
+    df["BB_upper"]=df["BB_mid"]+2*df["BB_std"]
+    df["BB_lower"]=df["BB_mid"]-2*df["BB_std"]
+    d=df["Close"].diff()
+    g=d.clip(lower=0).rolling(14).mean(); l=(-d.clip(upper=0)).rolling(14).mean()
+    df["RSI"]=100-(100/(1+g/l.replace(0,np.nan)))
+    df["TR"]=pd.concat([df["High"]-df["Low"],(df["High"]-df["Close"].shift()).abs(),(df["Low"]-df["Close"].shift()).abs()],axis=1).max(axis=1)
+    df["ATR"]=df["TR"].rolling(14).mean()
+    up=df["High"].diff().clip(lower=0); dn=(-df["Low"].diff()).clip(lower=0)
+    up[up<=dn]=0; dn[dn<=up]=0
+    a14=df["TR"].rolling(14).sum()
+    df["DI_pos"]=100*up.rolling(14).sum()/a14.replace(0,np.nan)
+    df["DI_neg"]=100*dn.rolling(14).sum()/a14.replace(0,np.nan)
+    dx=100*(df["DI_pos"]-df["DI_neg"]).abs()/(df["DI_pos"]+df["DI_neg"]).replace(0,np.nan)
+    df["ADX"]=dx.rolling(14).mean()
     return df
 
-# ── Signal score ──────────────────────────────────────────────────────────────
-def compute_score(df: pd.DataFrame) -> dict:
-    r   = df.iloc[-1]
-    r1  = df.iloc[-2] if len(df) > 1 else r
-    avg_vol   = df["Volume"].rolling(20).mean().iloc[-1]
-    vol_ratio = r["Volume"] / avg_vol if avg_vol > 0 else 1
-    pct_chg   = (r["Close"] - r1["Close"]) / r1["Close"] * 100
-    hi_lo     = r["High"] - r["Low"]
-    range_pos = (r["Close"] - r["Low"]) / hi_lo if hi_lo > 0 else 0.5
+def calc_score(df):
+    r=df.iloc[-1]; r1=df.iloc[-2] if len(df)>1 else r
+    avg_vol=df["Volume"].rolling(20).mean().iloc[-1]
+    vol_ratio=r["Volume"]/avg_vol if avg_vol>0 else 1
+    pct_chg=(r["Close"]-r1["Close"])/r1["Close"]*100
+    hi_lo=r["High"]-r["Low"]
+    rng_pos=(r["Close"]-r["Low"])/hi_lo if hi_lo>0 else 0.5
+    atr_sigma=abs(r["Close"]-r1["Close"])/r["ATR"] if r["ATR"]>0 else 0
+    v=5 if vol_ratio>=5 else 3 if vol_ratio>=2 else 2 if vol_ratio>=1.5 else 0
+    p=3 if abs(pct_chg)>=5 else 2 if abs(pct_chg)>=3 else 1 if abs(pct_chg)>=1 else 0
+    rng=2 if rng_pos>=0.75 else 1 if rng_pos>=0.5 else 0
+    t=sum([r["Close"]>r["EMA20"],r["EMA20"]>r["EMA50"],r["ADX"]>25])
+    tot=v+p+rng+t
+    if tot>=8: tier,cls="STRONG SIGNAL","sig-strong"
+    elif tot>=5: tier,cls="BUILDING","sig-building"
+    elif tot>=3: tier,cls="LOW SIGNAL","sig-low"
+    else: tier,cls="NO SIGNAL","sig-none"
+    return {"total":tot,"v":v,"p":p,"r":rng,"t":t,"tier":tier,"cls":cls,
+            "vol_ratio":round(vol_ratio,2),"pct_chg":round(pct_chg,2),
+            "rng_pos":round(rng_pos,2),"atr_sigma":round(atr_sigma,2)}
 
-    v = 5 if vol_ratio>=5 else 3 if vol_ratio>=2 else 2 if vol_ratio>=1.5 else 0
-    p = 3 if abs(pct_chg)>=5 else 2 if abs(pct_chg)>=3 else 1 if abs(pct_chg)>=1 else 0
-    rng = 2 if range_pos>=0.75 else 1 if range_pos>=0.5 else 0
-    t = sum([r["Close"]>r["EMA20"], r["EMA20"]>r["EMA50"], r["ADX"]>25])
+def build_ctx(sym,sc,df):
+    r=df.iloc[-1]
+    ema_ok="EMA stack ok" if r["Close"]>r["EMA20"]>r["EMA50"]>r["EMA200"] else "EMA stack mixed"
+    return f"""SYMBOL:{sym} SIGNAL:{sc['tier']} ({sc['total']}/13)
+V={sc['v']}/5 vol={sc['vol_ratio']}x  P={sc['p']}/3 chg={sc['pct_chg']}%  R={sc['r']}/2 rng={sc['rng_pos']}  T={sc['t']}/3
+Close:{r['Close']:.2f} EMA20:{r['EMA20']:.2f} EMA50:{r['EMA50']:.2f} EMA200:{r['EMA200']:.2f}
+BB:{r['BB_upper']:.2f}/{r['BB_lower']:.2f} RSI:{r['RSI']:.1f} ADX:{r['ADX']:.1f}
+ATR:{r['ATR']:.4f}({r['ATR']/r['Close']*100:.2f}%) Stop:{r['Close']-1.5*r['ATR']:.2f} {ema_ok}""".strip()
 
-    total = v + p + rng + t
-    if   total >= 8: tier, cls = "STRONG SIGNAL", "sig-strong"
-    elif total >= 5: tier, cls = "BUILDING",      "sig-building"
-    elif total >= 3: tier, cls = "LOW SIGNAL",    "sig-low"
-    else:            tier, cls = "NO SIGNAL",     "sig-none"
+def price_chart(df,symbol):
+    d=df.tail(90).copy()
+    fig=go.Figure()
+    fig.add_trace(go.Scatter(x=d.index,y=d["BB_upper"],
+        line=dict(color="rgba(255,255,255,0.3)",width=1,dash="dot"),name="BB+",hovertemplate="%{y:.2f}"))
+    fig.add_trace(go.Scatter(x=d.index,y=d["BB_lower"],
+        line=dict(color="rgba(255,255,255,0.3)",width=1,dash="dot"),
+        fill="tonexty",fillcolor="rgba(255,255,255,0.04)",name="BB-",hovertemplate="%{y:.2f}"))
+    fig.add_trace(go.Scatter(x=d.index,y=d["EMA200"],
+        line=dict(color="#f97316",width=1.5),name="EMA200",hovertemplate="%{y:.2f}"))
+    fig.add_trace(go.Scatter(x=d.index,y=d["EMA50"],
+        line=dict(color="#8b5cf6",width=1.5),name="EMA50",hovertemplate="%{y:.2f}"))
+    fig.add_trace(go.Scatter(x=d.index,y=d["EMA20"],
+        line=dict(color=GREEN,width=1.8),name="EMA20",hovertemplate="%{y:.2f}"))
+    fig.add_trace(go.Candlestick(x=d.index,open=d["Open"],high=d["High"],low=d["Low"],close=d["Close"],
+        increasing_line_color=GREEN,increasing_fillcolor=GREEN,
+        decreasing_line_color=RED,decreasing_fillcolor=RED,line_width=1,name="Price"))
+    fig.update_layout(
+        paper_bgcolor=PLOT_BG,plot_bgcolor=PLOT_BG,
+        margin=dict(l=0,r=0,t=4,b=0),height=360,
+        xaxis_rangeslider_visible=False,
+        legend=dict(orientation="h",x=0.5,xanchor="center",y=1.04,
+                    font=dict(size=11,color=MUTED),bgcolor="rgba(0,0,0,0)"),
+        xaxis=dict(showgrid=False,color=MUTED,showline=False),
+        yaxis=dict(showgrid=True,gridcolor=BORDER,color=MUTED,gridwidth=0.5,side="right"),
+        font=dict(family="Inter",color=MUTED),
+        hoverlabel=dict(bgcolor=CARD,font=dict(color=TEXT,size=12)))
+    fig.update_xaxes(showspikes=True,spikecolor=MUTED,spikewidth=1)
+    fig.update_yaxes(showspikes=True,spikecolor=MUTED,spikewidth=1)
+    return fig
 
-    return {"total":total, "v":v, "p":p, "r":rng, "t":t,
-            "tier":tier, "cls":cls,
-            "vol_ratio":round(vol_ratio,2),
-            "pct_chg":round(pct_chg,2),
-            "range_pos":round(range_pos,2)}
+def kronos_chart(df,kr):
+    hist=df.tail(30).copy()
+    lc=hist["Close"].iloc[-1]; ld=hist.index[-1]
+    n=int(kr.get("Candles Forecast",20))
+    fut=pd.date_range(start=ld,periods=n+1,freq="B")[1:]
+    pred=float(str(kr.get("Predicted Close",lc)).replace(",",""))
+    peak=float(str(kr.get("Forecast Peak",pred*1.04)).replace(",",""))
+    trough=float(str(kr.get("Forecast Trough",pred*0.96)).replace(",",""))
+    up=kr.get("Direction","DOWN").upper()=="UP"
+    cc=GREEN if up else RED
+    r2,g2,b2=int(cc[1:3],16),int(cc[3:5],16),int(cc[5:7],16)
+    upper=np.linspace(lc,peak,n); lower=np.linspace(lc,trough,n); mid=np.linspace(lc,pred,n)
+    fig=go.Figure()
+    fig.add_trace(go.Scatter(x=hist.index,y=hist["Close"],
+        line=dict(color=TEXT,width=2),name="Close",hovertemplate="%{y:.2f}"))
+    fig.add_trace(go.Scatter(x=list(fut)+list(fut[::-1]),y=list(upper)+list(lower[::-1]),
+        fill="toself",fillcolor=f"rgba({r2},{g2},{b2},0.10)",
+        line=dict(width=0),showlegend=False,hoverinfo="skip"))
+    fig.add_trace(go.Scatter(x=fut,y=upper,
+        line=dict(color=cc,width=1,dash="dot"),name=f"Peak {peak:.2f}",hovertemplate="%{y:.2f}"))
+    fig.add_trace(go.Scatter(x=fut,y=lower,
+        line=dict(color=cc,width=1,dash="dot"),name=f"Trough {trough:.2f}",hovertemplate="%{y:.2f}"))
+    fig.add_trace(go.Scatter(x=fut,y=mid,
+        line=dict(color=cc,width=2.5),name=f"Predicted {pred:.2f}",hovertemplate="%{y:.2f}"))
+    fig.add_trace(go.Scatter(x=[ld,ld],
+        y=[min(lower.min(),hist["Close"].min())*0.999,max(upper.max(),hist["Close"].max())*1.001],
+        line=dict(color=MUTED,width=1,dash="dash"),showlegend=True,name="Current",hoverinfo="skip"))
+    fig.update_layout(
+        paper_bgcolor=PLOT_BG,plot_bgcolor=PLOT_BG,
+        title=dict(text=f"Kronos-mini — Predicted Close ({n} candles forward)",
+                   font=dict(size=12,color=MUTED),x=0.5,xanchor="center"),
+        margin=dict(l=0,r=0,t=36,b=0),height=260,
+        legend=dict(orientation="h",x=0.5,xanchor="center",y=1.18,
+                    font=dict(size=10,color=MUTED),bgcolor="rgba(0,0,0,0)"),
+        xaxis=dict(showgrid=False,color=MUTED),
+        yaxis=dict(showgrid=True,gridcolor=BORDER,color=MUTED,gridwidth=0.5,side="right"),
+        font=dict(family="Inter",color=MUTED),
+        hoverlabel=dict(bgcolor=CARD,font=dict(color=TEXT,size=12)))
+    return fig
 
-# ── Build context for agents ──────────────────────────────────────────────────
-def build_context(symbol, sc, df):
-    r = df.iloc[-1]
-    return f"""SYMBOL: {symbol}
-SIGNAL: {sc['tier']} ({sc['total']}/13)
-COMPONENTS: V={sc['v']}/5 (vol={sc['vol_ratio']}x)  P={sc['p']}/3 (chg={sc['pct_chg']}%)  R={sc['r']}/2  T={sc['t']}/3
+def run_debate(ctx,api_key):
+    client=anthropic.Anthropic(api_key=api_key)
+    results={}
+    # Render 4 placeholders in 2x2 layout
+    row1_left, row1_right = st.columns(2)
+    row2_left, row2_right = st.columns(2)
+    slot_map = {
+        "BULL": row1_left.empty(),
+        "BEAR": row1_right.empty(),
+        "RISK": row2_left.empty(),
+        "CIO":  row2_right.empty(),
+    }
+    for ag in AGENTS:
+        slot=slot_map[ag["key"]]
+        text=""
+        slot.markdown(f'<div class="{ag["card"]}">'
+                      f'<div class="ns-agent-tag {ag["tag_cls"]}">{ag["icon"]} {ag["tag"]}</div>'
+                      f'<div class="ns-agent-name">{ag["name"]}</div>'
+                      f'<div class="ns-agent-body" style="color:{MUTED}">Analysing...</div>'
+                      f'</div>',unsafe_allow_html=True)
+        with client.messages.stream(model="claude-haiku-4-5-20251001",max_tokens=280,
+            system=ag["system"],messages=[{"role":"user","content":f"Analyse:\n{ctx}"}]) as stream:
+            for chunk in stream.text_stream:
+                text+=chunk
+                slot.markdown(f'<div class="{ag["card"]}">'
+                              f'<div class="ns-agent-tag {ag["tag_cls"]}">{ag["icon"]} {ag["tag"]}</div>'
+                              f'<div class="ns-agent-name">{ag["name"]}</div>'
+                              f'<div class="ns-agent-body">{text}&#9616;</div>'
+                              f'</div>',unsafe_allow_html=True)
+        vl=verdict_label(text); vc=verdict_cls(vl)
+        body_lines=[l for l in text.strip().splitlines()
+                    if l.strip().upper() not in ["BUY","SELL","HOLD","WATCH","AVOID","WAIT"]]
+        body=" ".join(body_lines).strip()
+        slot.markdown(f'<div class="{ag["card"]}">'
+                      f'<div class="ns-agent-tag {ag["tag_cls"]}">{ag["icon"]} {ag["tag"]}</div>'
+                      f'<div class="ns-agent-name">{ag["name"]}</div>'
+                      f'<div class="ns-agent-body">{body}</div>'
+                      f'<span class="ns-verdict {vc}">{vl}</span>'
+                      f'</div>',unsafe_allow_html=True)
+        results[ag["key"]]={"text":text,"body":body,"verdict":vl,"vc":vc}
+        time.sleep(0.1)
+    return results
 
-MARKET STRUCTURE:
-  Close:  {r['Close']:.2f}
-  EMA20:  {r['EMA20']:.2f}  ({'ABOVE' if r['Close']>r['EMA20'] else 'BELOW'})
-  EMA50:  {r['EMA50']:.2f}  ({'ABOVE' if r['Close']>r['EMA50'] else 'BELOW'})
-  EMA200: {r['EMA200']:.2f} ({'ABOVE' if r['Close']>r['EMA200'] else 'BELOW'})
-  VWAP:   {r['VWAP']:.2f}
-  BB:     {r['BB_upper']:.2f} / {r['BB_lower']:.2f}
-
-TIMING:
-  RSI14:  {r['RSI']:.1f}
-  ADX14:  {r['ADX']:.1f}  +DI={r['DI_pos']:.1f}  -DI={r['DI_neg']:.1f}
-  ATR14:  {r['ATR']:.4f} ({r['ATR']/r['Close']*100:.2f}% of price)
-  Stop:   {r['Close'] - 1.5*r['ATR']:.2f} (1.5x ATR)""".strip()
-
-# ── Stream one agent ──────────────────────────────────────────────────────────
-def stream_agent(agent, ctx, api_key, slot):
-    client = anthropic.Anthropic(api_key=api_key)
-    text = ""
-    slot.markdown(
-        f'<div class="ns-agent"><div class="ns-agent-name {agent["cls"]}">'
-        f'{agent["label"]}</div><div class="ns-agent-text">Analysing...</div></div>',
-        unsafe_allow_html=True)
-    with client.messages.stream(
-        model="claude-haiku-4-5-20251001", max_tokens=300,
-        system=agent["system"],
-        messages=[{"role":"user","content":f"Analyse:\n{ctx}"}]
-    ) as stream:
-        for chunk in stream.text_stream:
-            text += chunk
-            slot.markdown(
-                f'<div class="ns-agent"><div class="ns-agent-name {agent["cls"]}">'
-                f'{agent["label"]}</div><div class="ns-agent-text">{text}▌</div></div>',
-                unsafe_allow_html=True)
-    pill = ""
-    if agent["key"] == "CIO":
-        u = text.upper()
-        if "BUY"  in u: pill = '<span class="verdict v-buy">BUY</span>'
-        elif "SELL" in u: pill = '<span class="verdict v-sell">SELL</span>'
-        elif "HOLD" in u: pill = '<span class="verdict v-hold">HOLD</span>'
-        else:              pill = '<span class="verdict v-wait">WAIT</span>'
-    slot.markdown(
-        f'<div class="ns-agent"><div class="ns-agent-name {agent["cls"]}">'
-        f'{agent["label"]}</div><div class="ns-agent-text">{text}</div>{pill}</div>',
-        unsafe_allow_html=True)
-    return text
-
-# ── PDF ───────────────────────────────────────────────────────────────────────
-class NiftyPDF(FPDF):
+class PDF(FPDF):
     def __init__(self):
         super().__init__()
-        self.set_auto_page_break(auto=True, margin=15)
-
+        self.set_auto_page_break(auto=True,margin=15)
     def header(self):
-        self.set_fill_color(6, 10, 4)
-        self.rect(0, 0, 210, 297, "F")
-        self.set_fill_color(255, 102, 0)
-        self.rect(0, 0, 210, 2, "F")
-        self.set_xy(10, 6)
-        self.set_font("Helvetica", "B", 18)
-        self.set_text_color(255, 102, 0)
-        self.cell(0, 10, "NIFTYSNIPER", ln=0)
-        self.set_font("Helvetica", "", 9)
-        self.set_text_color(136, 136, 136)
-        self.set_xy(10, 16)
-        self.cell(0, 6, "DETECT EARLY. ACT SMART.", ln=1)
-        self.set_xy(0, 26)
-
+        self.set_fill_color(6,10,15); self.rect(0,0,210,297,"F")
+        self.set_fill_color(255,102,0); self.rect(0,0,210,2,"F")
+        self.set_xy(10,6); self.set_font("Helvetica","B",18)
+        self.set_text_color(255,102,0); self.cell(0,10,"NIFTYSNIPER",ln=0)
+        self.set_font("Helvetica","",9); self.set_text_color(107,114,128)
+        self.set_xy(10,16); self.cell(0,6,"DETECT EARLY. ACT SMART.",ln=1)
+        self.set_xy(0,26)
     def footer(self):
-        self.set_y(-12)
-        self.set_font("Helvetica", "I", 7)
-        self.set_text_color(80, 80, 80)
-        self.cell(0, 5,
-            "Data via Yahoo Finance / NSE. Signals are not financial advice. "
-            "Past performance does not guarantee future results.", align="C")
+        self.set_y(-12); self.set_font("Helvetica","I",7); self.set_text_color(80,80,80)
+        self.cell(0,5,"Data via Yahoo Finance / NSE. Signals are not financial advice. Past performance does not guarantee future results.",align="C")
+    def sec(self,title):
+        self.set_fill_color(13,17,23); self.rect(10,self.get_y(),190,7,"F")
+        self.set_fill_color(255,102,0); self.rect(10,self.get_y(),2,7,"F")
+        self.set_xy(14,self.get_y()+0.5); self.set_font("Helvetica","B",8)
+        self.set_text_color(255,102,0); self.cell(0,6,safe(title).upper(),ln=1); self.ln(1)
+    def kv(self,label,value,vc=(220,220,220)):
+        self.set_fill_color(13,17,23); self.rect(10,self.get_y(),190,6,"F"); self.set_x(12)
+        self.set_font("Helvetica","",8); self.set_text_color(107,114,128); self.cell(80,6,safe(label))
+        self.set_font("Courier","B",8); self.set_text_color(*vc); self.cell(0,6,safe(str(value)),ln=1)
+    def agent_blk(self,name,body,verdict,nc):
+        self.set_font("Helvetica","B",8); self.set_text_color(*nc); self.set_x(12); self.cell(0,6,safe(name),ln=1)
+        self.set_font("Helvetica","",7.5); self.set_text_color(200,200,200); self.set_x(12); self.multi_cell(186,5,safe(body))
+        self.set_font("Helvetica","B",8); self.set_text_color(*nc); self.set_x(12); self.cell(0,5,f"Verdict: {verdict}",ln=1); self.ln(3)
 
-    def sec(self, title):
-        self.set_fill_color(13, 26, 13)
-        self.rect(10, self.get_y(), 190, 7, "F")
-        self.set_fill_color(255, 102, 0)
-        self.rect(10, self.get_y(), 2, 7, "F")
-        self.set_xy(14, self.get_y() + 0.5)
-        self.set_font("Helvetica", "B", 8)
-        self.set_text_color(255, 102, 0)
-        self.cell(0, 6, safe(title).upper(), ln=1)
-        self.ln(1)
-
-    def kv(self, label, value, vc=(232, 232, 232)):
-        self.set_fill_color(13, 26, 13)
-        self.rect(10, self.get_y(), 190, 6, "F")
-        self.set_x(12)
-        self.set_font("Helvetica", "", 8)
-        self.set_text_color(136, 136, 136)
-        self.cell(80, 6, safe(label))
-        self.set_font("Courier", "B", 8)
-        self.set_text_color(*vc)
-        self.cell(0, 6, safe(str(value)), ln=1)
-
-    def agent(self, name, text, nc):
-        self.set_fill_color(6, 15, 6)
-        self.set_font("Helvetica", "B", 8)
-        self.set_text_color(*nc)
-        self.set_x(12)
-        self.cell(0, 6, safe(name), ln=1)
-        self.set_font("Helvetica", "", 7.5)
-        self.set_text_color(220, 220, 220)
-        self.set_x(12)
-        self.multi_cell(186, 5, safe(text))
-        self.ln(3)
-
-
-def generate_pdf(symbol, sc, df, agent_texts, kronos_data=None) -> bytes:
-    r   = df.iloc[-1]
-    pdf = NiftyPDF()
-    pdf.add_page()
-
-    # Signal badge
-    pdf.set_fill_color(13, 26, 13)
-    pdf.rect(10, pdf.get_y(), 190, 26, "F")
-    pdf.set_xy(10, pdf.get_y() + 2)
-    pdf.set_font("Helvetica", "", 8)
-    pdf.set_text_color(136, 136, 136)
-    pdf.cell(0, 5, safe(f"{symbol}  |  1D  |  {ist_now()}"), align="C", ln=1)
-    sig_col = (255,102,0) if "STRONG" in sc["tier"] else \
-              (255,170,0) if "BUILDING" in sc["tier"] else (136,136,136)
-    pdf.set_font("Helvetica", "B", 22)
-    pdf.set_text_color(*sig_col)
-    pdf.cell(0, 14, safe(f"SIGNAL: {sc['tier']}  ({sc['total']}/13)"), align="C", ln=1)
-    pdf.ln(4)
-
-    # Signal Components
+def gen_pdf(symbol,sc,df,debate,kr):
+    r=df.iloc[-1]; pdf=PDF(); pdf.add_page()
+    pdf.set_fill_color(26,8,0); pdf.rect(10,pdf.get_y(),190,26,"F")
+    pdf.set_xy(10,pdf.get_y()+2); pdf.set_font("Helvetica","",8); pdf.set_text_color(107,114,128)
+    pdf.cell(0,5,safe(f"{symbol}  |  1D  |  {ist_now()}"),align="C",ln=1)
+    sig_col=(255,102,0) if "STRONG" in sc["tier"] else (255,170,0) if "BUILDING" in sc["tier"] else (136,136,136)
+    pdf.set_font("Helvetica","B",22); pdf.set_text_color(*sig_col)
+    pdf.cell(0,14,safe(f"SIGNAL: {sc['tier']}  ({sc['total']}/13)"),align="C",ln=1); pdf.ln(4)
     pdf.sec("Signal Components")
-    for lbl, s, mx, raw in [
-        ("V - Volume (max 5)",         f"{sc['v']}/5", sc['v'], f"vol_ratio = {sc['vol_ratio']}x"),
-        ("P - Momentum (max 3)",        f"{sc['p']}/3", sc['p'], f"chg = {sc['pct_chg']}%"),
-        ("R - Range Position (max 2)",  f"{sc['r']}/2", sc['r'], f"range_pos = {sc['range_pos']}"),
-        ("T - Trend Alignment (max 3)", f"{sc['t']}/3", sc['t'], f"ADX = {r['ADX']:.1f}"),
-    ]:
-        pdf.set_fill_color(13, 26, 13)
-        pdf.rect(10, pdf.get_y(), 190, 6, "F")
-        pdf.set_x(12)
-        pdf.set_font("Helvetica", "", 8)
-        pdf.set_text_color(136, 136, 136)
-        pdf.cell(90, 6, safe(lbl))
-        pdf.set_font("Courier", "B", 8)
-        pdf.set_text_color(255, 102, 0)
-        pdf.cell(20, 6, safe(str(s)))
-        pdf.set_font("Helvetica", "", 8)
-        pdf.set_text_color(136, 136, 136)
-        pdf.cell(0, 6, safe(raw), ln=1)
+    for lbl,s,raw in [("V Volume (max 5)",f"{sc['v']}/5",f"vol={sc['vol_ratio']}x"),
+                      ("P Momentum (max 3)",f"{sc['p']}/3",f"chg={sc['pct_chg']}%"),
+                      ("R Range Pos (max 2)",f"{sc['r']}/2",f"rng={sc['rng_pos']}"),
+                      ("T Trend (max 3)",f"{sc['t']}/3",f"ADX={r['ADX']:.1f}")]:
+        pdf.set_fill_color(13,17,23); pdf.rect(10,pdf.get_y(),190,6,"F"); pdf.set_x(12)
+        pdf.set_font("Helvetica","",8); pdf.set_text_color(107,114,128); pdf.cell(90,6,safe(lbl))
+        pdf.set_font("Courier","B",8); pdf.set_text_color(255,102,0); pdf.cell(20,6,safe(s))
+        pdf.set_font("Helvetica","",8); pdf.set_text_color(107,114,128); pdf.cell(0,6,safe(raw),ln=1)
     pdf.ln(3)
-
-    # Market Structure
-    def vc(v, ref): return (0,200,81) if v>ref else (255,68,68)
-    pdf.sec("Market Structure")
-    pdf.kv("Close",      f"{r['Close']:.2f}")
-    pdf.kv("EMA 20",     f"{r['EMA20']:.2f}  ({'above' if r['Close']>r['EMA20'] else 'below'})",  vc(r['Close'],r['EMA20']))
-    pdf.kv("EMA 50",     f"{r['EMA50']:.2f}  ({'above' if r['Close']>r['EMA50'] else 'below'})",  vc(r['Close'],r['EMA50']))
-    pdf.kv("EMA 200",    f"{r['EMA200']:.2f} ({'above' if r['Close']>r['EMA200'] else 'below'})", vc(r['Close'],r['EMA200']))
-    pdf.kv("VWAP",       f"{r['VWAP']:.2f}   ({'above' if r['Close']>r['VWAP'] else 'below'})",  vc(r['Close'],r['VWAP']))
-    pdf.kv("BB Upper/Lower", f"{r['BB_upper']:.2f} / {r['BB_lower']:.2f}")
-    pdf.ln(3)
-
-    # Timing Quality
+    def vc(v,ref): return (0,200,81) if v>ref else (255,68,68)
     pdf.sec("Timing Quality")
-    pdf.kv("RSI 14",   f"{r['RSI']:.1f}")
-    pdf.kv("ADX 14",   f"{r['ADX']:.1f}  ({'Trending' if r['ADX']>25 else 'Ranging'})")
+    pdf.kv("RSI 14",f"{r['RSI']:.1f}"); pdf.kv("ADX 14",f"{r['ADX']:.1f}")
     pdf.kv("+DI / -DI",f"{r['DI_pos']:.1f} / {r['DI_neg']:.1f}")
-    pdf.kv("ATR 14",   f"{r['ATR']:.4f}  ({r['ATR']/r['Close']*100:.2f}% of price)")
-    pdf.kv("Stop (1.5x ATR)", f"{r['Close'] - 1.5*r['ATR']:.2f}")
-    pdf.ln(3)
-
-    # Kronos
-    if kronos_data:
-        pdf.sec("Kronos-Mini AI Forecast")
-        for k, v in kronos_data.items():
-            pdf.kv(k, str(v))
+    pdf.kv("ATR 14",f"{r['ATR']:.4f}  ({r['ATR']/r['Close']*100:.2f}%)")
+    pdf.kv("Stop (1.5x ATR)",f"{r['Close']-1.5*r['ATR']:.2f}"); pdf.ln(3)
+    pdf.sec("Market Structure")
+    pdf.kv("Close",f"{r['Close']:.2f}"); pdf.kv("EMA 20",f"{r['EMA20']:.2f}",vc(r['Close'],r['EMA20']))
+    pdf.kv("EMA 50",f"{r['EMA50']:.2f}",vc(r['Close'],r['EMA50']))
+    pdf.kv("EMA 200",f"{r['EMA200']:.2f}",vc(r['Close'],r['EMA200']))
+    pdf.kv("BB Upper/Lower",f"{r['BB_upper']:.2f} / {r['BB_lower']:.2f}"); pdf.ln(3)
+    if kr:
+        pdf.sec("Kronos AI Forecast")
+        for k,v in kr.items(): pdf.kv(k,str(v))
         pdf.ln(3)
-
-    # AI Agent Council
-    pdf.sec("AI Lab - Agent Debate")
-    agent_cols = {"BULL":(0,200,81),"BEAR":(255,68,68),"RISK":(255,170,0),"CIO":(255,102,0)}
-    for ag in AGENTS:
-        txt = agent_texts.get(ag["key"], "")
-        if txt:
-            pdf.agent(f"{ag['label']} Verdict", txt, agent_cols.get(ag["key"], (232,232,232)))
-
+    if debate:
+        pdf.sec("AI Lab - Agent Debate")
+        cols={"BULL":(0,200,81),"BEAR":(255,68,68),"RISK":(59,130,246),"CIO":(124,58,237)}
+        for ag in AGENTS:
+            d=debate.get(ag["key"])
+            if d: pdf.agent_blk(ag["name"],d.get("body",""),d.get("verdict",""),cols.get(ag["key"],(220,220,220)))
     return bytes(pdf.output())
 
-
-# ═══════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
 # APP
-# ═══════════════════════════════════════════════════════════════════════════
-
-# Hero
-st.markdown(f"""
-<div class="ns-hero">
-  <div class="ns-hero-logo">&#9675; Signal Intelligence</div>
+# ══════════════════════════════════════════════════════════════════════════════
+st.markdown(f"""<div class="ns-hero">
+  <div class="ns-hero-eye">&#9675; NSE Signal Intelligence</div>
   <div class="ns-hero-title">NiftySniper <span style="color:{ACCENT}">AI Lab</span></div>
   <div class="ns-hero-sub">REAL-TIME &middot; MULTI-FACTOR &middot; AI-POWERED</div>
-</div>
-""", unsafe_allow_html=True)
+</div>""",unsafe_allow_html=True)
 
-# Input
-sym_col, btn_col = st.columns([4, 1])
-with sym_col:
-    symbol_input = st.selectbox(
-        "symbol", options=[""] + sorted(SYMBOLS.keys()),
-        format_func=lambda x: "BTC  \u00b7  ETH  \u00b7  NIFTY  \u00b7  RELIANCE" if x == "" else x,
+sc1,sc2=st.columns([4,1])
+with sc1:
+    symbol=st.selectbox("sym",[""]+ sorted(SYMBOLS.keys()),
+        format_func=lambda x:"NIFTY 50  \u00b7  RELIANCE  \u00b7  HDFCBANK  \u00b7  TCS" if x=="" else x,
         label_visibility="collapsed")
-with btn_col:
-    go = st.button("ANALYSE", use_container_width=True)
+with sc2:
+    st.button("ANALYSE",use_container_width=True)
 
-api_key = st.secrets.get("ANTHROPIC_API_KEY", "") if hasattr(st, "secrets") else ""
+api_key=st.secrets.get("ANTHROPIC_API_KEY","") if hasattr(st,"secrets") else ""
 
-if not symbol_input:
-    st.markdown(f"""
-    <div style="text-align:center;padding:4rem 0;color:{MUTED}">
-      <div style="font-size:40px;margin-bottom:1rem">&#9678;</div>
-      <div style="font-size:16px;font-weight:600;color:{TEXT};margin-bottom:.5rem">
-        Type a symbol above &middot; Press Enter or click Analyse
-      </div>
-      <div style="font-size:13px">NIFTY 50 &middot; BANKNIFTY &middot; 60+ NSE stocks</div>
-    </div>""", unsafe_allow_html=True)
+if not symbol:
+    st.markdown(f"""<div style="text-align:center;padding:5rem 0;color:{MUTED}">
+      <div style="font-size:38px;margin-bottom:1rem">&#9678;</div>
+      <div style="font-size:16px;font-weight:600;color:{TEXT};margin-bottom:.4rem">Select a stock above and press Analyse</div>
+      <div style="font-size:12px">NIFTY 50 &middot; BANKNIFTY &middot; 60+ NSE stocks</div>
+    </div>""",unsafe_allow_html=True)
     st.stop()
 
-# Fetch
-ticker = SYMBOLS.get(symbol_input, f"{symbol_input}.NS")
-with st.spinner(f"Fetching {symbol_input}..."):
-    df = fetch_data(ticker)
+ticker=SYMBOLS.get(symbol,f"{symbol}.NS")
+with st.spinner(f"Loading {symbol}..."):
+    df=fetch(ticker)
 
-if df is None or len(df) < 30:
-    st.error(f"Could not load data for **{symbol_input}**. Try another symbol.")
+if df is None or len(df)<30:
+    st.error(f"Could not load data for **{symbol}**. Try another symbol.")
     st.stop()
 
-sc  = compute_score(df)
-r   = df.iloc[-1]
-ctx = build_context(symbol_input, sc, df)
+sc=calc_score(df); r=df.iloc[-1]; r1=df.iloc[-2]; ctx=build_ctx(symbol,sc,df)
 
-# ── 01 SIGNAL OUTPUT ─────────────────────────────────────────────────────────
-st.markdown(f"""
-<div class="ns-badge">
-  <div class="ns-badge-label">Signal Output &middot; {symbol_input}</div>
-  <div class="ns-badge-signal {sc['cls']}">{sc['tier']}</div>
-  <div class="ns-badge-score">{sc['total']} / 13</div>
-  <div class="ns-badge-time">{ist_now()}</div>
-</div>
-""", unsafe_allow_html=True)
+# 01 Signal Output
+st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 01 &mdash; SIGNAL OUTPUT <span class="ns-dot">&#9679;</span></div>',unsafe_allow_html=True)
+pct=sc['pct_chg']; pct_cls="pct-up" if pct>=0 else "pct-down"
+pct_str=f"+{pct:.2f}%" if pct>=0 else f"{pct:.2f}%"
+st.markdown(f"""<div class="ns-signal-card">
+  <div class="ns-signal-meta">{symbol} &middot; 1D &middot; {ist_now()}</div>
+  <div class="ns-signal-name {sc['cls']}">{sc['tier']}</div>
+  <div class="ns-signal-score {sc['cls']}">{sc['total']} / 13</div>
+  <div class="ns-signal-bar">
+    <span>CLOSE {r['Close']:,.2f}</span><span class="sep">&middot;</span>
+    <span class="{pct_cls}">{pct_str}</span><span class="sep">&middot;</span>
+    <span>VOL {sc['vol_ratio']}x</span><span class="sep">&middot;</span>
+    <span>RSI {r['RSI']:.0f}</span><span class="sep">&middot;</span>
+    <span>ADX {r['ADX']:.0f}</span>
+  </div>
+</div>""",unsafe_allow_html=True)
 
-# ── 02 SIGNAL COMPONENTS ─────────────────────────────────────────────────────
-st.markdown('<div class="ns-card"><div class="ns-card-title">Signal Components</div>', unsafe_allow_html=True)
-for lbl, s, mx, raw in [
-    ("V &mdash; Volume",          sc['v'], 5, f"vol_ratio = {sc['vol_ratio']}x"),
-    ("P &mdash; Momentum",        sc['p'], 3, f"chg = {sc['pct_chg']}%"),
-    ("R &mdash; Range Position",  sc['r'], 2, f"range_pos = {sc['range_pos']}"),
-    ("T &mdash; Trend Alignment", sc['t'], 3, f"ADX = {r['ADX']:.1f}"),
-]:
-    pct = int(s/mx*100) if mx else 0
-    st.markdown(f"""
-    <div class="ns-comp">
+# 02 Signal Components
+st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 02 &mdash; SIGNAL COMPONENTS <span class="ns-dot">&#9679;</span></div>',unsafe_allow_html=True)
+comps=[
+    ("V Volume",sc['v'],5,"bar-dim" if sc['v']==0 else "bar-orange",f"RV = {sc['vol_ratio']}x (vs 20-bar avg)"),
+    ("P Momentum",sc['p'],3,"bar-dim" if sc['p']==0 else "bar-orange",f"ATR move = {sc['atr_sigma']}sigma"),
+    ("R Range Pos",sc['r'],2,"bar-dim" if sc['r']==0 else "bar-orange",f"range_pos = {sc['rng_pos']}"),
+    ("T Trend",sc['t'],3,"bar-dim" if sc['t']==0 else "bar-purple",
+     f"ADX {r['ADX']:.0f} - EMA {'ok' if r['Close']>r['EMA20']>r['EMA50'] else 'mixed'}"),
+]
+st.markdown('<div class="ns-comp-wrap">',unsafe_allow_html=True)
+for lbl,s,mx,bar_cls,raw in comps:
+    pct2=int(s/mx*100) if mx else 0
+    st.markdown(f"""<div class="ns-comp-row">
       <div class="ns-comp-lbl">{lbl}</div>
-      <div class="ns-bar-wrap"><div class="ns-bar" style="width:{pct}%"></div></div>
+      <div class="ns-bar-wrap"><div class="ns-bar {bar_cls}" style="width:{pct2}%"></div></div>
       <div class="ns-comp-sc">{s}/{mx}</div>
       <div class="ns-comp-raw">{raw}</div>
-    </div>""", unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
+    </div>""",unsafe_allow_html=True)
+st.markdown('</div>',unsafe_allow_html=True)
 
-# ── 03 MARKET STRUCTURE ───────────────────────────────────────────────────────
-def ud(val, ref):
-    return ("up","&#9650; ABOVE") if val>ref else ("down","&#9660; BELOW")
+# 03 Price Chart
+st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 03 &mdash; PRICE CHART <span class="ns-dot">&#9679;</span></div>',unsafe_allow_html=True)
+st.markdown('<div class="ns-chart-wrap">',unsafe_allow_html=True)
+st.plotly_chart(price_chart(df,symbol),use_container_width=True,config=pcfg())
+st.markdown('</div>',unsafe_allow_html=True)
 
-st.markdown('<div class="ns-card"><div class="ns-card-title">Market Structure</div>', unsafe_allow_html=True)
-rows = [
-    ("Close",    f"{r['Close']:.2f}",   "neu", ""),
-    ("EMA 20",   f"{r['EMA20']:.2f}",   *ud(r['Close'],r['EMA20'])),
-    ("EMA 50",   f"{r['EMA50']:.2f}",   *ud(r['Close'],r['EMA50'])),
-    ("EMA 200",  f"{r['EMA200']:.2f}",  *ud(r['Close'],r['EMA200'])),
-    ("VWAP",     f"{r['VWAP']:.2f}",    *ud(r['Close'],r['VWAP'])),
-    ("BB Upper", f"{r['BB_upper']:.2f}", "neu",""),
-    ("BB Lower", f"{r['BB_lower']:.2f}", "neu",""),
-]
-for lbl, val, cls, tag in rows:
-    st.markdown(f"""
-    <div class="ns-row">
-      <div class="ns-lbl">{lbl}</div>
-      <div class="ns-val {cls}">{val}&nbsp;<span style="font-size:10px;font-weight:400">{tag}</span></div>
-    </div>""", unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
+# 04 Timing Quality — 3x2 metric cards
+st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 04 &mdash; TIMING QUALITY <span class="ns-dot">&#9679;</span></div>',unsafe_allow_html=True)
+rsi_cls="m-red" if r['RSI']>70 else "m-green" if r['RSI']<30 else "m-white"
+rsi_sub="Overbought" if r['RSI']>70 else "Oversold" if r['RSI']<30 else "NEUTRAL"
+adx_cls="m-green" if r['ADX']>25 else "m-muted"
+adx_sub="TRENDING" if r['ADX']>25 else "Ranging"
+di_cls="m-green" if r['DI_pos']>r['DI_neg'] else "m-red"
+di_sub="Bulls in control" if r['DI_pos']>r['DI_neg'] else "Bears in control"
+rv_cls="m-green" if sc['vol_ratio']>=2 else "m-amber" if sc['vol_ratio']>=1.5 else "m-white"
+rv_sub="Elevated" if sc['vol_ratio']>=2 else "Normal"
+atr_pct=round(r['ATR']/r['Close']*100,2)
+atm_sub="Strong" if sc['atr_sigma']>1.5 else "Normal" if sc['atr_sigma']>0.5 else "Weak"
+atm_cls="m-green" if sc['atr_sigma']>1.5 else "m-amber" if sc['atr_sigma']>0.5 else "m-muted"
+c1,c2,c3=st.columns(3)
+with c1: st.markdown(f'<div class="ns-metric"><div class="ns-metric-lbl">RSI 14</div><div class="ns-metric-val {rsi_cls}">{r["RSI"]:.1f}</div><div class="ns-metric-sub {rsi_cls}">{rsi_sub}</div></div>',unsafe_allow_html=True)
+with c2: st.markdown(f'<div class="ns-metric"><div class="ns-metric-lbl">ADX 14</div><div class="ns-metric-val {adx_cls}">{r["ADX"]:.1f}</div><div class="ns-metric-sub {adx_cls}">{adx_sub}</div></div>',unsafe_allow_html=True)
+with c3: st.markdown(f'<div class="ns-metric"><div class="ns-metric-lbl">ATR 14</div><div class="ns-metric-val m-white">{r["ATR"]:.0f}</div><div class="ns-metric-sub m-muted">{atr_pct}% of price</div></div>',unsafe_allow_html=True)
+c4,c5,c6=st.columns(3)
+with c4: st.markdown(f'<div class="ns-metric"><div class="ns-metric-lbl">+DI / -DI</div><div class="ns-metric-val {di_cls}" style="font-size:20px">{r["DI_pos"]:.1f} / {r["DI_neg"]:.1f}</div><div class="ns-metric-sub {di_cls}">{di_sub}</div></div>',unsafe_allow_html=True)
+with c5: st.markdown(f'<div class="ns-metric"><div class="ns-metric-lbl">Rel. Volume</div><div class="ns-metric-val {rv_cls}">{sc["vol_ratio"]}x</div><div class="ns-metric-sub m-muted">{rv_sub}</div></div>',unsafe_allow_html=True)
+with c6: st.markdown(f'<div class="ns-metric"><div class="ns-metric-lbl">ATR Move</div><div class="ns-metric-val {atm_cls}">{sc["atr_sigma"]}&sigma;</div><div class="ns-metric-sub m-muted">{atm_sub}</div></div>',unsafe_allow_html=True)
 
-# ── 04 TIMING QUALITY ────────────────────────────────────────────────────────
-rsi_cls = "down" if r['RSI']>70 else "up" if r['RSI']<30 else "neu"
-adx_tag = "Trending" if r['ADX']>25 else "Ranging"
-stop    = r['Close'] - 1.5*r['ATR']
-
-st.markdown(f"""
-<div class="ns-card"><div class="ns-card-title">Timing Quality</div>
-<div class="ns-row"><div class="ns-lbl">RSI 14</div>
-  <div class="ns-val {rsi_cls}">{r['RSI']:.1f}</div></div>
-<div class="ns-row"><div class="ns-lbl">ADX 14</div>
-  <div class="ns-val neu">{r['ADX']:.1f} <span style="font-size:10px">({adx_tag})</span></div></div>
-<div class="ns-row"><div class="ns-lbl">+DI / -DI</div>
-  <div class="ns-val neu">{r['DI_pos']:.1f} / {r['DI_neg']:.1f}</div></div>
-<div class="ns-row"><div class="ns-lbl">ATR 14</div>
-  <div class="ns-val neu">{r['ATR']:.4f} <span style="font-size:10px">({r['ATR']/r['Close']*100:.2f}% of price)</span></div></div>
-<div class="ns-row"><div class="ns-lbl">Suggested stop</div>
-  <div class="ns-val down">{stop:.2f} <span style="font-size:10px">(1.5x ATR below close)</span></div></div>
-</div>""", unsafe_allow_html=True)
-
-# ── 05 KRONOS AI FORECAST ────────────────────────────────────────────────────
-st.markdown('<div class="ns-card"><div class="ns-card-title">Kronos-Mini AI Forecast</div>', unsafe_allow_html=True)
-
-kronos = None
+# 05 Kronos AI Forecast
+st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 05 &mdash; KRONOS AI FORECAST <span class="ns-dot">&#9679;</span></div>',unsafe_allow_html=True)
+kkey=f"kronos_{ticker}"; kr=None
 if KRONOS_AVAILABLE:
-    key_k = f"kronos_{ticker}"
-    if key_k not in st.session_state:
+    if kkey not in st.session_state:
         with st.spinner("Running Kronos..."):
-            try:
-                kronos = render_kronos_forecast(ticker, df)
-                st.session_state[key_k] = kronos
-            except Exception:
-                st.session_state[key_k] = None
-    else:
-        kronos = st.session_state[key_k]
+            try: kr=render_kronos_forecast(ticker,df); st.session_state[kkey]=kr
+            except: st.session_state[kkey]=None
+    else: kr=st.session_state[kkey]
+if not kr:
+    pct_p=round(-sc['pct_chg']*0.6+np.random.uniform(-1.5,1.5),2)
+    pred_c=round(r['Close']*(1+pct_p/100),2)
+    bull_p=round(50+sc['total']*2+np.random.uniform(-5,5),0)
+    kr={"Direction":"UP" if pct_p>0 else "DOWN","Predicted Change":f"{pct_p:+.2f}%",
+        "Predicted Close":pred_c,"Forecast Peak":round(pred_c*(1.02 if pct_p>0 else 1.005),2),
+        "Forecast Trough":round(pred_c*(0.98 if pct_p<0 else 0.995),2),
+        "Bull Candle %":f"{bull_p:.0f}%","Candles Forecast":20}
+    st.session_state[kkey]=kr
+    st.markdown(f'<div style="font-size:10px;color:{MUTED};margin-bottom:4px">AR1 mock - Kronos module not loaded</div>',unsafe_allow_html=True)
 
-if not kronos:
-    # AR1 mock
-    pct_pred  = round(-sc['pct_chg']*0.6 + np.random.uniform(-2,2), 2)
-    pred_cl   = round(r['Close']*(1+pct_pred/100), 2)
-    bull_pct  = round(50 + sc['total']*2 + np.random.uniform(-5,5), 1)
-    kronos = {
-        "Direction":       "UP" if pct_pred>0 else "DOWN",
-        "Predicted Change": f"{pct_pred:+.2f}%",
-        "Predicted Close":  pred_cl,
-        "Forecast Peak":    round(pred_cl*1.04, 2),
-        "Forecast Trough":  round(pred_cl*0.96, 2),
-        "Bull Candle %":    f"{bull_pct}%",
-        "Candles Forecast": 20,
-    }
-    st.markdown(f'<div style="font-size:10px;color:{MUTED};margin-bottom:6px">AR1 mock — Kronos module not loaded</div>', unsafe_allow_html=True)
+st.markdown('<div class="ns-chart-wrap">',unsafe_allow_html=True)
+st.plotly_chart(kronos_chart(df,kr),use_container_width=True,config=pcfg())
+st.markdown('</div>',unsafe_allow_html=True)
 
-arrow  = "&#9650;" if kronos["Direction"] == "UP" else "&#9660;"
-k_cls  = "up" if kronos["Direction"] == "UP" else "down"
-for k, v in kronos.items():
-    v_str = f"{arrow} {v}" if k == "Direction" else str(v)
-    v_cls = k_cls if k == "Direction" else "neu"
-    st.markdown(f"""
-    <div class="ns-row">
-      <div class="ns-lbl">{k}</div>
-      <div class="ns-val {v_cls}">{v_str}</div>
-    </div>""", unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
+k_up=kr.get("Direction","DOWN").upper()=="UP"
+k_chg=kr.get("Predicted Change","0%")
+k_pred=kr.get("Predicted Close",r['Close'])
+k_peak=float(str(kr.get("Forecast Peak",k_pred)).replace(",",""))
+k_trgh=float(str(kr.get("Forecast Trough",k_pred)).replace(",",""))
+k_bull=float(str(kr.get("Bull Candle %","50%")).replace("%",""))
+rr=round(abs(k_peak-r['Close'])/max(abs(k_trgh-r['Close']),0.01),1)
+ai_cls="m-green" if k_up else "m-red"
+ai_lbl="Rising &#9650;" if k_up else "Falling &#9660;"
+ai_sub=f"AI expects price to go {'up' if k_up else 'down'} over the next 24 hours"
+em_cls="m-green" if k_up else "m-red"
+em_arrow="&#9650;" if k_up else "&#9660;"
+mom_cls="m-green" if k_bull>=60 else "m-amber" if k_bull>=50 else "m-red"
+mom_lbl="Strong / trending" if k_bull>=60 else "Mixed / choppy"
+tq_cls="m-green" if rr>=1.5 else "m-amber" if rr>=1 else "m-red"
+tq_lbl="Good odds" if rr>=1.5 else "Fair odds" if rr>=1 else "Avoid - bad odds"
+rng_pct=round(abs(k_peak-k_trgh)/r['Close']*100,1)
+k1,k2,k3=st.columns(3)
+with k1: st.markdown(f'<div class="ns-kron-card"><div class="ns-kron-lbl">AI Forecast</div><div class="ns-kron-val {ai_cls}">{ai_lbl}</div><div class="ns-kron-sub">{ai_sub}</div></div>',unsafe_allow_html=True)
+with k2: st.markdown(f'<div class="ns-kron-card"><div class="ns-kron-lbl">Expected Move</div><div class="ns-kron-val {em_cls}">{em_arrow} {k_chg}</div><div class="ns-kron-sub">{"Gaining" if k_up else "Losing"} {k_chg.replace("+","").replace("-","")} from here</div></div>',unsafe_allow_html=True)
+with k3: st.markdown(f'<div class="ns-kron-card"><div class="ns-kron-lbl">Price Range</div><div class="ns-kron-val m-green">&#9650; {k_peak:,.2f}</div><div class="ns-kron-sub"><span style="color:{RED}">&#9660; {k_trgh:,.2f}</span> ({rng_pct}% range)</div></div>',unsafe_allow_html=True)
+k4,k5,k6=st.columns(3)
+with k4: st.markdown(f'<div class="ns-kron-card"><div class="ns-kron-lbl">Momentum</div><div class="ns-kron-val {mom_cls}">{mom_lbl}</div><div class="ns-kron-sub">{k_bull:.0f}% of forecast candles close green - {"no clear" if k_bull<55 else "bullish"} direction</div></div>',unsafe_allow_html=True)
+with k5: st.markdown(f'<div class="ns-kron-card"><div class="ns-kron-lbl">Target Price</div><div class="ns-kron-val m-white">{float(str(k_pred).replace(",","")):,.2f}</div><div class="ns-kron-sub">Where AI thinks price lands after {kr.get("Candles Forecast",20)} candles</div></div>',unsafe_allow_html=True)
+with k6: st.markdown(f'<div class="ns-kron-card"><div class="ns-kron-lbl">Trade Quality</div><div class="ns-kron-val {tq_cls}">{tq_lbl}</div><div class="ns-kron-sub">For every $1 downside risk, {"$"+str(rr)+" upside" if rr>=1 else "only $"+str(rr)+" upside"}</div></div>',unsafe_allow_html=True)
 
-# ── 06 AI AGENT COUNCIL ───────────────────────────────────────────────────────
-st.markdown('<div class="ns-card"><div class="ns-card-title">AI Lab &mdash; Agent Debate</div>', unsafe_allow_html=True)
-
-dkey = f"debate_{ticker}_{sc['total']}"
-agent_texts = {}
-
+# 06 AI Lab
+st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 06 &mdash; AI LAB <span class="ns-dot">&#9679;</span></div>',unsafe_allow_html=True)
+dkey=f"debate_{ticker}_{sc['total']}"; debate={}
 if not api_key:
-    st.markdown(f'<div style="color:{MUTED};font-size:13px;padding:.5rem 0">Add ANTHROPIC_API_KEY to Streamlit secrets to enable AI debate.</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="color:{MUTED};font-size:13px;padding:.75rem 0;text-align:center">Add ANTHROPIC_API_KEY to Streamlit secrets to enable AI Lab.</div>',unsafe_allow_html=True)
 elif dkey in st.session_state:
-    agent_texts = st.session_state[dkey]
-    for ag in AGENTS:
-        txt = agent_texts.get(ag["key"], "")
-        pill = ""
-        if ag["key"] == "CIO":
-            u = txt.upper()
-            if   "BUY"  in u: pill = '<span class="verdict v-buy">BUY</span>'
-            elif "SELL" in u: pill = '<span class="verdict v-sell">SELL</span>'
-            elif "HOLD" in u: pill = '<span class="verdict v-hold">HOLD</span>'
-            else:              pill = '<span class="verdict v-wait">WAIT</span>'
-        st.markdown(f"""
-        <div class="ns-agent">
-          <div class="ns-agent-name {ag['cls']}">{ag['label']}</div>
-          <div class="ns-agent-text">{txt}</div>
-          {pill}
-        </div>""", unsafe_allow_html=True)
+    debate=st.session_state[dkey]
+    bull_d=debate.get("BULL",{}); bear_d=debate.get("BEAR",{})
+    risk_d=debate.get("RISK",{}); cio_d=debate.get("CIO",{})
+    col_b,col_s=st.columns(2)
+    with col_b: st.markdown(f'<div class="card-bull"><div class="ns-agent-tag tag-bull">Bull BULL CASE</div><div class="ns-agent-name">Alex &mdash; Long Desk</div><div class="ns-agent-body">{bull_d.get("body","")}</div><span class="ns-verdict {bull_d.get("vc","vd-wait")}">{bull_d.get("verdict","WAIT")}</span></div>',unsafe_allow_html=True)
+    with col_s: st.markdown(f'<div class="card-bear"><div class="ns-agent-tag tag-bear">Bear BEAR CASE</div><div class="ns-agent-name">Sam &mdash; Short Desk</div><div class="ns-agent-body">{bear_d.get("body","")}</div><span class="ns-verdict {bear_d.get("vc","vd-wait")}">{bear_d.get("verdict","WAIT")}</span></div>',unsafe_allow_html=True)
+    col_r,col_c=st.columns(2)
+    with col_r: st.markdown(f'<div class="card-risk"><div class="ns-agent-tag tag-risk">Shield RISK MANAGER</div><div class="ns-agent-name">Jordan &mdash; Risk</div><div class="ns-agent-body">{risk_d.get("body","")}</div><span class="ns-verdict {risk_d.get("vc","vd-wait")}">{risk_d.get("verdict","WAIT")}</span></div>',unsafe_allow_html=True)
+    with col_c: st.markdown(f'<div class="card-cio"><div class="ns-agent-tag tag-cio">Diamond CIO VERDICT</div><div class="ns-agent-name">Morgan &mdash; CIO</div><div class="ns-agent-body">{cio_d.get("body","")}</div><span class="ns-verdict {cio_d.get("vc","vd-wait")}">{cio_d.get("verdict","WAIT")}</span></div>',unsafe_allow_html=True)
 else:
-    if st.button("Run AI Debate", use_container_width=True):
-        slots = [st.empty() for _ in AGENTS]
-        for ag, slot in zip(AGENTS, slots):
-            agent_texts[ag["key"]] = stream_agent(ag, ctx, api_key, slot)
-            time.sleep(0.2)
-        st.session_state[dkey] = agent_texts
-        st.rerun()
+    debate=run_debate(ctx,api_key)
+    st.session_state[dkey]=debate
+    st.rerun()
 
-st.markdown('</div>', unsafe_allow_html=True)
-
-# ── 07 EXPORT ────────────────────────────────────────────────────────────────
-st.markdown('<div class="ns-card"><div class="ns-card-title">Export Report</div>', unsafe_allow_html=True)
-
-k_data = kronos if isinstance(kronos, dict) else {}
-label  = "Download PDF Report" if agent_texts else "Download Signal Report (no debate)"
-
+# 07 Export
+st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 07 &mdash; EXPORT <span class="ns-dot">&#9679;</span></div>',unsafe_allow_html=True)
 try:
-    pdf_bytes = generate_pdf(symbol_input, sc, df, agent_texts, k_data)
-    fname = f"NiftySniper_{symbol_input}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
-    st.download_button(label=f"Download {fname}", data=pdf_bytes,
-                       file_name=fname, mime="application/pdf",
-                       use_container_width=True)
-except Exception as e:
-    st.error(f"PDF error: {e}")
+    pdf_bytes=gen_pdf(symbol,sc,df,debate,kr)
+    fname=f"NiftySniper_{symbol}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+    st.download_button(label="Download Report (PDF)",data=pdf_bytes,
+        file_name=fname,mime="application/pdf",use_container_width=True)
+except Exception as e: st.error(f"PDF error: {e}")
 
-st.markdown('</div>', unsafe_allow_html=True)
-
-# Disclaimer
-st.markdown(f"""
-<div style="text-align:center;font-size:10px;color:{MUTED};
-margin-top:2rem;padding-top:1rem;border-top:1px solid {BORDER}">
-Data via Yahoo Finance / NSE. Signals are not financial advice.<br>
-Past performance does not guarantee future results.
-</div>""", unsafe_allow_html=True)
+st.markdown(f'<div style="text-align:center;font-size:10px;color:{MUTED};margin-top:2.5rem;padding-top:1rem;border-top:1px solid {BORDER}">Data via Yahoo Finance / NSE. Signals are not financial advice.<br>Past performance does not guarantee future results.</div>',unsafe_allow_html=True)
