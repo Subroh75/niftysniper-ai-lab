@@ -446,206 +446,449 @@ def run_debate(ctx,api_key):
         time.sleep(0.1)
     return results
 
+# ─────────────────────────────────────────────────────────────────────────────
+# PDF — PowerPoint-style slide report (Landscape A4, 297×210mm)
+# Cover: dark, full-bleed orange/black brand slide
+# Data slides: white bg, bold typography, charts full-width
+# ─────────────────────────────────────────────────────────────────────────────
+
+# PDF colour palette
+P_BG      = (6,   10,  15)   # dark navy (cover bg)
+P_CARD    = (13,  17,  23)   # card bg
+P_ORANGE  = (255, 102,  0)   # brand orange
+P_AMBER   = (255, 170,  0)   # amber accent
+P_GREEN   = (0,   210,  80)  # bull green
+P_RED     = (255,  45,  85)  # bear red
+P_WHITE   = (255, 255, 255)
+P_OFF_WHT = (248, 249, 250)
+P_LGREY   = (230, 232, 235)
+P_MGREY   = (140, 145, 150)
+P_DGREY   = (55,  60,  65)
+P_BLACK   = (15,  18,  25)
+
+
 class PDF(FPDF):
-    """White-background, black-text PDF matching a professional report style."""
+    """Landscape A4 PowerPoint-style slide report."""
+    PW = 297   # page width mm (landscape)
+    PH = 210   # page height mm
+
     def __init__(self):
-        super().__init__()
-        self.set_auto_page_break(auto=True, margin=18)
+        super().__init__(orientation="L", unit="mm", format="A4")
+        self.set_auto_page_break(auto=False)
+        self.set_margins(0, 0, 0)
 
-    def header(self):
-        # White background
-        self.set_fill_color(255,255,255)
-        self.rect(0,0,210,297,"F")
-        # Orange top bar
-        self.set_fill_color(255,102,0)
-        self.rect(0,0,210,3,"F")
-        # Logo
-        self.set_xy(12,7)
-        self.set_font("Helvetica","B",20)
-        self.set_text_color(255,102,0)
-        self.cell(0,10,"NIFTYSNIPER",ln=0)
-        self.set_font("Helvetica","",9)
-        self.set_text_color(150,150,150)
-        self.set_xy(12,18)
-        self.cell(0,5,"DETECT EARLY. ACT SMART.",ln=1)
-        # Thin rule
-        self.set_draw_color(220,220,220)
+    def header(self): pass   # handled per slide
+    def footer(self): pass
+
+    # ── helpers ─────────────────────────────────────────────────────────────
+    def _bg(self, r, g, b):
+        self.set_fill_color(r,g,b)
+        self.rect(0,0,self.PW,self.PH,"F")
+
+    def _footer_bar(self, symbol, interval, page_label):
+        """Bottom strip: brand left, page label right."""
+        y = self.PH - 8
+        self.set_fill_color(*P_BG)
+        self.rect(0, y, self.PW, 8, "F")
+        self.set_fill_color(*P_ORANGE)
+        self.rect(0, y, self.PW, 0.5, "F")
+        self.set_xy(8, y+1.5)
+        self.set_font("Helvetica","B",7)
+        self.set_text_color(*P_ORANGE)
+        self.cell(60,5,"NIFTYSNIPER  AI LAB")
+        self.set_font("Helvetica","",7)
+        self.set_text_color(*P_MGREY)
+        self.cell(120,5,safe(f"{symbol}  |  {interval}  |  {ist_now()}"), align="C")
+        self.set_font("Helvetica","",7)
+        self.set_text_color(*P_MGREY)
+        self.cell(0,5,safe(page_label), align="R")
+
+    def _slide_header(self, title, subtitle="", dark=False):
+        """Standard slide top bar."""
+        bg = P_BG if dark else (255,255,255)
+        tc = P_WHITE if dark else P_BLACK
+        self.set_fill_color(*bg)
+        self.rect(0,0,self.PW,18,"F")
+        self.set_fill_color(*P_ORANGE)
+        self.rect(0,18,self.PW,0.6,"F")
+        self.set_xy(10,4)
+        self.set_font("Helvetica","B",14)
+        self.set_text_color(*P_ORANGE)
+        self.cell(200,8,safe(title), ln=0)
+        if subtitle:
+            self.set_font("Helvetica","",8)
+            self.set_text_color(*P_MGREY)
+            self.cell(0,8,safe(subtitle), align="R")
+        self.set_xy(0,20)
+
+    def _kv_grid(self, rows, x, y, w, col_w=55):
+        """Render KV rows inside a dark card."""
+        self.set_fill_color(*P_CARD)
+        row_h = 7
+        total_h = len(rows)*row_h + 4
+        self.rect(x, y, w, total_h, "F")
+        self.set_draw_color(*P_BG)
         self.set_line_width(0.3)
-        self.line(10,27,200,27)
-        self.set_xy(0,30)
+        cy = y+2
+        for label, value, val_color in rows:
+            self.set_xy(x+3, cy)
+            self.set_font("Helvetica","",7.5)
+            self.set_text_color(*P_MGREY)
+            self.cell(col_w, row_h, safe(label))
+            self.set_font("Courier","B",8)
+            self.set_text_color(*val_color)
+            self.cell(w-col_w-6, row_h, safe(str(value)), ln=1)
+            self.set_draw_color(25,30,40)
+            self.set_line_width(0.2)
+            self.line(x+3, cy+row_h, x+w-3, cy+row_h)
+            cy += row_h
+        return total_h + 2
 
-    def footer(self):
-        self.set_y(-13)
-        self.set_draw_color(220,220,220)
-        self.set_line_width(0.3)
-        self.line(10,self.get_y(),200,self.get_y())
-        self.set_font("Helvetica","I",7)
-        self.set_text_color(150,150,150)
-        self.cell(0,6,"Data via Yahoo Finance / NSE. Signals are not financial advice. Past performance does not guarantee future results.",align="C")
-
-    def sec(self, title):
-        """Section header — orange left bar, grey background row."""
-        self.set_fill_color(245,245,245)
-        self.rect(10,self.get_y(),190,7,"F")
-        self.set_fill_color(255,102,0)
-        self.rect(10,self.get_y(),2.5,7,"F")
-        self.set_xy(15, self.get_y()+0.75)
-        self.set_font("Helvetica","B",8)
-        self.set_text_color(80,80,80)
-        self.cell(0,6,safe(title).upper(),ln=1)
-        self.ln(1)
-
-    def kv(self, label, value, bold=False, color=(40,40,40)):
-        """Key-value row on white background."""
-        self.set_fill_color(255,255,255)
-        self.rect(10,self.get_y(),190,6,"F")
-        self.set_x(13)
-        self.set_font("Helvetica","",8)
-        self.set_text_color(120,120,120)
-        self.cell(80,6,safe(label))
-        self.set_font("Courier","B" if bold else "",8)
-        self.set_text_color(*color)
-        self.cell(0,6,safe(str(value)),ln=1)
-        # Hairline rule
-        self.set_draw_color(235,235,235)
-        self.set_line_width(0.2)
-        self.line(10,self.get_y(),200,self.get_y())
-
-    def embed_chart(self, img_bytes, label="", w=188, h=70):
-        """Embed a PNG chart image."""
-        if img_bytes is None:
-            return
-        self.set_fill_color(248,248,248)
-        self.rect(10,self.get_y(),190,h+6,"F")
-        if label:
-            self.set_xy(12,self.get_y()+1)
+    def _metric_box(self, x, y, w, h, label, value, sub, val_color, bg_color=None):
+        """Single metric card."""
+        bg = bg_color or P_CARD
+        self.set_fill_color(*bg)
+        self.rect(x,y,w,h,"F")
+        # Left orange accent stripe
+        self.set_fill_color(*P_ORANGE)
+        self.rect(x,y,1.5,h,"F")
+        # Label
+        self.set_xy(x+4, y+2)
+        self.set_font("Helvetica","",6.5)
+        self.set_text_color(*P_MGREY)
+        self.cell(w-6, 5, safe(label).upper())
+        # Value
+        self.set_xy(x+4, y+7)
+        font_sz = 18 if len(str(value))<=6 else 14 if len(str(value))<=10 else 11
+        self.set_font("Helvetica","B", font_sz)
+        self.set_text_color(*val_color)
+        self.cell(w-6, 9, safe(str(value)))
+        # Sub
+        if sub:
+            self.set_xy(x+4, y+h-6)
             self.set_font("Helvetica","",7)
-            self.set_text_color(150,150,150)
-            self.cell(0,4,safe(label),ln=1)
+            self.set_text_color(*P_MGREY)
+            self.cell(w-6, 5, safe(str(sub)))
+
+    def _embed_img(self, img_bytes, x, y, w, h, bg=None):
+        """Embed PNG image with optional background."""
+        if img_bytes is None:
+            # Placeholder box
+            self.set_fill_color(20,25,35)
+            self.rect(x,y,w,h,"F")
+            self.set_xy(x, y+h//2-3)
+            self.set_font("Helvetica","",8)
+            self.set_text_color(*P_MGREY)
+            self.cell(w,6,"[Chart not available — kaleido required]",align="C")
+            return
+        if bg:
+            self.set_fill_color(*bg)
+            self.rect(x,y,w,h,"F")
         bio = io.BytesIO(img_bytes)
-        self.image(bio, x=11, y=self.get_y(), w=w, h=h)
-        self.set_y(self.get_y()+h+4)
-        self.ln(2)
+        self.image(bio, x=x, y=y, w=w, h=h)
 
-    def agent_blk(self, name, body, verdict, color=(40,40,40)):
-        self.set_fill_color(250,250,250)
-        self.rect(10,self.get_y(),190,4,"F")
-        self.set_x(13)
-        self.set_font("Helvetica","B",8)
-        self.set_text_color(*color)
-        self.cell(150,5,safe(name),ln=0)
-        self.set_font("Helvetica","B",8)
-        self.cell(0,5,f"  [{verdict}]",ln=1)
-        self.set_font("Helvetica","",7.5)
-        self.set_text_color(70,70,70)
-        self.set_x(13)
-        self.multi_cell(184,4.5,safe(body))
-        self.set_draw_color(230,230,230)
-        self.set_line_width(0.2)
-        self.line(10,self.get_y(),200,self.get_y())
-        self.ln(2)
+    def _verdict_badge(self, x, y, w, h, verdict):
+        colors = {"BUY":(P_GREEN,P_BG),"SELL":(P_RED,P_BG),
+                  "HOLD":(P_AMBER,P_BG),"WATCH":(P_AMBER,P_BG),
+                  "AVOID":(P_RED,P_BG),"WAIT":(P_MGREY,P_BG)}
+        fc, tc = colors.get(verdict.upper(), (P_MGREY, P_BG))
+        self.set_fill_color(*fc)
+        self.rect(x,y,w,h,"F")
+        self.set_xy(x,y+1)
+        self.set_font("Helvetica","B",9)
+        self.set_text_color(*tc)
+        self.cell(w,h-2,safe(verdict.upper()),align="C")
 
 
-def gen_pdf(symbol, sc, df, debate, kr, price_png=None, kronos_png=None, interval="1D"):
-    r = df.iloc[-1]
-    pdf = PDF()
-    pdf.add_page()
-
-    # ── Signal badge (light orange bg) ───────────────────────────────────────
-    pdf.set_fill_color(255,245,235)
-    pdf.rect(10,pdf.get_y(),190,30,"F")
-    pdf.set_draw_color(255,102,0)
-    pdf.set_line_width(0.5)
-    pdf.rect(10,pdf.get_y(),190,30)
-    # Meta line
-    pdf.set_xy(10,pdf.get_y()+3)
-    pdf.set_font("Helvetica","",8)
-    pdf.set_text_color(150,150,150)
-    pdf.cell(0,4,safe(f"{symbol}  |  {interval}  |  {ist_now()}"),align="C",ln=1)
-    # Signal name
-    sig_col = (200,80,0) if "STRONG" in sc["tier"] else               (180,130,0) if "BUILDING" in sc["tier"] else (100,100,100)
-    pdf.set_font("Helvetica","B",20)
-    pdf.set_text_color(*sig_col)
-    pdf.cell(0,11,safe(f"SIGNAL: {sc['tier']}  ({sc['total']}/13)"),align="C",ln=1)
-    # Stats bar
-    pdf.set_font("Courier","",8)
-    pdf.set_text_color(80,80,80)
-    pct = sc['pct_chg']
+def gen_pdf(symbol, sc, df, debate, kr,
+            price_png=None, kronos_png=None, interval="1D"):
+    r    = df.iloc[-1]
+    pdf  = PDF()
+    GRN  = P_GREEN; RED = P_RED; ORN = P_ORANGE; WHT = P_WHITE
+    MUT  = P_MGREY; BLK = P_BLACK; DGR = P_DGREY
+    pct  = sc['pct_chg']
     pct_str = f"+{pct:.2f}%" if pct>=0 else f"{pct:.2f}%"
-    pdf.cell(0,5,safe(f"CLOSE {r['Close']:,.2f}   {pct_str}   VOL {sc['vol_ratio']}x   RSI {r['RSI']:.0f}   ADX {r['ADX']:.0f}"),align="C",ln=1)
-    pdf.ln(5)
 
-    # ── Signal Components ─────────────────────────────────────────────────────
-    pdf.sec("Signal Components")
-    green=(0,140,60); red=(200,40,40); orange=(200,80,0)
-    for lbl,s,mx,raw in [
-        ("V Volume (max 5)",       sc['v'], 5, f"vol = {sc['vol_ratio']}x vs 20-bar avg"),
-        ("P Momentum (max 3)",     sc['p'], 3, f"chg = {sc['pct_chg']}%"),
-        ("R Range Position (max 2)",sc['r'],2, f"range_pos = {sc['rng_pos']}"),
-        ("T Trend Alignment (max 3)",sc['t'],3,f"ADX {r['ADX']:.1f}"),
-    ]:
-        sc_col = green if s==mx else orange if s>0 else (160,160,160)
-        pdf.set_fill_color(255,255,255)
-        pdf.rect(10,pdf.get_y(),190,6,"F")
-        pdf.set_x(13)
-        pdf.set_font("Helvetica","",8); pdf.set_text_color(80,80,80)
-        pdf.cell(95,6,safe(lbl))
-        pdf.set_font("Courier","B",8); pdf.set_text_color(*sc_col)
-        pdf.cell(20,6,f"{s}/{mx}")
-        pdf.set_font("Helvetica","",8); pdf.set_text_color(130,130,130)
-        pdf.cell(0,6,safe(raw),ln=1)
-        pdf.set_draw_color(235,235,235); pdf.set_line_width(0.2)
-        pdf.line(10,pdf.get_y(),200,pdf.get_y())
-    pdf.ln(3)
+    def vc(v, ref): return GRN if v>ref else RED
 
-    # ── Price Chart ───────────────────────────────────────────────────────────
-    if price_png:
-        pdf.sec("Price Chart")
-        pdf.embed_chart(price_png, label="Candlestick  |  EMA20  EMA50  EMA200  BB+/-", h=72)
-        pdf.ln(1)
+    # ══════════════════════════════════════════════════════════════════════════
+    # SLIDE 1 — COVER  (dark, full-bleed)
+    # ══════════════════════════════════════════════════════════════════════════
+    pdf.add_page()
+    pdf._bg(*P_BG)
 
-    # ── Timing Quality ────────────────────────────────────────────────────────
-    def vc(v,ref): return green if v>ref else red
-    pdf.sec("Timing Quality")
-    pdf.kv("RSI 14",    f"{r['RSI']:.1f}",   bold=True, color=red if r['RSI']>70 else green if r['RSI']<30 else (40,40,40))
-    pdf.kv("ADX 14",    f"{r['ADX']:.1f}   ({'Trending' if r['ADX']>25 else 'Ranging'})")
-    pdf.kv("+DI / -DI", f"{r['DI_pos']:.1f} / {r['DI_neg']:.1f}", bold=True,
-           color=green if r['DI_pos']>r['DI_neg'] else red)
-    pdf.kv("ATR 14",    f"{r['ATR']:.4f}   ({r['ATR']/r['Close']*100:.2f}% of price)")
-    pdf.kv("Stop (1.5x ATR)", f"{r['Close']-1.5*r['ATR']:.2f}", bold=True, color=red)
-    pdf.ln(3)
+    # Left orange accent column
+    pdf.set_fill_color(*P_ORANGE)
+    pdf.rect(0,0,4,210,"F")
 
-    # ── Market Structure ──────────────────────────────────────────────────────
-    pdf.sec("Market Structure")
-    pdf.kv("Close",    f"{r['Close']:.2f}", bold=True)
-    pdf.kv("EMA 20",   f"{r['EMA20']:.2f}   ({'above' if r['Close']>r['EMA20'] else 'below'})", color=vc(r['Close'],r['EMA20']))
-    pdf.kv("EMA 50",   f"{r['EMA50']:.2f}   ({'above' if r['Close']>r['EMA50'] else 'below'})", color=vc(r['Close'],r['EMA50']))
-    pdf.kv("EMA 200",  f"{r['EMA200']:.2f}  ({'above' if r['Close']>r['EMA200'] else 'below'})",color=vc(r['Close'],r['EMA200']))
-    pdf.kv("BB Upper/Lower", f"{r['BB_upper']:.2f} / {r['BB_lower']:.2f}")
-    pdf.ln(3)
+    # Giant brand name
+    pdf.set_xy(12, 30)
+    pdf.set_font("Helvetica","B",42)
+    pdf.set_text_color(*P_ORANGE)
+    pdf.cell(0,20,"NIFTYSNIPER")
 
-    # ── Kronos Forecast ───────────────────────────────────────────────────────
+    pdf.set_xy(12, 52)
+    pdf.set_font("Helvetica","",14)
+    pdf.set_text_color(*P_MGREY)
+    pdf.cell(0,8,"AI LAB  —  NSE SIGNAL INTELLIGENCE REPORT")
+
+    # Divider
+    pdf.set_draw_color(*P_ORANGE)
+    pdf.set_line_width(0.6)
+    pdf.line(12, 64, 180, 64)
+
+    # Symbol + signal hero
+    pdf.set_xy(12, 72)
+    pdf.set_font("Helvetica","B",64)
+    sig_col = P_ORANGE if "STRONG" in sc["tier"] else               P_AMBER  if "BUILDING" in sc["tier"] else P_MGREY
+    pdf.set_text_color(*sig_col)
+    pdf.cell(0,28,safe(symbol))
+
+    pdf.set_xy(12,100)
+    pdf.set_font("Helvetica","B",18)
+    pdf.set_text_color(*sig_col)
+    pdf.cell(0,10,safe(f"{sc['tier']}  |  {sc['total']} / 13"))
+
+    # Stats strip
+    pdf.set_xy(12,112)
+    pdf.set_font("Courier","",10)
+    pdf.set_text_color(*P_MGREY)
+    pct_c = P_GREEN if pct>=0 else P_RED
+    pdf.cell(40,7,f"CLOSE  {r['Close']:,.2f}")
+    pdf.set_text_color(*pct_c)
+    pdf.cell(25,7,safe(pct_str))
+    pdf.set_text_color(*P_MGREY)
+    pdf.cell(30,7,f"VOL  {sc['vol_ratio']}x")
+    pdf.cell(25,7,f"RSI  {r['RSI']:.0f}")
+    pdf.cell(25,7,f"ADX  {r['ADX']:.0f}")
+
+    # Interval badge
+    pdf.set_fill_color(*P_ORANGE)
+    pdf.rect(12,125,25,9,"F")
+    pdf.set_xy(12,125)
+    pdf.set_font("Helvetica","B",9)
+    pdf.set_text_color(0,0,0)
+    pdf.cell(25,9,safe(interval),align="C")
+
+    # Timestamp bottom left
+    pdf.set_xy(12,192)
+    pdf.set_font("Helvetica","",7)
+    pdf.set_text_color(*P_MGREY)
+    pdf.cell(0,5,safe(ist_now()))
+
+    # Page number bottom right
+    pdf.set_xy(220,192)
+    pdf.set_text_color(*P_MGREY)
+    pdf.cell(0,5,"1 / 5",align="R")
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # SLIDE 2 — SIGNAL COMPONENTS + PRICE CHART
+    # ══════════════════════════════════════════════════════════════════════════
+    pdf.add_page()
+    pdf._bg(255,255,255)
+    pdf._slide_header("02  —  SIGNAL BREAKDOWN", f"{symbol}  |  {interval}")
+    pdf._footer_bar(symbol, interval, "2 / 5")
+
+    # Left panel: 4 component metric boxes (stacked)
+    comp_data = [
+        ("V — Volume",        f"{sc['v']}/5",  f"vol = {sc['vol_ratio']}x avg",  GRN if sc['v']>0 else MUT),
+        ("P — Momentum",      f"{sc['p']}/3",  f"chg = {pct_str}",              GRN if sc['p']>0 else MUT),
+        ("R — Range Pos",     f"{sc['r']}/2",  f"range = {sc['rng_pos']}",       GRN if sc['r']>0 else MUT),
+        ("T — Trend Align",   f"{sc['t']}/3",  f"ADX {r['ADX']:.0f}",           GRN if sc['t']>0 else MUT),
+    ]
+    bx = 8; by = 22; bw = 65; bh = 40; gap = 2
+    for i,(lbl,val,sub,vc_) in enumerate(comp_data):
+        pdf._metric_box(bx, by + i*(bh+gap), bw, bh, lbl, val, sub, vc_, P_OFF_WHT)
+
+    # Total score box
+    pdf.set_fill_color(*P_ORANGE)
+    pdf.rect(8, by+4*(bh+gap), bw, 20, "F")
+    pdf.set_xy(8, by+4*(bh+gap)+2)
+    pdf.set_font("Helvetica","",7)
+    pdf.set_text_color(0,0,0)
+    pdf.cell(bw,5,"MIRO SCORE", align="C", ln=1)
+    pdf.set_xy(8, by+4*(bh+gap)+7)
+    pdf.set_font("Helvetica","B",22)
+    pdf.set_text_color(0,0,0)
+    pdf.cell(bw,12,f"{sc['total']}  /  13", align="C")
+
+    # Right panel: price chart
+    chart_x = 78; chart_y = 22; chart_w = 213; chart_h = 160
+    pdf.set_fill_color(*P_OFF_WHT)
+    pdf.rect(chart_x, chart_y, chart_w, chart_h, "F")
+    pdf.set_xy(chart_x+2, chart_y+1)
+    pdf.set_font("Helvetica","",6.5)
+    pdf.set_text_color(*P_MGREY)
+    pdf.cell(0,4,"PRICE CHART  |  Candlestick  EMA20  EMA50  EMA200  BB+/-")
+    pdf._embed_img(price_png, chart_x, chart_y+5, chart_w, chart_h-5)
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # SLIDE 3 — TIMING QUALITY + MARKET STRUCTURE
+    # ══════════════════════════════════════════════════════════════════════════
+    pdf.add_page()
+    pdf._bg(255,255,255)
+    pdf._slide_header("03  —  TIMING QUALITY  &  MARKET STRUCTURE", f"{symbol}  |  {interval}")
+    pdf._footer_bar(symbol, interval, "3 / 5")
+
+    # Left half: Timing metrics (2×3 grid)
+    mx = 8; my = 24; mw = 88; mh = 38; mgap = 3
+    timing = [
+        ("RSI 14",     f"{r['RSI']:.1f}",  "Overbought" if r['RSI']>70 else "Oversold" if r['RSI']<30 else "Neutral",
+         RED if r['RSI']>70 else GRN if r['RSI']<30 else BLK),
+        ("ADX 14",     f"{r['ADX']:.1f}",  "Trending" if r['ADX']>25 else "Ranging",
+         GRN if r['ADX']>25 else MUT),
+        ("ATR 14",     f"{r['ATR']:.0f}",  f"{r['ATR']/r['Close']*100:.2f}% of price",  BLK),
+        ("+DI / -DI",  f"{r['DI_pos']:.1f} / {r['DI_neg']:.1f}",
+         "Bulls in control" if r['DI_pos']>r['DI_neg'] else "Bears in control",
+         GRN if r['DI_pos']>r['DI_neg'] else RED),
+        ("Rel Volume",  f"{sc['vol_ratio']}x",  "Elevated" if sc['vol_ratio']>=2 else "Normal",
+         GRN if sc['vol_ratio']>=2 else MUT),
+        ("Stop Loss",   f"{r['Close']-1.5*r['ATR']:.2f}",  "1.5x ATR below close",  RED),
+    ]
+    for i,(lbl,val,sub,vc_) in enumerate(timing):
+        col = i % 3; row = i // 3
+        pdf._metric_box(mx + col*(mw+mgap), my + row*(mh+mgap), mw, mh, lbl, val, sub, vc_, P_OFF_WHT)
+
+    # Right half: Market Structure KV
+    kv_x = 8 + 3*(mw+mgap) + 5; kv_y = 24; kv_w = 285 - kv_x
+
+    # Section label
+    pdf.set_xy(kv_x, kv_y-1)
+    pdf.set_font("Helvetica","B",8)
+    pdf.set_text_color(*P_ORANGE)
+    pdf.cell(0,5,"MARKET STRUCTURE")
+    pdf.set_draw_color(*P_ORANGE)
+    pdf.set_line_width(0.4)
+    pdf.line(kv_x, kv_y+4, kv_x+kv_w, kv_y+4)
+
+    struct_rows = [
+        ("Close",       f"{r['Close']:,.2f}",          BLK),
+        ("EMA 20",      f"{r['EMA20']:.2f}  ({'ABOVE' if r['Close']>r['EMA20'] else 'BELOW'})",  vc(r['Close'],r['EMA20'])),
+        ("EMA 50",      f"{r['EMA50']:.2f}  ({'ABOVE' if r['Close']>r['EMA50'] else 'BELOW'})",  vc(r['Close'],r['EMA50'])),
+        ("EMA 200",     f"{r['EMA200']:.2f}  ({'ABOVE' if r['Close']>r['EMA200'] else 'BELOW'})",vc(r['Close'],r['EMA200'])),
+        ("VWAP",        f"{r['VWAP']:.2f}  ({'ABOVE' if r['Close']>r['VWAP'] else 'BELOW'})",   vc(r['Close'],r['VWAP'])),
+        ("BB Upper",    f"{r['BB_upper']:.2f}",        DGR),
+        ("BB Lower",    f"{r['BB_lower']:.2f}",        DGR),
+        ("BB Width",    f"{(r['BB_upper']-r['BB_lower'])/r['Close']*100:.2f}%  of price",  MUT),
+    ]
+    pdf._kv_grid(struct_rows, kv_x, kv_y+6, kv_w, col_w=38)
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # SLIDE 4 — KRONOS AI FORECAST
+    # ══════════════════════════════════════════════════════════════════════════
+    pdf.add_page()
+    pdf._bg(255,255,255)
+    pdf._slide_header("04  —  KRONOS AI FORECAST", f"{symbol}  |  {interval}")
+    pdf._footer_bar(symbol, interval, "4 / 5")
+
     if kr:
-        pdf.sec("Kronos AI Forecast")
-        if kronos_png:
-            pdf.embed_chart(kronos_png, label="Kronos-mini forecast cone", h=60)
-        for k,v in kr.items():
-            pdf.kv(k, str(v))
-        pdf.ln(3)
+        k_up    = kr.get("Direction","DOWN").upper()=="UP"
+        k_chg   = kr.get("Predicted Change","0%")
+        k_pred  = float(str(kr.get("Predicted Close",r['Close'])).replace(",",""))
+        k_peak  = float(str(kr.get("Forecast Peak",k_pred*1.02)).replace(",",""))
+        k_trgh  = float(str(kr.get("Forecast Trough",k_pred*0.98)).replace(",",""))
+        k_bull  = float(str(kr.get("Bull Candle %","50%")).replace("%",""))
+        k_cans  = kr.get("Candles Forecast",20)
+        rr_v    = round(abs(k_peak-r['Close'])/max(abs(k_trgh-r['Close']),0.01),1)
+        dir_col = GRN if k_up else RED
 
-    # ── AI Lab ────────────────────────────────────────────────────────────────
+        # Kronos chart — full top section
+        pdf._embed_img(kronos_png, 8, 22, 200, 120)
+
+        # 3 metric boxes below chart
+        kron_metrics = [
+            ("AI Forecast",    "RISING" if k_up else "FALLING",  f"{k_chg} expected move",     dir_col),
+            ("Target Price",   f"{k_pred:,.2f}",                  f"in {k_cans} candles",        dir_col),
+            ("Price Range",    f"{k_peak:.2f} / {k_trgh:.2f}",    f"peak / trough",              MUT),
+            ("Momentum",       f"{k_bull:.0f}% bull",              "candles in forecast",          GRN if k_bull>=55 else RED),
+            ("R/R Ratio",      f"{rr_v}",                          "upside vs downside",           GRN if rr_v>=1.5 else RED if rr_v<1 else MUT),
+            ("Trade Quality",  "Good" if rr_v>=1.5 else "Fair" if rr_v>=1 else "Avoid",
+             f"score {sc['total']}/13",  GRN if rr_v>=1.5 else RED if rr_v<1 else MUT),
+        ]
+        kmx=8; kmy=148; kmw=91; kmh=30; kmgap=3
+        for i,(lbl,val,sub,vc_) in enumerate(kron_metrics):
+            col=i%3; row=i//3
+            pdf._metric_box(kmx+col*(kmw+kmgap), kmy+row*(kmh+kmgap), kmw, kmh, lbl, val, sub, vc_, P_OFF_WHT)
+
+        # Right side of slide: KV details
+        pdf._kv_grid([
+            ("Direction",       kr.get("Direction","—"),               dir_col),
+            ("Predicted Change",safe(k_chg),                           dir_col),
+            ("Predicted Close", f"{k_pred:,.2f}",                      dir_col),
+            ("Forecast Peak",   f"{k_peak:,.2f}",                      GRN),
+            ("Forecast Trough", f"{k_trgh:,.2f}",                      RED),
+            ("Bull Candle %",   kr.get("Bull Candle %","—"),            MUT),
+        ], x=214, y=148, w=76, col_w=36)
+    else:
+        pdf.set_xy(50,80)
+        pdf.set_font("Helvetica","",11)
+        pdf.set_text_color(*P_MGREY)
+        pdf.cell(0,10,"Kronos module not loaded — AR1 mock data shown in app")
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # SLIDE 5 — AI LAB AGENT DEBATE
+    # ══════════════════════════════════════════════════════════════════════════
+    pdf.add_page()
+    pdf._bg(*P_BG)
+    pdf._slide_header("05  —  AI LAB  —  AGENT DEBATE", f"{symbol}  |  {interval}", dark=True)
+    pdf._footer_bar(symbol, interval, "5 / 5")
+
     if debate:
-        pdf.sec("AI Lab — Agent Debate")
-        agent_colors = {
-            "BULL":(0,140,60),"BEAR":(200,40,40),
-            "RISK":(30,80,180),"CIO":(100,40,180)
-        }
-        for ag in AGENTS:
-            d = debate.get(ag["key"])
-            if d:
-                pdf.agent_blk(
-                    ag["name"], d.get("body",""), d.get("verdict",""),
-                    color=agent_colors.get(ag["key"],(40,40,40)))
+        agent_cfg = [
+            ("BULL", GRN,  (7,20,7),   (20,50,20)),
+            ("BEAR", RED,  (20,7,7),   (50,20,20)),
+            ("RISK", (59,130,246), (7,12,25), (20,30,50)),
+            ("CIO",  (124,58,237),(15,7,25),  (35,20,55)),
+        ]
+        names = {"BULL":"Alex — Long Desk","BEAR":"Sam — Short Desk",
+                 "RISK":"Jordan — Risk","CIO":"Morgan — CIO"}
+        tags  = {"BULL":"BULL CASE","BEAR":"BEAR CASE",
+                 "RISK":"RISK MANAGER","CIO":"CIO VERDICT"}
+
+        # 2×2 grid layout
+        aw=137; ah=86; agap=4
+        positions = [(8,22),(149,22),(8,112),(149,112)]
+
+        for idx,(key,vc_,bg_dark,bg_mid) in enumerate(agent_cfg):
+            d = debate.get(key,{})
+            if not d: continue
+            ax,ay = positions[idx]
+
+            # Card background
+            pdf.set_fill_color(*bg_dark)
+            pdf.rect(ax,ay,aw,ah,"F")
+            # Left accent stripe
+            pdf.set_fill_color(*vc_)
+            pdf.rect(ax,ay,2,ah,"F")
+
+            # Tag
+            pdf.set_xy(ax+5, ay+3)
+            pdf.set_font("Helvetica","B",6.5)
+            pdf.set_text_color(*vc_)
+            pdf.cell(0,4,safe(tags[key]).upper())
+
+            # Agent name
+            pdf.set_xy(ax+5, ay+9)
+            pdf.set_font("Helvetica","B",11)
+            pdf.set_text_color(*P_WHITE)
+            pdf.cell(aw-10,7,safe(names[key]))
+
+            # Body text
+            body = d.get("body","")
+            pdf.set_xy(ax+5, ay+18)
+            pdf.set_font("Helvetica","",7.5)
+            pdf.set_text_color(*P_LGREY)
+            pdf.multi_cell(aw-10, 4.5, safe(body))
+
+            # Verdict badge bottom-left of card
+            verdict = d.get("verdict","WAIT")
+            pdf._verdict_badge(ax+5, ay+ah-12, 28, 10, verdict)
+
+    else:
+        pdf.set_xy(50,100)
+        pdf.set_font("Helvetica","",11)
+        pdf.set_text_color(*P_MGREY)
+        pdf.cell(0,10,"No AI debate data — add ANTHROPIC_API_KEY to Streamlit secrets")
 
     return bytes(pdf.output())
 
@@ -835,12 +1078,14 @@ st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 07 &mdash;
 try:
     _pfig = price_chart(df, symbol, chart_bars)
     _kfig = kronos_chart(df, kr)
-    _pfig.update_layout(paper_bgcolor="white",plot_bgcolor="#f9fafb",font=dict(color="#333"))
-    _pfig.update_yaxes(gridcolor="#e5e7eb")
-    _kfig.update_layout(paper_bgcolor="white",plot_bgcolor="#f9fafb",font=dict(color="#333"))
-    _kfig.update_yaxes(gridcolor="#e5e7eb")
-    price_png  = chart_to_png(_pfig, width=760, height=280)
-    kronos_png = chart_to_png(_kfig, width=760, height=210)
+    # Keep dark theme for PDF — matches the dark slide backgrounds
+    _pfig.update_layout(paper_bgcolor="#060a0f", plot_bgcolor="#0a0f14",
+                        margin=dict(l=8,r=8,t=8,b=8))
+    _kfig.update_layout(paper_bgcolor="#060a0f", plot_bgcolor="#0a0f14",
+                        margin=dict(l=8,r=8,t=8,b=8))
+    # Render at slide proportions: w=2130px = 213mm@10dpi*10, h proportional
+    price_png  = chart_to_png(_pfig, width=2130, height=950)
+    kronos_png = chart_to_png(_kfig, width=2000, height=1200)
     pdf_bytes=gen_pdf(symbol,sc,df,debate,kr,price_png,kronos_png,interval)
     fname=f"NiftySniper_{symbol}_{interval}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
     st.download_button(label="Download Report (PDF)",data=pdf_bytes,
