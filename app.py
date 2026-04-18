@@ -253,8 +253,8 @@ def price_chart(df,symbol):
         yaxis=dict(showgrid=True,gridcolor=BORDER,color=MUTED,gridwidth=0.5,side="right"),
         font=dict(family="Inter",color=MUTED),
         hoverlabel=dict(bgcolor=CARD,font=dict(color=TEXT,size=12)))
-    fig.update_xaxes(showspikes=True,spikecolor=MUTED,spikewidth=1)
-    fig.update_yaxes(showspikes=True,spikecolor=MUTED,spikewidth=1)
+    fig.update_xaxes(showspikes=True, spikecolor=MUTED, spikethickness=1)
+    fig.update_yaxes(showspikes=True, spikecolor=MUTED, spikethickness=1)
     return fig
 
 def kronos_chart(df,kr):
