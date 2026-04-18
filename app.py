@@ -634,61 +634,204 @@ def make_pdf(symbol, timeframe, signal_pack, components, structure_rows, timing_
     return buf.getvalue()
 
 
+
 # ---------- UI ----------
+def section_divider(num: str, title: str, dot_color: str = ORANGE):
+    st.markdown(
+        f"""
+        <div class='section-wrap'>
+          <div class='section-line'></div>
+          <div class='section-center'><span class='section-dot' style='color:{dot_color}'>●</span>&nbsp;&nbsp;{num} — {title}&nbsp;&nbsp;<span class='section-dot' style='color:{dot_color}'>●</span></div>
+          <div class='section-line'></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def compact_metric_card(label: str, value: str, sub: str = "", accent: str = TEXT):
+    st.markdown(
+        f"""
+        <div class='metric-card'>
+          <div class='metric-kicker'>{label}</div>
+          <div class='metric-main' style='color:{accent};'>{value}</div>
+          <div class='metric-sub'>{sub}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 st.markdown(
     f"""
     <style>
-    .stApp {{ background: {BLACK}; color: {TEXT}; }}
-    .block-container {{ padding-top: 1.5rem; padding-bottom: 2rem; max-width: 1200px; }}
-    .chipbar {{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-bottom: 20px; }}
-    .chip {{ padding:8px 14px; border:1px solid {BORDER}; border-radius:999px; background:{CARD}; color:{TEXT}; font-size:13px; }}
-    .card {{ background:{CARD}; border:1px solid {BORDER}; border-radius:18px; padding:18px; }}
-    .section-title {{ color:{ORANGE}; font-size:14px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:10px; }}
-    .hero-card {{ background: linear-gradient(180deg, #121212 0%, #080808 100%); border:1px solid {BORDER}; border-radius:22px; padding:22px; }}
-    .metric {{ background:{CARD_2}; border:1px solid {BORDER}; border-radius:16px; padding:14px; min-height:92px; }}
-    .metric-label {{ font-size:12px; color:{MUTED}; text-transform:uppercase; letter-spacing:0.05em; }}
-    .metric-value {{ font-size:22px; color:{TEXT}; font-weight:700; margin-top:6px; }}
-    .tiny {{ font-size:12px; color:{MUTED}; }}
-    .signal-badge {{ display:inline-block; background:rgba(255,140,0,0.16); color:{ORANGE}; border:1px solid rgba(255,140,0,0.35); padding:8px 12px; border-radius:999px; font-weight:700; }}
-    .debate {{ background:{CARD}; border:1px solid {BORDER}; border-radius:18px; padding:16px; height:100%; }}
-    .debate h4 {{ margin-top:0; color:{ORANGE}; }}
-    .stTextInput > div > div > input {{ background:#0B0B0B; color:white; border-radius:16px; border:1px solid {BORDER}; padding: 18px 16px; font-size:18px; }}
-    .stSelectbox > div > div {{ background:#0B0B0B; color:white; border:1px solid {BORDER}; border-radius:14px; }}
-    div[data-testid="stDownloadButton"] button,
-    div[data-testid="stButton"] button {{
-        background: linear-gradient(90deg, {ORANGE}, {ORANGE_2}) !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 16px !important;
-        font-weight: 700 !important;
-        padding: 0.75rem 1.2rem !important;
+    :root {{
+      --bg: {BLACK};
+      --card: #07101f;
+      --card2: #091425;
+      --muted: #93A1B5;
+      --line: #1A2740;
+      --orange: {ORANGE};
+      --orange2: {ORANGE_2};
+      --text: {TEXT};
+      --green: {GREEN};
+      --red: {RED};
     }}
-    table {{ color: white; }}
+    .stApp {{
+      background: radial-gradient(circle at top, #010c1f 0%, #000814 38%, #000000 100%);
+      color: var(--text);
+    }}
+    .block-container {{
+      max-width: 1500px;
+      padding-top: 0.65rem;
+      padding-bottom: 1.8rem;
+    }}
+    p, li, div {{ font-size: 13px; }}
+    h1,h2,h3,h4 {{ letter-spacing: 0.02em; }}
+    [data-testid="stAppViewContainer"] {{ background: transparent; }}
+    [data-testid="stHeader"] {{ background: transparent; }}
+
+    .top-kicker {{ text-align:center; color:#a35eff; font-size:11px; font-weight:800; letter-spacing:0.40em; text-transform:uppercase; margin-top:2px; }}
+    .top-logo {{ text-align:center; margin: 10px 0 4px; }}
+    .top-sub {{ text-align:center; color:#8e99ab; font-size:11px; font-weight:700; letter-spacing:0.26em; text-transform:uppercase; margin-bottom: 18px; }}
+
+    div[data-baseweb="radio"] > div {{ gap: 18px; justify-content:center; flex-wrap: wrap; margin-bottom: 8px; }}
+    div[role="radiogroup"] label {{
+        background: rgba(11,22,44,0.92);
+        border: 1.3px solid #375074;
+        border-radius: 15px;
+        min-width: 118px;
+        height: 60px;
+        display:flex !important;
+        align-items:center;
+        justify-content:center;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03);
+        transition: all .18s ease;
+        padding: 0 16px !important;
+    }}
+    div[role="radiogroup"] label p {{ font-size: 11px !important; font-weight: 800 !important; color: #F7FAFF !important; letter-spacing: 0.05em; }}
+    div[role="radiogroup"] label[data-selected="true"] {{
+        border-color:#ff8c00;
+        box-shadow: 0 0 0 1px rgba(255,140,0,.30), 0 0 16px rgba(255,140,0,.18);
+    }}
+
+    .stTextInput label, .stRadio label[data-testid="stWidgetLabel"] {{ display:none !important; }}
+    .stTextInput > div > div > input {{
+        background: linear-gradient(180deg, #0a1530 0%, #081120 100%) !important;
+        color: #ffffff !important;
+        border-radius: 18px !important;
+        border: 2px solid rgba(241,244,251,0.88) !important;
+        box-shadow: 0 0 0 2px rgba(255,255,255,0.06) inset !important;
+        padding: 14px 20px !important;
+        font-size: 28px !important;
+        font-weight: 800 !important;
+        text-align: center !important;
+        letter-spacing: 0.05em !important;
+        min-height: 72px;
+    }}
+    div[data-testid="stButton"] button {{
+        height: 72px !important;
+        border-radius: 18px !important;
+        background: linear-gradient(90deg, #ff8c00, #ff6a00) !important;
+        color: white !important;
+        border: 0 !important;
+        font-size: 18px !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.10em !important;
+        box-shadow: 0 8px 22px rgba(255,106,0, 0.24);
+    }}
+    div[data-testid="stDownloadButton"] button {{
+        height: 58px !important;
+        border-radius: 16px !important;
+        background: linear-gradient(180deg, #0b1630 0%, #081120 100%) !important;
+        color: #d4dce8 !important;
+        border: 1px solid #223453 !important;
+        font-size: 17px !important;
+        font-weight: 700 !important;
+    }}
+
+    .section-wrap {{ display:flex; align-items:center; gap:16px; margin: 28px 0 14px; }}
+    .section-line {{ flex:1; height:1px; background: linear-gradient(90deg, rgba(28,43,72,0.95), rgba(28,43,72,0.12)); }}
+    .section-center {{ color:#a6afc0; font-size:11px; letter-spacing:0.32em; font-weight:800; text-transform:uppercase; white-space:nowrap; }}
+    .section-dot {{ font-size:13px; }}
+
+    .hero-signal {{
+        background: linear-gradient(90deg, rgba(49,20,0,0.92), rgba(64,28,0,0.95));
+        border: 1.5px solid rgba(255,140,0,0.9);
+        border-radius: 28px;
+        padding: 34px 28px 30px;
+        text-align:center;
+        box-shadow: inset 0 0 0 1px rgba(255,153,0,0.08);
+    }}
+    .hero-head {{ color:#b2bccd; font-size:11px; font-weight:800; letter-spacing:0.25em; text-transform:uppercase; }}
+    .hero-word {{ color:#ff9d00; font-size:60px; line-height:0.95; font-weight:900; margin: 18px 0 8px; letter-spacing:0.015em; }}
+    .hero-score {{ color:#ff9d00; font-size:24px; font-weight:900; margin-bottom: 14px; }}
+    .hero-strip {{ display:flex; justify-content:center; gap:26px; flex-wrap:wrap; color:#aeb7c8; font-size:13px; letter-spacing:0.10em; text-transform:uppercase; font-weight:700; }}
+    .hero-strip .pos {{ color:#18d08e; font-weight:900; }}
+    .hero-strip .down {{ color:#ff8585; font-weight:900; }}
+
+    .component-grid {{ display:grid; grid-template-columns: 160px minmax(200px,1fr) 56px 220px; gap: 10px; align-items:center; margin-bottom: 10px; }}
+    .component-name {{ font-size:12px; font-weight:800; color:#E4E9F3; letter-spacing:0.02em; }}
+    .component-rail {{ height:11px; background:#071733; border-radius:999px; overflow:hidden; }}
+    .component-fill {{ height:11px; border-radius:999px; }}
+    .component-score {{ font-size:12px; font-weight:900; text-align:right; color:#F3F6FB; letter-spacing:0.02em; }}
+    .component-detail {{ color:#95A2B7; font-size:11px; text-align:left; }}
+
+    [data-testid="stImage"] img {{ border-radius: 8px; }}
+
+    .table-shell {{ border: 1px solid rgba(20,34,58,.70); overflow:hidden; margin-top: 4px; }}
+    .table-row {{ display:grid; grid-template-columns: 1.05fr 1.35fr; border-bottom:1px solid rgba(20,34,58,.70); }}
+    .table-row:last-child {{ border-bottom:none; }}
+    .table-key, .table-val {{ padding: 14px 18px; font-size: 13px; }}
+    .table-key {{ color:#98A5B8; background: rgba(3,11,25,.58); font-weight:700; }}
+    .table-val {{ color:#F5F7FB; font-weight:800; }}
+    .up {{ color:#18d08e; }}
+    .down {{ color:#ff7b7b; }}
+
+    .metric-card {{ background: linear-gradient(180deg, #081530 0%, #071224 100%); border:1px solid #203659; border-radius: 22px; padding: 22px 22px; min-height: 158px; }}
+    .metric-kicker {{ color:#AAB5C8; font-size:11px; letter-spacing:0.22em; text-transform:uppercase; font-weight:800; margin-bottom: 20px; }}
+    .metric-main {{ color:#F7FAFF; font-size:24px; font-weight:900; line-height:1.05; }}
+    .metric-sub {{ color:#93A1B5; font-size:12px; margin-top: 14px; line-height:1.45; }}
+
+    .debate-card {{ border-radius: 22px; padding: 22px 22px 20px; min-height: 230px; border:1px solid transparent; }}
+    .debate-green {{ background: rgba(0,72,28,.42); border-color: rgba(0,193,108,.62); }}
+    .debate-red {{ background: rgba(73,0,0,.42); border-color: rgba(234,76,76,.62); }}
+    .debate-violet {{ background: rgba(35,17,86,.34); border-color: rgba(136,93,255,.62); }}
+    .debate-title {{ color:#f5f7fb; font-size:14px; font-weight:900; margin: 12px 0 12px; }}
+    .debate-kicker {{ font-size:11px; letter-spacing:0.22em; text-transform:uppercase; font-weight:800; }}
+    .debate-body {{ color:#D7DDE8; font-size:14px; line-height:1.6; }}
+    .verdict-pill {{ display:inline-block; margin-top:16px; background:#2138a8; color:#d7e0ff; border-radius:999px; padding:7px 14px; font-size:12px; font-weight:800; }}
+    .watch-pill {{ display:inline-block; background: rgba(255,160,0,.12); color:#ffb21f; border-radius:999px; padding:7px 14px; font-size:12px; font-weight:800; float:right; }}
+
+    .export-shell {{ max-width: 700px; margin: 0 auto; }}
+
+    @media (max-width: 1100px) {{
+      .component-grid {{ grid-template-columns: 1fr; gap:6px; }}
+      .hero-word {{ font-size:42px; }}
+      .hero-strip {{ gap:14px; font-size:12px; }}
+      .table-row {{ grid-template-columns: 1fr; }}
+    }}
     </style>
     """,
     unsafe_allow_html=True,
 )
 
 logo_b64 = img_to_base64(LOGO_PATH)
+st.markdown("<div class='top-hero'>", unsafe_allow_html=True)
+st.markdown("<div class='top-kicker'>● SIGNAL INTELLIGENCE</div>", unsafe_allow_html=True)
 st.markdown(
-    f"""
-    <div style='text-align:center; margin-bottom:12px;'>
-      <img src='data:image/png;base64,{logo_b64}' style='height:70px; margin-bottom:8px;' />
-      <div style='color:{MUTED}; font-size:13px; letter-spacing:0.1em; text-transform:uppercase;'>India Equity Signal Engine</div>
-    </div>
-    """,
+    f"<div class='top-logo'><img src='data:image/png;base64,{logo_b64}' style='height:78px;' /></div>",
     unsafe_allow_html=True,
 )
+st.markdown("<div class='top-sub'>REAL-TIME · MULTI-FACTOR · AI-POWERED</div>", unsafe_allow_html=True)
 
-st.markdown("<div class='chipbar'><span class='chip'>1m</span><span class='chip'>5m</span><span class='chip'>15m</span><span class='chip'>30m</span><span class='chip'>1H</span><span class='chip'>4H</span><span class='chip'>1D</span></div>", unsafe_allow_html=True)
+timeframe = st.radio("Timeframe", ["1m", "5m", "15m", "30m", "1H", "4H", "1D"], index=1, horizontal=True, label_visibility="collapsed")
 
-c1, c2 = st.columns([4, 1])
+c1, c2 = st.columns([5.6, 1.8], vertical_alignment="bottom")
 with c1:
-    stock_input = st.text_input("", placeholder="Enter NSE stock symbol (e.g. RELIANCE, TCS, INFY, HDFCBANK)")
+    stock_input = st.text_input("Ticker", value="BTC" if False else "", placeholder="RELIANCE", label_visibility="collapsed")
 with c2:
-    timeframe = st.selectbox("Timeframe", ["1m", "5m", "15m", "30m", "1H", "4H", "1D"], index=2)
-
-analyse = st.button("ANALYSE", use_container_width=True)
+    analyse = st.button("ANALYSE", use_container_width=True)
 
 if analyse:
     symbol = symbol_from_input(stock_input)
@@ -712,7 +855,6 @@ if analyse:
         kronos_chart_dark = make_forecast_chart(df, kronos_pack, symbol, timeframe, white=False)
         kronos_chart_white = make_forecast_chart(df, kronos_pack, symbol, timeframe, white=True)
 
-        # white version of price chart for PDF
         recent = df.tail(80).copy()
         ap = [
             mpf.make_addplot(recent["EMA20"], color=ORANGE, width=1.0),
@@ -756,89 +898,163 @@ if analyse:
         )
 
     row = df.iloc[-1]
-    st.markdown("### 01 · Signal Output")
+    timestamp_text = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
+
+    section_divider("01", "Signal Output", ORANGE)
+    change_cls = "pos" if row['DAY_CHANGE_PCT'] >= 0 else "down"
     st.markdown(
         f"""
-        <div class='hero-card'>
-          <div class='tiny'>{symbol.replace('.NS', '')} | {timeframe} | {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}</div>
-          <div style='margin-top:10px;'><span class='signal-badge'>SIGNAL: {signal_pack['signal']} ({signal_pack['score']}/{signal_pack['max_score']})</span></div>
-          <div style='display:grid; grid-template-columns: repeat(6, 1fr); gap:14px; margin-top:18px;'>
-            <div class='metric'><div class='metric-label'>Close</div><div class='metric-value'>{fmt_num(row['Close'],2)}</div></div>
-            <div class='metric'><div class='metric-label'>Change %</div><div class='metric-value'>{fmt_num(row['DAY_CHANGE_PCT'],2)}%</div></div>
-            <div class='metric'><div class='metric-label'>RVOL</div><div class='metric-value'>{fmt_num(row['RVOL'],2)}x</div></div>
-            <div class='metric'><div class='metric-label'>RSI 14</div><div class='metric-value'>{fmt_num(row['RSI14'],1)}</div></div>
-            <div class='metric'><div class='metric-label'>ADX 14</div><div class='metric-value'>{fmt_num(row['ADX14'],1)}</div></div>
-            <div class='metric'><div class='metric-label'>Rel Strength</div><div class='metric-value'>{fmt_num(signal_pack['rs_diff'],2)}%</div></div>
+        <div class='hero-signal'>
+          <div class='hero-head'>{symbol.replace('.NS','')} • {timeframe} • {timestamp_text}</div>
+          <div class='hero-word'>{signal_pack['signal']}</div>
+          <div class='hero-score'>{signal_pack['score']} / {signal_pack['max_score']}</div>
+          <div class='hero-strip'>
+            <span>CLOSE {fmt_num(row['Close'],2)}</span>
+            <span>•</span>
+            <span class='{change_cls}'>{row['DAY_CHANGE_PCT']:+.2f}%</span>
+            <span>•</span>
+            <span>VOL {fmt_num(row['RVOL'],1)}×</span>
+            <span>•</span>
+            <span>RSI {fmt_num(row['RSI14'],0)}</span>
+            <span>•</span>
+            <span>ADX {fmt_num(row['ADX14'],0)}</span>
           </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    st.markdown("### 02 · Signal Components")
-    for name, item in signal_pack["components"].items():
+    section_divider("02", "Signal Components", "#7f8cff")
+    component_colors = [ORANGE, ORANGE, ORANGE, "#c084fc", "#ffb454", "#ff7f7f"]
+    for idx, (name, item) in enumerate(signal_pack["components"].items()):
+        label_map = {'V - Volume Strength':'V Volume','P - Price Expansion':'P Momentum','R - Position in Range':'R Range Pos','T - Trend Alignment':'T Trend','RS - Relative Strength':'RS Strength','X - Risk Penalty':'X Risk'}
+        label = label_map.get(name, name.replace(" - ", " "))
         pct = 0 if item["max"] <= 0 else max(0, min(100, int(item["score"] / item["max"] * 100)))
+        shown = f"{int(item['score'])}/{int(item['max'])}" if item["max"] > 0 else f"{item['score']}"
+        color = component_colors[idx % len(component_colors)]
         st.markdown(
             f"""
-            <div class='card' style='margin-bottom:10px;'>
-              <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;'>
-                <div style='font-weight:700;'>{name}</div>
-                <div class='tiny'>{item['detail']}</div>
-              </div>
-              <div style='height:10px; background:#191919; border-radius:999px; overflow:hidden;'>
-                <div style='width:{pct}%; height:10px; background:linear-gradient(90deg, {ORANGE}, {ORANGE_2});'></div>
-              </div>
-              <div style='margin-top:8px; color:{MUTED};'>{item['score']}/{item['max'] if item['max']>0 else abs(item['score'])}</div>
+            <div class='component-grid'>
+              <div class='component-name'>{label}</div>
+              <div class='component-rail'><div class='component-fill' style='width:{pct}%; background:{color};'></div></div>
+              <div class='component-score'>{shown}</div>
+              <div class='component-detail'>{item['detail']}</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-    st.markdown("### 03 · Market Structure")
-    st.image(price_chart)
-    c_left, c_right = st.columns([1, 1])
-    split = math.ceil(len(structure_rows) / 2)
-    with c_left:
-        for k, v in structure_rows[:split]:
-            st.markdown(f"<div class='card' style='margin-bottom:8px;'><div class='metric-label'>{k}</div><div style='margin-top:6px; font-weight:700;'>{v}</div></div>", unsafe_allow_html=True)
-    with c_right:
-        for k, v in structure_rows[split:]:
-            st.markdown(f"<div class='card' style='margin-bottom:8px;'><div class='metric-label'>{k}</div><div style='margin-top:6px; font-weight:700;'>{v}</div></div>", unsafe_allow_html=True)
+    section_divider("03", "Market Structure", "#39b6ff")
+    st.image(price_chart, use_container_width=True)
+    st.markdown("<div class='table-shell'>", unsafe_allow_html=True)
+    for key, val in structure_rows:
+        value_html = str(val)
+        value_html = value_html.replace('(above)', "<span class='up'>▲ above</span>").replace('(below)', "<span class='down'>▼ below</span>")
+        st.markdown(
+            f"<div class='table-row'><div class='table-key'>{key}</div><div class='table-val'>{value_html}</div></div>",
+            unsafe_allow_html=True,
+        )
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    st.markdown("### 04 · Timing Quality")
+    section_divider("04", "Timing Quality", ORANGE)
     tq_cols = st.columns(3)
+    timing_subs = {
+        "RSI 14": "Neutral" if row['RSI14'] < 60 else "Firm" if row['RSI14'] < 70 else "Hot",
+        "ADX 14": "TRENDING" if row['ADX14'] >= 20 else "SOFT",
+        "ATR 14": f"{(row['ATR14']/row['Close'])*100:.2f}% of price",
+        "+DI / -DI": "Bulls in control" if row['PLUS_DI'] > row['MINUS_DI'] else "Bears in control",
+        "Rel Volume": "Normal" if row['RVOL'] < 1.5 else "Elevated",
+        "ATR Move": "Strong" if row['ATR_MOVE'] > 1 else "Weak" if row['ATR_MOVE'] < 0.8 else "Building",
+    }
+    timing_accents = {
+        "RSI 14": TEXT,
+        "ADX 14": GREEN if row['ADX14'] >= 20 else TEXT,
+        "ATR 14": TEXT,
+        "+DI / -DI": GREEN if row['PLUS_DI'] > row['MINUS_DI'] else '#ff8a8a',
+        "Rel Volume": TEXT,
+        "ATR Move": TEXT,
+    }
     for idx, (k, v) in enumerate(timing_metrics.items()):
         with tq_cols[idx % 3]:
-            st.markdown(f"<div class='metric'><div class='metric-label'>{k}</div><div style='margin-top:6px; font-weight:700;'>{v}</div></div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='card' style='margin-top:12px;'><div class='metric-label'>Decision Clarity</div><div style='margin-top:6px; font-size:18px; font-weight:700; color:{ORANGE};'>{timing_label}</div></div>", unsafe_allow_html=True)
+            compact_metric_card(k, v.split(' (')[0] if k == 'ATR 14' else v, timing_subs.get(k, ''), timing_accents.get(k, TEXT))
 
-    st.markdown("### 05 · Kronos AI Forecast")
-    st.image(kronos_chart_dark)
-    kc = st.columns(2)
-    items = list(kronos_pack["cards"].items())
-    for idx, (k, v) in enumerate(items):
-        with kc[idx % 2]:
-            st.markdown(f"<div class='metric' style='margin-bottom:10px;'><div class='metric-label'>{k}</div><div style='margin-top:6px; font-weight:700; font-size:18px;'>{v}</div></div>", unsafe_allow_html=True)
+    section_divider("05", "Kronos AI Forecast", "#8f56ff")
+    st.image(kronos_chart_dark, use_container_width=True)
+    cards = list(kronos_pack["cards"].items())
+    kcols = st.columns(3)
+    for idx, (k, v) in enumerate(cards):
+        with kcols[idx % 3]:
+            sub = ""
+            accent = TEXT
+            if k == "AI Forecast":
+                sub = f"AI expects price to go {'up' if kronos_pack['direction']=='UP' else 'down'} over the next {kronos_pack['horizon']} candles"
+                accent = GREEN if kronos_pack['direction']=='UP' else '#ff8a8a'
+            elif k == "Expected Move":
+                sub = f"{('Gaining' if kronos_pack['expected_move'] >= 0 else 'Losing')} {abs(kronos_pack['expected_move']):.2f}% from where it is now"
+                accent = GREEN if kronos_pack['expected_move'] >= 0 else '#ff8a8a'
+            elif k == "Price Range":
+                sub = f"{kronos_pack['trough']:.2f} to {kronos_pack['peak']:.2f}"
+            elif k == "Momentum":
+                sub = f"{kronos_pack['bull_pct']:.0f}% of forecast candles close green"
+                accent = ORANGE
+            elif k == "Target Price":
+                sub = f"Where AI thinks price lands after {kronos_pack['horizon']} candles"
+            elif k == "Trade Quality":
+                sub = "Favorable reward/risk" if kronos_pack['trade_quality'] in ['High', 'Moderate'] else "Avoid — bad odds"
+                accent = '#ff8a8a' if kronos_pack['trade_quality'] == 'Cautious' else TEXT
+            compact_metric_card(k, v, sub, accent)
     b1, b2 = st.columns(2)
     with b1:
-        st.markdown(f"<div class='debate'><h4>Kronos Bull Case</h4><div>{kronos_pack['bull_case']}</div></div>", unsafe_allow_html=True)
+        st.markdown(
+            f"""
+            <div class='debate-card debate-green'>
+              <div class='debate-kicker' style='color:#19d38d;'>🐂 Bull Case <span class='watch-pill'>WATCH</span></div>
+              <div class='debate-body' style='margin-top:28px;'>{kronos_pack['bull_case']}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
     with b2:
-        st.markdown(f"<div class='debate'><h4>Kronos Bear Case</h4><div>{kronos_pack['bear_case']}</div></div>", unsafe_allow_html=True)
+        st.markdown(
+            f"""
+            <div class='debate-card debate-red'>
+              <div class='debate-kicker' style='color:#ff8787;'>🐻 Bear Case <span class='watch-pill'>WATCH</span></div>
+              <div class='debate-body' style='margin-top:28px;'>{kronos_pack['bear_case']}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-    st.markdown("### 06 · AI Lab")
+    section_divider("06", "AI Lab", "#ad78ff")
     cols = st.columns(2)
-    ai_items = list(ai_pack.items())
-    for idx, (role, txt) in enumerate(ai_items):
+    ai_meta = [
+        ("Bull", "🐂 Bull Case", "Alex — Long Desk", "debate-green", "#19d38d", "HOLD"),
+        ("Bear", "🐻 Bear Case", "Sam — Short Desk", "debate-red", "#ff8787", "HOLD"),
+        ("Risk Manager", "🛡 Risk Manager", "Jordan — Risk", "debate-violet", "#8f9dff", "HOLD"),
+        ("CIO", "◉ CIO Verdict", "Morgan — CIO", "debate-violet", "#d199ff", "WATCHLIST"),
+    ]
+    for idx, (key, kicker, title, klass, kcolor, verdict) in enumerate(ai_meta):
         with cols[idx % 2]:
-            st.markdown(f"<div class='debate' style='margin-bottom:10px;'><h4>{role}</h4><div>{txt}</div></div>", unsafe_allow_html=True)
+            st.markdown(
+                f"""
+                <div class='debate-card {klass}' style='margin-bottom:18px;'>
+                  <div class='debate-kicker' style='color:{kcolor};'>{kicker}</div>
+                  <div class='debate-title'>{title}</div>
+                  <div class='debate-body'>{ai_pack[key]}</div>
+                  <div class='verdict-pill'>{verdict}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
-    st.markdown("### 07 · Export")
+    section_divider("07", "Export", "#5c6d86")
+    st.markdown("<div class='export-shell'>", unsafe_allow_html=True)
     st.download_button(
-        label="Download PDF Report",
+        label="⇩ Download Report (PDF)",
         data=pdf_bytes,
         file_name=f"{symbol.replace('.NS','')}_{timeframe}_nifty_sniper_report.pdf",
         mime="application/pdf",
         use_container_width=True,
     )
-
+    st.markdown("</div>", unsafe_allow_html=True)
     st.caption("Data via Yahoo Finance. Signals are not financial advice. Past performance does not guarantee future results.")
