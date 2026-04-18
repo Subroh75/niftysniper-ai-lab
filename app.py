@@ -164,15 +164,22 @@ def calculate_adx(df: pd.DataFrame, period: int = 14):
     return adx.fillna(0), plus_di.fillna(0), minus_di.fillna(0), atr.fillna(0)
 
 
+@st.cache_data(show_spinner=False, ttl=300)
 def fetch_data(symbol: str, timeframe: str):
     cfg = INTERVAL_MAP[timeframe]
     ticker = yf.Ticker(symbol)
-    df = ticker.history(period=cfg["period"], interval=cfg["interval"], auto_adjust=False, prepost=False)
+    try:
+        df = ticker.history(period=cfg["period"], interval=cfg["interval"], auto_adjust=False, prepost=False, repair=True)
+    except TypeError:
+        df = ticker.history(period=cfg["period"], interval=cfg["interval"], auto_adjust=False, prepost=False)
     if df.empty:
         return None, None
     if isinstance(df.index, pd.DatetimeIndex):
         df = df.tz_localize(None) if df.index.tz is not None else df
-    df = df[["Open", "High", "Low", "Close", "Volume"]].dropna().copy()
+    keep_cols = [c for c in ["Open", "High", "Low", "Close", "Volume"] if c in df.columns]
+    if not keep_cols:
+        return None, None
+    df = df[keep_cols].dropna().copy()
     info = ticker.fast_info if hasattr(ticker, "fast_info") else {}
     return df, info
 
@@ -855,10 +862,11 @@ st.markdown("<div class='top-sub'>REAL-TIME · MULTI-FACTOR · AI-POWERED</div>"
 
 timeframe = st.radio("Timeframe", ["1m", "5m", "15m", "30m", "1H", "4H", "1D"], index=1, horizontal=True, label_visibility="collapsed")
 
-c1, c2 = st.columns([6.2, 1.5], vertical_alignment="bottom")
+c1, c2 = st.columns([6.2, 1.5])
 with c1:
-    stock_input = st.text_input("Ticker", value="BTC" if False else "", placeholder="RELIANCE", label_visibility="collapsed")
+    stock_input = st.text_input("Ticker", value="RELIANCE", label_visibility="collapsed")
 with c2:
+    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
     analyse = st.button("ANALYSE", use_container_width=True)
 
 if analyse:
@@ -869,11 +877,28 @@ if analyse:
 
     with st.spinner("Pulling market data and building the signal stack..."):
         raw_df, info = fetch_data(symbol, timeframe)
-        if raw_df is None or raw_df.empty or len(raw_df) < 60:
+        if raw_df is None or raw_df.empty:
+            st.error("No market data returned for this symbol/timeframe. Try another stock or a higher timeframe.")
+            st.stop()
+
+        min_rows_required = 220 if timeframe in ["4H", "1D"] else 60
+        active_timeframe = timeframe
+        if len(raw_df) < min_rows_required and timeframe in ["1m", "5m", "15m", "30m", "1H"]:
+            fallback_tf = "1D"
+            st.warning(f"Limited {timeframe} data returned for {symbol}. Falling back to {fallback_tf}.")
+            active_timeframe = fallback_tf
+            raw_df, info = fetch_data(symbol, active_timeframe)
+
+        if raw_df is None or raw_df.empty or len(raw_df) < 40:
             st.error("Not enough data returned for this symbol/timeframe. Try another stock or a higher timeframe.")
             st.stop()
-        benchmark = fetch_benchmark(timeframe)
+
+        benchmark = fetch_benchmark(active_timeframe)
         df = enrich_df(raw_df)
+        if df.empty or len(df) < 20:
+            st.error("Indicators could not be built from the returned data. Try 1H or 1D.")
+            st.stop()
+        timeframe = active_timeframe
         signal_pack = compute_signal(df, benchmark)
         structure_rows, trend_state = market_structure(df, signal_pack)
         timing_label, timing_metrics = timing_quality(df)
