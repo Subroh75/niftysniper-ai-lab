@@ -7,6 +7,7 @@ import numpy as np
 import anthropic
 import time
 import plotly.graph_objects as go
+import io
 from datetime import datetime, timezone, timedelta
 from fpdf import FPDF
 
@@ -168,10 +169,22 @@ def verdict_cls(v):
 
 def pcfg(): return {"displayModeBar":False}
 
+def chart_to_png(fig, width=780, height=320):
+    """Export a Plotly figure to PNG bytes for PDF embedding."""
+    try:
+        img_bytes = fig.to_image(format="png", width=width, height=height, scale=2)
+        return img_bytes
+    except Exception:
+        return None
+
+INTERVAL_MAP = {
+    "1D":"5d","1W":"1mo","1M":"3mo","3M":"6mo","6M":"1y","1Y":"2y"
+}
+
 @st.cache_data(ttl=300,show_spinner=False)
-def fetch(ticker):
+def fetch(ticker, period="6mo"):
     tk=yf.Ticker(ticker)
-    df=tk.history(period="6mo",auto_adjust=True)
+    df=tk.history(period=period,auto_adjust=True)
     if df.empty: return None
     df=df[["Open","High","Low","Close","Volume"]].dropna()
     df["EMA20"]=df["Close"].ewm(span=20,adjust=False).mean()
@@ -348,73 +361,206 @@ def run_debate(ctx,api_key):
     return results
 
 class PDF(FPDF):
+    """White-background, black-text PDF matching a professional report style."""
     def __init__(self):
         super().__init__()
-        self.set_auto_page_break(auto=True,margin=15)
-    def header(self):
-        self.set_fill_color(6,10,15); self.rect(0,0,210,297,"F")
-        self.set_fill_color(255,102,0); self.rect(0,0,210,2,"F")
-        self.set_xy(10,6); self.set_font("Helvetica","B",18)
-        self.set_text_color(255,102,0); self.cell(0,10,"NIFTYSNIPER",ln=0)
-        self.set_font("Helvetica","",9); self.set_text_color(107,114,128)
-        self.set_xy(10,16); self.cell(0,6,"DETECT EARLY. ACT SMART.",ln=1)
-        self.set_xy(0,26)
-    def footer(self):
-        self.set_y(-12); self.set_font("Helvetica","I",7); self.set_text_color(80,80,80)
-        self.cell(0,5,"Data via Yahoo Finance / NSE. Signals are not financial advice. Past performance does not guarantee future results.",align="C")
-    def sec(self,title):
-        self.set_fill_color(13,17,23); self.rect(10,self.get_y(),190,7,"F")
-        self.set_fill_color(255,102,0); self.rect(10,self.get_y(),2,7,"F")
-        self.set_xy(14,self.get_y()+0.5); self.set_font("Helvetica","B",8)
-        self.set_text_color(255,102,0); self.cell(0,6,safe(title).upper(),ln=1); self.ln(1)
-    def kv(self,label,value,vc=(220,220,220)):
-        self.set_fill_color(13,17,23); self.rect(10,self.get_y(),190,6,"F"); self.set_x(12)
-        self.set_font("Helvetica","",8); self.set_text_color(107,114,128); self.cell(80,6,safe(label))
-        self.set_font("Courier","B",8); self.set_text_color(*vc); self.cell(0,6,safe(str(value)),ln=1)
-    def agent_blk(self,name,body,verdict,nc):
-        self.set_font("Helvetica","B",8); self.set_text_color(*nc); self.set_x(12); self.cell(0,6,safe(name),ln=1)
-        self.set_font("Helvetica","",7.5); self.set_text_color(200,200,200); self.set_x(12); self.multi_cell(186,5,safe(body))
-        self.set_font("Helvetica","B",8); self.set_text_color(*nc); self.set_x(12); self.cell(0,5,f"Verdict: {verdict}",ln=1); self.ln(3)
+        self.set_auto_page_break(auto=True, margin=18)
 
-def gen_pdf(symbol,sc,df,debate,kr):
-    r=df.iloc[-1]; pdf=PDF(); pdf.add_page()
-    pdf.set_fill_color(26,8,0); pdf.rect(10,pdf.get_y(),190,26,"F")
-    pdf.set_xy(10,pdf.get_y()+2); pdf.set_font("Helvetica","",8); pdf.set_text_color(107,114,128)
-    pdf.cell(0,5,safe(f"{symbol}  |  1D  |  {ist_now()}"),align="C",ln=1)
-    sig_col=(255,102,0) if "STRONG" in sc["tier"] else (255,170,0) if "BUILDING" in sc["tier"] else (136,136,136)
-    pdf.set_font("Helvetica","B",22); pdf.set_text_color(*sig_col)
-    pdf.cell(0,14,safe(f"SIGNAL: {sc['tier']}  ({sc['total']}/13)"),align="C",ln=1); pdf.ln(4)
+    def header(self):
+        # White background
+        self.set_fill_color(255,255,255)
+        self.rect(0,0,210,297,"F")
+        # Orange top bar
+        self.set_fill_color(255,102,0)
+        self.rect(0,0,210,3,"F")
+        # Logo
+        self.set_xy(12,7)
+        self.set_font("Helvetica","B",20)
+        self.set_text_color(255,102,0)
+        self.cell(0,10,"NIFTYSNIPER",ln=0)
+        self.set_font("Helvetica","",9)
+        self.set_text_color(150,150,150)
+        self.set_xy(12,18)
+        self.cell(0,5,"DETECT EARLY. ACT SMART.",ln=1)
+        # Thin rule
+        self.set_draw_color(220,220,220)
+        self.set_line_width(0.3)
+        self.line(10,27,200,27)
+        self.set_xy(0,30)
+
+    def footer(self):
+        self.set_y(-13)
+        self.set_draw_color(220,220,220)
+        self.set_line_width(0.3)
+        self.line(10,self.get_y(),200,self.get_y())
+        self.set_font("Helvetica","I",7)
+        self.set_text_color(150,150,150)
+        self.cell(0,6,"Data via Yahoo Finance / NSE. Signals are not financial advice. Past performance does not guarantee future results.",align="C")
+
+    def sec(self, title):
+        """Section header — orange left bar, grey background row."""
+        self.set_fill_color(245,245,245)
+        self.rect(10,self.get_y(),190,7,"F")
+        self.set_fill_color(255,102,0)
+        self.rect(10,self.get_y(),2.5,7,"F")
+        self.set_xy(15, self.get_y()+0.75)
+        self.set_font("Helvetica","B",8)
+        self.set_text_color(80,80,80)
+        self.cell(0,6,safe(title).upper(),ln=1)
+        self.ln(1)
+
+    def kv(self, label, value, bold=False, color=(40,40,40)):
+        """Key-value row on white background."""
+        self.set_fill_color(255,255,255)
+        self.rect(10,self.get_y(),190,6,"F")
+        self.set_x(13)
+        self.set_font("Helvetica","",8)
+        self.set_text_color(120,120,120)
+        self.cell(80,6,safe(label))
+        self.set_font("Courier","B" if bold else "",8)
+        self.set_text_color(*color)
+        self.cell(0,6,safe(str(value)),ln=1)
+        # Hairline rule
+        self.set_draw_color(235,235,235)
+        self.set_line_width(0.2)
+        self.line(10,self.get_y(),200,self.get_y())
+
+    def embed_chart(self, img_bytes, label="", w=188, h=70):
+        """Embed a PNG chart image."""
+        if img_bytes is None:
+            return
+        self.set_fill_color(248,248,248)
+        self.rect(10,self.get_y(),190,h+6,"F")
+        if label:
+            self.set_xy(12,self.get_y()+1)
+            self.set_font("Helvetica","",7)
+            self.set_text_color(150,150,150)
+            self.cell(0,4,safe(label),ln=1)
+        bio = io.BytesIO(img_bytes)
+        self.image(bio, x=11, y=self.get_y(), w=w, h=h)
+        self.set_y(self.get_y()+h+4)
+        self.ln(2)
+
+    def agent_blk(self, name, body, verdict, color=(40,40,40)):
+        self.set_fill_color(250,250,250)
+        self.rect(10,self.get_y(),190,4,"F")
+        self.set_x(13)
+        self.set_font("Helvetica","B",8)
+        self.set_text_color(*color)
+        self.cell(150,5,safe(name),ln=0)
+        self.set_font("Helvetica","B",8)
+        self.cell(0,5,f"  [{verdict}]",ln=1)
+        self.set_font("Helvetica","",7.5)
+        self.set_text_color(70,70,70)
+        self.set_x(13)
+        self.multi_cell(184,4.5,safe(body))
+        self.set_draw_color(230,230,230)
+        self.set_line_width(0.2)
+        self.line(10,self.get_y(),200,self.get_y())
+        self.ln(2)
+
+
+def gen_pdf(symbol, sc, df, debate, kr, price_png=None, kronos_png=None, interval="1D"):
+    r = df.iloc[-1]
+    pdf = PDF()
+    pdf.add_page()
+
+    # ── Signal badge (light orange bg) ───────────────────────────────────────
+    pdf.set_fill_color(255,245,235)
+    pdf.rect(10,pdf.get_y(),190,30,"F")
+    pdf.set_draw_color(255,102,0)
+    pdf.set_line_width(0.5)
+    pdf.rect(10,pdf.get_y(),190,30)
+    # Meta line
+    pdf.set_xy(10,pdf.get_y()+3)
+    pdf.set_font("Helvetica","",8)
+    pdf.set_text_color(150,150,150)
+    pdf.cell(0,4,safe(f"{symbol}  |  {interval}  |  {ist_now()}"),align="C",ln=1)
+    # Signal name
+    sig_col = (200,80,0) if "STRONG" in sc["tier"] else               (180,130,0) if "BUILDING" in sc["tier"] else (100,100,100)
+    pdf.set_font("Helvetica","B",20)
+    pdf.set_text_color(*sig_col)
+    pdf.cell(0,11,safe(f"SIGNAL: {sc['tier']}  ({sc['total']}/13)"),align="C",ln=1)
+    # Stats bar
+    pdf.set_font("Courier","",8)
+    pdf.set_text_color(80,80,80)
+    pct = sc['pct_chg']
+    pct_str = f"+{pct:.2f}%" if pct>=0 else f"{pct:.2f}%"
+    pdf.cell(0,5,safe(f"CLOSE {r['Close']:,.2f}   {pct_str}   VOL {sc['vol_ratio']}x   RSI {r['RSI']:.0f}   ADX {r['ADX']:.0f}"),align="C",ln=1)
+    pdf.ln(5)
+
+    # ── Signal Components ─────────────────────────────────────────────────────
     pdf.sec("Signal Components")
-    for lbl,s,raw in [("V Volume (max 5)",f"{sc['v']}/5",f"vol={sc['vol_ratio']}x"),
-                      ("P Momentum (max 3)",f"{sc['p']}/3",f"chg={sc['pct_chg']}%"),
-                      ("R Range Pos (max 2)",f"{sc['r']}/2",f"rng={sc['rng_pos']}"),
-                      ("T Trend (max 3)",f"{sc['t']}/3",f"ADX={r['ADX']:.1f}")]:
-        pdf.set_fill_color(13,17,23); pdf.rect(10,pdf.get_y(),190,6,"F"); pdf.set_x(12)
-        pdf.set_font("Helvetica","",8); pdf.set_text_color(107,114,128); pdf.cell(90,6,safe(lbl))
-        pdf.set_font("Courier","B",8); pdf.set_text_color(255,102,0); pdf.cell(20,6,safe(s))
-        pdf.set_font("Helvetica","",8); pdf.set_text_color(107,114,128); pdf.cell(0,6,safe(raw),ln=1)
+    green=(0,140,60); red=(200,40,40); orange=(200,80,0)
+    for lbl,s,mx,raw in [
+        ("V Volume (max 5)",       sc['v'], 5, f"vol = {sc['vol_ratio']}x vs 20-bar avg"),
+        ("P Momentum (max 3)",     sc['p'], 3, f"chg = {sc['pct_chg']}%"),
+        ("R Range Position (max 2)",sc['r'],2, f"range_pos = {sc['rng_pos']}"),
+        ("T Trend Alignment (max 3)",sc['t'],3,f"ADX {r['ADX']:.1f}"),
+    ]:
+        sc_col = green if s==mx else orange if s>0 else (160,160,160)
+        pdf.set_fill_color(255,255,255)
+        pdf.rect(10,pdf.get_y(),190,6,"F")
+        pdf.set_x(13)
+        pdf.set_font("Helvetica","",8); pdf.set_text_color(80,80,80)
+        pdf.cell(95,6,safe(lbl))
+        pdf.set_font("Courier","B",8); pdf.set_text_color(*sc_col)
+        pdf.cell(20,6,f"{s}/{mx}")
+        pdf.set_font("Helvetica","",8); pdf.set_text_color(130,130,130)
+        pdf.cell(0,6,safe(raw),ln=1)
+        pdf.set_draw_color(235,235,235); pdf.set_line_width(0.2)
+        pdf.line(10,pdf.get_y(),200,pdf.get_y())
     pdf.ln(3)
-    def vc(v,ref): return (0,200,81) if v>ref else (255,68,68)
+
+    # ── Price Chart ───────────────────────────────────────────────────────────
+    if price_png:
+        pdf.sec("Price Chart")
+        pdf.embed_chart(price_png, label="Candlestick  |  EMA20  EMA50  EMA200  BB+/-", h=72)
+        pdf.ln(1)
+
+    # ── Timing Quality ────────────────────────────────────────────────────────
+    def vc(v,ref): return green if v>ref else red
     pdf.sec("Timing Quality")
-    pdf.kv("RSI 14",f"{r['RSI']:.1f}"); pdf.kv("ADX 14",f"{r['ADX']:.1f}")
-    pdf.kv("+DI / -DI",f"{r['DI_pos']:.1f} / {r['DI_neg']:.1f}")
-    pdf.kv("ATR 14",f"{r['ATR']:.4f}  ({r['ATR']/r['Close']*100:.2f}%)")
-    pdf.kv("Stop (1.5x ATR)",f"{r['Close']-1.5*r['ATR']:.2f}"); pdf.ln(3)
+    pdf.kv("RSI 14",    f"{r['RSI']:.1f}",   bold=True, color=red if r['RSI']>70 else green if r['RSI']<30 else (40,40,40))
+    pdf.kv("ADX 14",    f"{r['ADX']:.1f}   ({'Trending' if r['ADX']>25 else 'Ranging'})")
+    pdf.kv("+DI / -DI", f"{r['DI_pos']:.1f} / {r['DI_neg']:.1f}", bold=True,
+           color=green if r['DI_pos']>r['DI_neg'] else red)
+    pdf.kv("ATR 14",    f"{r['ATR']:.4f}   ({r['ATR']/r['Close']*100:.2f}% of price)")
+    pdf.kv("Stop (1.5x ATR)", f"{r['Close']-1.5*r['ATR']:.2f}", bold=True, color=red)
+    pdf.ln(3)
+
+    # ── Market Structure ──────────────────────────────────────────────────────
     pdf.sec("Market Structure")
-    pdf.kv("Close",f"{r['Close']:.2f}"); pdf.kv("EMA 20",f"{r['EMA20']:.2f}",vc(r['Close'],r['EMA20']))
-    pdf.kv("EMA 50",f"{r['EMA50']:.2f}",vc(r['Close'],r['EMA50']))
-    pdf.kv("EMA 200",f"{r['EMA200']:.2f}",vc(r['Close'],r['EMA200']))
-    pdf.kv("BB Upper/Lower",f"{r['BB_upper']:.2f} / {r['BB_lower']:.2f}"); pdf.ln(3)
+    pdf.kv("Close",    f"{r['Close']:.2f}", bold=True)
+    pdf.kv("EMA 20",   f"{r['EMA20']:.2f}   ({'above' if r['Close']>r['EMA20'] else 'below'})", color=vc(r['Close'],r['EMA20']))
+    pdf.kv("EMA 50",   f"{r['EMA50']:.2f}   ({'above' if r['Close']>r['EMA50'] else 'below'})", color=vc(r['Close'],r['EMA50']))
+    pdf.kv("EMA 200",  f"{r['EMA200']:.2f}  ({'above' if r['Close']>r['EMA200'] else 'below'})",color=vc(r['Close'],r['EMA200']))
+    pdf.kv("BB Upper/Lower", f"{r['BB_upper']:.2f} / {r['BB_lower']:.2f}")
+    pdf.ln(3)
+
+    # ── Kronos Forecast ───────────────────────────────────────────────────────
     if kr:
         pdf.sec("Kronos AI Forecast")
-        for k,v in kr.items(): pdf.kv(k,str(v))
+        if kronos_png:
+            pdf.embed_chart(kronos_png, label="Kronos-mini forecast cone", h=60)
+        for k,v in kr.items():
+            pdf.kv(k, str(v))
         pdf.ln(3)
+
+    # ── AI Lab ────────────────────────────────────────────────────────────────
     if debate:
-        pdf.sec("AI Lab - Agent Debate")
-        cols={"BULL":(0,200,81),"BEAR":(255,68,68),"RISK":(59,130,246),"CIO":(124,58,237)}
+        pdf.sec("AI Lab — Agent Debate")
+        agent_colors = {
+            "BULL":(0,140,60),"BEAR":(200,40,40),
+            "RISK":(30,80,180),"CIO":(100,40,180)
+        }
         for ag in AGENTS:
-            d=debate.get(ag["key"])
-            if d: pdf.agent_blk(ag["name"],d.get("body",""),d.get("verdict",""),cols.get(ag["key"],(220,220,220)))
+            d = debate.get(ag["key"])
+            if d:
+                pdf.agent_blk(
+                    ag["name"], d.get("body",""), d.get("verdict",""),
+                    color=agent_colors.get(ag["key"],(40,40,40)))
+
     return bytes(pdf.output())
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -434,6 +580,11 @@ with sc1:
 with sc2:
     st.button("ANALYSE",use_container_width=True)
 
+# Interval selector
+interval=st.radio("interval",list(INTERVAL_MAP.keys()),
+    index=3,horizontal=True,label_visibility="collapsed")
+period=INTERVAL_MAP[interval]
+
 api_key=st.secrets.get("ANTHROPIC_API_KEY","") if hasattr(st,"secrets") else ""
 
 if not symbol:
@@ -446,7 +597,7 @@ if not symbol:
 
 ticker=SYMBOLS.get(symbol,f"{symbol}.NS")
 with st.spinner(f"Loading {symbol}..."):
-    df=fetch(ticker)
+    df=fetch(ticker,period)
 
 if df is None or len(df)<30:
     st.error(f"Could not load data for **{symbol}**. Try another symbol.")
@@ -459,7 +610,7 @@ st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 01 &mdash;
 pct=sc['pct_chg']; pct_cls="pct-up" if pct>=0 else "pct-down"
 pct_str=f"+{pct:.2f}%" if pct>=0 else f"{pct:.2f}%"
 st.markdown(f"""<div class="ns-signal-card">
-  <div class="ns-signal-meta">{symbol} &middot; 1D &middot; {ist_now()}</div>
+  <div class="ns-signal-meta">{symbol} &middot; {interval} &middot; {ist_now()}</div>
   <div class="ns-signal-name {sc['cls']}">{sc['tier']}</div>
   <div class="ns-signal-score {sc['cls']}">{sc['total']} / 13</div>
   <div class="ns-signal-bar">
@@ -571,7 +722,7 @@ with k6: st.markdown(f'<div class="ns-kron-card"><div class="ns-kron-lbl">Trade 
 
 # 06 AI Lab
 st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 06 &mdash; AI LAB <span class="ns-dot">&#9679;</span></div>',unsafe_allow_html=True)
-dkey=f"debate_{ticker}_{sc['total']}"; debate={}
+dkey=f"debate_{ticker}_{sc['total']}_{interval}"; debate={}
 if not api_key:
     st.markdown(f'<div style="color:{MUTED};font-size:13px;padding:.75rem 0;text-align:center">Add ANTHROPIC_API_KEY to Streamlit secrets to enable AI Lab.</div>',unsafe_allow_html=True)
 elif dkey in st.session_state:
@@ -592,8 +743,16 @@ else:
 # 07 Export
 st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 07 &mdash; EXPORT <span class="ns-dot">&#9679;</span></div>',unsafe_allow_html=True)
 try:
-    pdf_bytes=gen_pdf(symbol,sc,df,debate,kr)
-    fname=f"NiftySniper_{symbol}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+    _pfig = price_chart(df, symbol)
+    _kfig = kronos_chart(df, kr)
+    _pfig.update_layout(paper_bgcolor="white",plot_bgcolor="#f9fafb",font=dict(color="#333"))
+    _pfig.update_yaxes(gridcolor="#e5e7eb")
+    _kfig.update_layout(paper_bgcolor="white",plot_bgcolor="#f9fafb",font=dict(color="#333"))
+    _kfig.update_yaxes(gridcolor="#e5e7eb")
+    price_png  = chart_to_png(_pfig, width=760, height=280)
+    kronos_png = chart_to_png(_kfig, width=760, height=210)
+    pdf_bytes=gen_pdf(symbol,sc,df,debate,kr,price_png,kronos_png,interval)
+    fname=f"NiftySniper_{symbol}_{interval}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
     st.download_button(label="Download Report (PDF)",data=pdf_bytes,
         file_name=fname,mime="application/pdf",use_container_width=True)
 except Exception as e: st.error(f"PDF error: {e}")
