@@ -461,19 +461,36 @@ def ai_lab(signal_pack, trend_state, timing_label, kronos_pack, df):
 def make_price_chart(df: pd.DataFrame, symbol: str, timeframe: str) -> str:
     recent = df.tail(80).copy()
     ap = [
-        mpf.make_addplot(recent["EMA20"], color="#FF8C00", width=1.0),
-        mpf.make_addplot(recent["EMA50"], color="#222222", width=1.0),
-        mpf.make_addplot(recent["EMA200"], color="#666666", width=1.0),
-        mpf.make_addplot(recent["BB_UPPER"], color="#FFB347", width=0.8),
-        mpf.make_addplot(recent["BB_LOWER"], color="#FFB347", width=0.8),
+        mpf.make_addplot(recent["EMA20"], color="#00c2a0", width=1.45),
+        mpf.make_addplot(recent["EMA50"], color="#7b86ff", width=1.35),
+        mpf.make_addplot(recent["EMA200"], color="#f0a04b", width=1.35),
+        mpf.make_addplot(recent["BB_UPPER"], color="#334f7d", width=0.95, linestyle="--", alpha=0.85),
+        mpf.make_addplot(recent["BB_LOWER"], color="#334f7d", width=0.95, linestyle="--", alpha=0.85),
     ]
     style = mpf.make_mpf_style(
         base_mpf_style="nightclouds",
         facecolor=BLACK,
         figcolor=BLACK,
         edgecolor=BORDER,
-        gridcolor="#1A1A1A",
-        rc={"axes.labelcolor": TEXT, "xtick.color": TEXT, "ytick.color": TEXT, "text.color": TEXT},
+        gridcolor="#16233a",
+        gridstyle="-",
+        y_on_right=False,
+        marketcolors=mpf.make_marketcolors(
+            up="#16d6a4",
+            down="#ff6b6b",
+            edge={"up": "#16d6a4", "down": "#ff6b6b"},
+            wick={"up": "#16d6a4", "down": "#ff6b6b"},
+            volume={"up": "#16d6a4", "down": "#ff6b6b"},
+            ohlc="inherit",
+        ),
+        rc={
+            "axes.labelcolor": TEXT,
+            "xtick.color": "#6f7f99",
+            "ytick.color": "#6f7f99",
+            "text.color": TEXT,
+            "axes.titlecolor": "#9aa8bf",
+            "font.size": 9,
+        },
     )
     tmp = NamedTemporaryFile(delete=False, suffix=".png")
     mpf.plot(
@@ -482,9 +499,12 @@ def make_price_chart(df: pd.DataFrame, symbol: str, timeframe: str) -> str:
         style=style,
         addplot=ap,
         volume=False,
-        figsize=(10, 4),
+        figsize=(10, 3),
+        tight_layout=True,
+        xrotation=0,
+        datetime_format="%H:%M",
         title=f"{symbol} · {timeframe} · Market Structure",
-        savefig=dict(fname=tmp.name, dpi=150, bbox_inches="tight"),
+        savefig=dict(fname=tmp.name, dpi=150, bbox_inches="tight", pad_inches=0.05),
     )
     return tmp.name
 
@@ -492,9 +512,14 @@ def make_price_chart(df: pd.DataFrame, symbol: str, timeframe: str) -> str:
 def make_forecast_chart(df: pd.DataFrame, kronos_pack: dict, symbol: str, timeframe: str, white=False) -> str:
     bg = "white" if white else BLACK
     fg = "black" if white else TEXT
-    grid = "#D9D9D9" if white else "#1D1D1D"
-    line = ORANGE
-    fig, ax = plt.subplots(figsize=(10, 4), facecolor=bg)
+    grid = "#DDDDDD" if white else "#16233a"
+    hist_color = "#8fa0bb" if not white else "#55657d"
+    forecast_color = "#ff7b7b"
+    band_color = "#4a2ca8" if not white else "#7a63d1"
+    current_color = "#cfd6e4" if not white else "#666666"
+
+    fig, ax = plt.subplots(figsize=(10, 3), facecolor=bg)
+    fig.subplots_adjust(left=0.06, right=0.98, top=0.88, bottom=0.12)
     ax.set_facecolor(bg)
     hist = df["Close"].tail(40).reset_index(drop=True)
     x_hist = np.arange(len(hist))
@@ -502,20 +527,23 @@ def make_forecast_chart(df: pd.DataFrame, kronos_pack: dict, symbol: str, timefr
     series = np.array([hist.iloc[-1]] + kronos_pack["series"])
     upper = np.array([hist.iloc[-1]] + kronos_pack["upper"])
     lower = np.array([hist.iloc[-1]] + kronos_pack["lower"])
-    ax.plot(x_hist, hist.values, linewidth=2, label="Historical Close")
-    ax.plot(x_fc, series, linewidth=2, color=line, label="Kronos Forecast")
-    ax.fill_between(x_fc, lower, upper, color=line, alpha=0.18, label="Forecast Band")
-    ax.axhline(hist.iloc[-1], linestyle="--", linewidth=1)
-    ax.set_title(f"{symbol} · {timeframe} · Kronos Forecast", color=fg)
-    ax.grid(True, color=grid, linestyle="--", alpha=0.5)
-    ax.tick_params(colors=fg)
+
+    ax.plot(x_hist, hist.values, linewidth=1.55, color=hist_color, label="Historical Close")
+    ax.plot(x_fc, series, linewidth=2.15, color=forecast_color, label="Predicted Close")
+    ax.fill_between(x_fc, lower, upper, color=band_color, alpha=0.22, label="High/Low Band")
+    ax.axhline(hist.iloc[-1], linestyle=(0, (4, 3)), linewidth=1.0, color=current_color, alpha=0.9)
+    ax.set_title(f"{symbol} · {timeframe} · Kronos Forecast", color=fg, pad=6)
+    ax.grid(True, color=grid, linestyle="-", alpha=0.55, linewidth=0.8)
+    ax.tick_params(colors=fg, labelsize=8.5)
+    plt.margins(x=0)
     for spine in ax.spines.values():
         spine.set_color(grid)
-    leg = ax.legend(frameon=False)
+        spine.set_linewidth(0.8)
+    leg = ax.legend(frameon=False, fontsize=8, ncol=3, loc="upper right")
     for text in leg.get_texts():
         text.set_color(fg)
     tmp = NamedTemporaryFile(delete=False, suffix=".png")
-    fig.savefig(tmp.name, dpi=150, bbox_inches="tight", facecolor=bg)
+    fig.savefig(tmp.name, dpi=150, bbox_inches="tight", pad_inches=0.05, facecolor=bg)
     plt.close(fig)
     return tmp.name
 
@@ -691,9 +719,7 @@ st.markdown(
     [data-testid="stAppViewContainer"] {{ background: transparent; }}
     [data-testid="stHeader"] {{ background: transparent; }}
 
-    .top-kicker {{ text-align:center; color:#a35eff; font-size:11px; font-weight:800; letter-spacing:0.40em; text-transform:uppercase; margin-top:2px; }}
-    .top-logo {{ text-align:center; margin: 10px 0 4px; }}
-    .top-sub {{ text-align:center; color:#8e99ab; font-size:11px; font-weight:700; letter-spacing:0.26em; text-transform:uppercase; margin-bottom: 18px; }}
+    .top-sub {{ text-align:center; color:#8e99ab; font-size:11px; font-weight:700; letter-spacing:0.26em; text-transform:uppercase; margin: 4px 0 18px; }}
 
     div[data-baseweb="radio"] > div {{ gap: 18px; justify-content:center; flex-wrap: wrap; margin-bottom: 8px; }}
     div[role="radiogroup"] label {{
@@ -716,30 +742,38 @@ st.markdown(
     }}
 
     .stTextInput label, .stRadio label[data-testid="stWidgetLabel"] {{ display:none !important; }}
-    .stTextInput > div > div > input {{
+    .stTextInput > div > div > input {
         background: linear-gradient(180deg, #0a1530 0%, #081120 100%) !important;
         color: #ffffff !important;
         border-radius: 18px !important;
         border: 2px solid rgba(241,244,251,0.88) !important;
         box-shadow: 0 0 0 2px rgba(255,255,255,0.06) inset !important;
-        padding: 14px 20px !important;
+        padding: 0 20px !important;
+        height: 72px !important;
+        min-height: 72px !important;
+        line-height: 72px !important;
         font-size: 28px !important;
         font-weight: 800 !important;
         text-align: center !important;
         letter-spacing: 0.05em !important;
-        min-height: 72px;
-    }}
-    div[data-testid="stButton"] button {{
-        height: 72px !important;
-        border-radius: 18px !important;
+        vertical-align: middle !important;
+    }
+    div[data-testid="stTextInput"] input::placeholder {
+        color: #d9deea !important;
+        opacity: 0.9 !important;
+    }
+    div[data-testid="stButton"] button {
+        height: 60px !important;
+        border-radius: 16px !important;
         background: linear-gradient(90deg, #ff8c00, #ff6a00) !important;
         color: white !important;
         border: 0 !important;
-        font-size: 18px !important;
+        font-size: 16px !important;
         font-weight: 700 !important;
         letter-spacing: 0.10em !important;
-        box-shadow: 0 8px 22px rgba(255,106,0, 0.24);
-    }}
+        box-shadow: 0 8px 18px rgba(255,106,0, 0.20);
+        margin-bottom: 6px !important;
+    }
     div[data-testid="stDownloadButton"] button {{
         height: 58px !important;
         border-radius: 16px !important;
@@ -816,18 +850,11 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-logo_b64 = img_to_base64(LOGO_PATH)
-st.markdown("<div class='top-hero'>", unsafe_allow_html=True)
-st.markdown("<div class='top-kicker'>● SIGNAL INTELLIGENCE</div>", unsafe_allow_html=True)
-st.markdown(
-    f"<div class='top-logo'><img src='data:image/png;base64,{logo_b64}' style='height:78px;' /></div>",
-    unsafe_allow_html=True,
-)
 st.markdown("<div class='top-sub'>REAL-TIME · MULTI-FACTOR · AI-POWERED</div>", unsafe_allow_html=True)
 
 timeframe = st.radio("Timeframe", ["1m", "5m", "15m", "30m", "1H", "4H", "1D"], index=1, horizontal=True, label_visibility="collapsed")
 
-c1, c2 = st.columns([5.6, 1.8], vertical_alignment="bottom")
+c1, c2 = st.columns([6.2, 1.5], vertical_alignment="bottom")
 with c1:
     stock_input = st.text_input("Ticker", value="BTC" if False else "", placeholder="RELIANCE", label_visibility="collapsed")
 with c2:
@@ -857,11 +884,11 @@ if analyse:
 
         recent = df.tail(80).copy()
         ap = [
-            mpf.make_addplot(recent["EMA20"], color=ORANGE, width=1.0),
-            mpf.make_addplot(recent["EMA50"], color="#000000", width=1.0),
-            mpf.make_addplot(recent["EMA200"], color="#777777", width=1.0),
-            mpf.make_addplot(recent["BB_UPPER"], color="#FFB347", width=0.8),
-            mpf.make_addplot(recent["BB_LOWER"], color="#FFB347", width=0.8),
+            mpf.make_addplot(recent["EMA20"], color="#00c2a0", width=1.45),
+            mpf.make_addplot(recent["EMA50"], color="#7b86ff", width=1.35),
+            mpf.make_addplot(recent["EMA200"], color="#f0a04b", width=1.35),
+            mpf.make_addplot(recent["BB_UPPER"], color="#8ea0bf", width=0.9, linestyle="--"),
+            mpf.make_addplot(recent["BB_LOWER"], color="#8ea0bf", width=0.9, linestyle="--"),
         ]
         style_white = mpf.make_mpf_style(
             base_mpf_style="classic",
@@ -869,7 +896,16 @@ if analyse:
             figcolor="white",
             edgecolor="#DDDDDD",
             gridcolor="#E5E5E5",
-            rc={"axes.labelcolor": "black", "xtick.color": "black", "ytick.color": "black", "text.color": "black"},
+            gridstyle="-",
+            marketcolors=mpf.make_marketcolors(
+                up="#16d6a4",
+                down="#ff6b6b",
+                edge={"up": "#16d6a4", "down": "#ff6b6b"},
+                wick={"up": "#16d6a4", "down": "#ff6b6b"},
+                volume={"up": "#16d6a4", "down": "#ff6b6b"},
+                ohlc="inherit",
+            ),
+            rc={"axes.labelcolor": "black", "xtick.color": "#667085", "ytick.color": "#667085", "text.color": "black", "font.size": 9},
         )
         price_chart_white = NamedTemporaryFile(delete=False, suffix=".png").name
         mpf.plot(
@@ -878,9 +914,12 @@ if analyse:
             style=style_white,
             addplot=ap,
             volume=False,
-            figsize=(10, 4),
+            figsize=(10, 3),
+            tight_layout=True,
+            xrotation=0,
+            datetime_format="%H:%M",
             title=f"{symbol} · {timeframe} · Market Structure",
-            savefig=dict(fname=price_chart_white, dpi=150, bbox_inches="tight"),
+            savefig=dict(fname=price_chart_white, dpi=150, bbox_inches="tight", pad_inches=0.05),
         )
 
         pdf_bytes = make_pdf(
@@ -945,7 +984,7 @@ if analyse:
         )
 
     section_divider("03", "Market Structure", "#39b6ff")
-    st.image(price_chart, use_container_width=True)
+    st.image(price_chart, width=900)
     st.markdown("<div class='table-shell'>", unsafe_allow_html=True)
     for key, val in structure_rows:
         value_html = str(val)
@@ -979,7 +1018,7 @@ if analyse:
             compact_metric_card(k, v.split(' (')[0] if k == 'ATR 14' else v, timing_subs.get(k, ''), timing_accents.get(k, TEXT))
 
     section_divider("05", "Kronos AI Forecast", "#8f56ff")
-    st.image(kronos_chart_dark, use_container_width=True)
+    st.image(kronos_chart_dark, width=900)
     cards = list(kronos_pack["cards"].items())
     kcols = st.columns(3)
     for idx, (k, v) in enumerate(cards):
