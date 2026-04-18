@@ -269,32 +269,39 @@ def kronos_chart(df,kr):
     cc=GREEN if up else RED
     r2,g2,b2=int(cc[1:3],16),int(cc[3:5],16),int(cc[5:7],16)
     upper=np.linspace(lc,peak,n); lower=np.linspace(lc,trough,n); mid=np.linspace(lc,pred,n)
+
     fig=go.Figure()
     fig.add_trace(go.Scatter(x=hist.index,y=hist["Close"],
-        line=dict(color=TEXT,width=2),name="Close",hovertemplate="%{y:.2f}"))
+        line=dict(color=TEXT,width=2),name="Close",
+        hovertemplate="%{y:.2f}<extra></extra>"))
     fig.add_trace(go.Scatter(x=list(fut)+list(fut[::-1]),y=list(upper)+list(lower[::-1]),
         fill="toself",fillcolor=f"rgba({r2},{g2},{b2},0.10)",
         line=dict(width=0),showlegend=False,hoverinfo="skip"))
     fig.add_trace(go.Scatter(x=fut,y=upper,
-        line=dict(color=cc,width=1,dash="dot"),name=f"Peak {peak:.2f}",hovertemplate="%{y:.2f}"))
+        line=dict(color=cc,width=1,dash="dot"),showlegend=False,
+        hovertemplate="High: %{y:.2f}<extra></extra>"))
     fig.add_trace(go.Scatter(x=fut,y=lower,
-        line=dict(color=cc,width=1,dash="dot"),name=f"Trough {trough:.2f}",hovertemplate="%{y:.2f}"))
+        line=dict(color=cc,width=1,dash="dot"),showlegend=False,
+        hovertemplate="Low: %{y:.2f}<extra></extra>"))
     fig.add_trace(go.Scatter(x=fut,y=mid,
-        line=dict(color=cc,width=2.5),name=f"Predicted {pred:.2f}",hovertemplate="%{y:.2f}"))
-    fig.add_trace(go.Scatter(x=[ld,ld],
-        y=[min(lower.min(),hist["Close"].min())*0.999,max(upper.max(),hist["Close"].max())*1.001],
-        line=dict(color=MUTED,width=1,dash="dash"),showlegend=True,name="Current",hoverinfo="skip"))
+        line=dict(color=cc,width=2.5),name="Predicted Close",
+        hovertemplate="Pred: %{y:.2f}<extra></extra>"))
+    fig.add_vline(x=ld.timestamp()*1000,line_dash="dash",
+                  line_color=MUTED,line_width=1,opacity=0.6)
+    fig.add_annotation(x=ld,y=0.97,yref="paper",text="Now",
+                       showarrow=False,font=dict(size=9,color=MUTED),
+                       xanchor="left",xshift=6)
     fig.update_layout(
         paper_bgcolor=PLOT_BG,plot_bgcolor=PLOT_BG,
-        title=dict(text=f"Kronos-mini — Predicted Close ({n} candles forward)",
-                   font=dict(size=12,color=MUTED),x=0.5,xanchor="center"),
-        margin=dict(l=0,r=0,t=36,b=0),height=260,
-        legend=dict(orientation="h",x=0.5,xanchor="center",y=1.18,
-                    font=dict(size=10,color=MUTED),bgcolor="rgba(0,0,0,0)"),
+        margin=dict(l=0,r=0,t=36,b=0),height=280,
+        legend=dict(orientation="h",x=0,y=1.02,xanchor="left",yanchor="bottom",
+                    font=dict(size=11,color=MUTED),bgcolor="rgba(0,0,0,0)"),
         xaxis=dict(showgrid=False,color=MUTED),
         yaxis=dict(showgrid=True,gridcolor=BORDER,color=MUTED,gridwidth=0.5,side="right"),
         font=dict(family="Inter",color=MUTED),
-        hoverlabel=dict(bgcolor=CARD,font=dict(color=TEXT,size=12)))
+        hoverlabel=dict(bgcolor=CARD,font=dict(color=TEXT,size=12)),
+        title=dict(text=f"Kronos-mini  |  {n} candles forward",
+                   font=dict(size=11,color=MUTED),x=1.0,xanchor="right"))
     return fig
 
 def run_debate(ctx,api_key):
