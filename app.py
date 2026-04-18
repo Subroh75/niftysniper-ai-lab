@@ -108,7 +108,7 @@ div.stDownloadButton>button:hover{{background:{ACCENT};color:#000;}}
 div[data-testid="stSelectbox"]>div{{background:{CARD};border-color:{BORDER};}}
 .stSpinner>div{{border-top-color:{ACCENT} !important;}}
 
-/* ── Interval radio pill buttons ─────────────────────── */
+/* -- Interval radio pill buttons ----------------------- */
 div[data-testid="stRadio"] > label {{
     display: none;
 }}
@@ -187,16 +187,16 @@ SYMBOLS = {
 }
 
 AGENTS = [
-    {"key":"BULL","name":"Alex — Long Desk","tag":"BULL CASE","icon":"Bull",
+    {"key":"BULL","name":"Alex - Long Desk","tag":"BULL CASE","icon":"Bull",
      "card":"card-bull","tag_cls":"tag-bull",
      "system":"""You are ALEX, Long Desk analyst at NiftySniper. Make the strongest bullish case for this NSE stock. Be specific with exact numbers from the data provided. Write 3-4 sentences. On the very last line write only one word: BUY, HOLD, or WATCH."""},
-    {"key":"BEAR","name":"Sam — Short Desk","tag":"BEAR CASE","icon":"Bear",
+    {"key":"BEAR","name":"Sam - Short Desk","tag":"BEAR CASE","icon":"Bear",
      "card":"card-bear","tag_cls":"tag-bear",
      "system":"""You are SAM, Short Desk analyst at NiftySniper. Make the strongest bearish case. Cite overbought signals, resistance, weak volume, macro risks with exact numbers. Write 3-4 sentences. On the very last line write only one word: SELL, HOLD, or WATCH."""},
-    {"key":"RISK","name":"Jordan — Risk","tag":"RISK MANAGER","icon":"Risk",
+    {"key":"RISK","name":"Jordan - Risk","tag":"RISK MANAGER","icon":"Risk",
      "card":"card-risk","tag_cls":"tag-risk",
      "system":"""You are JORDAN, Risk Manager at NiftySniper. State the ATR stop loss (1.5x ATR below close), max position size as % of capital, and risk/reward ratio using exact numbers. Write 3-4 sentences. On the very last line write only one word: BUY, HOLD, or WATCH."""},
-    {"key":"CIO","name":"Morgan — CIO","tag":"CIO VERDICT","icon":"CIO",
+    {"key":"CIO","name":"Morgan - CIO","tag":"CIO VERDICT","icon":"CIO",
      "card":"card-cio","tag_cls":"tag-cio",
      "system":"""You are MORGAN, CIO at NiftySniper. Synthesise the bull, bear and risk views. State a clear verdict citing the signal score and one decisive data point. Write 3-4 sentences. On the very last line write only one word: BUY, SELL, HOLD, WATCH, or AVOID."""},
 ]
@@ -205,11 +205,22 @@ def ist_now():
     return datetime.now(timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %Y  %H:%M IST")
 
 def safe(t):
-    s={"\u2014":"-","\u2013":"-","\u2019":"'","\u2018":"'","\u201c":'"',"\u201d":'"',
-       "\u2022":"*","\u25b2":"UP","\u25bc":"DOWN","\u2192":"->","\u20b9":"Rs","\u2026":"..."}
-    t=str(t)
-    for c,r in s.items(): t=t.replace(c,r)
-    return t.encode("latin-1",errors="replace").decode("latin-1")
+    """Replace non-Latin-1 chars so fpdf2 Helvetica never errors."""
+    t = str(t)
+    subs = [
+        ("\u2014","-"),("\u2013","-"),("\u2012","-"),("\u2010","-"),
+        ("\u2019","'"),("\u2018","'"),("\u201c",'"'),("\u201d",'"'),
+        ("\u2022","*"),("\u00b7","."),("\u2026","..."),
+        ("\u25b2","UP"),("\u25bc","DOWN"),("\u25b6",">"),("\u25c4","<"),
+        ("\u2192","->"),("\u2190","<-"),("\u2191","^"),("\u2193","v"),
+        ("\u20b9","Rs"),("\u20ac","EUR"),("\u00a3","GBP"),
+        ("\u00d7","x"),("\u00f7","/"),("\u00b1","+/-"),
+        ("\u03c3","sigma"),("\u03bc","mu"),("\u03b1","alpha"),("\u03b2","beta"),
+        ("\u2713","ok"),("\u2718","x"),("\u00ae","(R)"),("\u00a9","(C)"),
+    ]
+    for src, dst in subs:
+        t = t.replace(src, dst)
+    return t.encode("latin-1", errors="replace").decode("latin-1")
 
 def verdict_label(text):
     words=[w.strip().upper() for w in text.strip().splitlines() if w.strip()]
@@ -446,11 +457,11 @@ def run_debate(ctx,api_key):
         time.sleep(0.1)
     return results
 
-# ─────────────────────────────────────────────────────────────────────────────
-# PDF — PowerPoint-style slide report (Landscape A4, 297×210mm)
+# -----------------------------------------------------------------------------
+# PDF - PowerPoint-style slide report (Landscape A4, 297x210mm)
 # Cover: dark, full-bleed orange/black brand slide
 # Data slides: white bg, bold typography, charts full-width
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 
 # PDF colour palette
 P_BG      = (6,   10,  15)   # dark navy (cover bg)
@@ -480,7 +491,7 @@ class PDF(FPDF):
     def header(self): pass   # handled per slide
     def footer(self): pass
 
-    # ── helpers ─────────────────────────────────────────────────────────────
+    # -- helpers -------------------------------------------------------------
     def _bg(self, r, g, b):
         self.set_fill_color(r,g,b)
         self.rect(0,0,self.PW,self.PH,"F")
@@ -579,7 +590,7 @@ class PDF(FPDF):
             self.set_xy(x, y+h//2-3)
             self.set_font("Helvetica","",8)
             self.set_text_color(*P_MGREY)
-            self.cell(w,6,"[Chart not available — kaleido required]",align="C")
+            self.cell(w,6,"[Chart not available - kaleido required]",align="C")
             return
         if bg:
             self.set_fill_color(*bg)
@@ -611,9 +622,9 @@ def gen_pdf(symbol, sc, df, debate, kr,
 
     def vc(v, ref): return GRN if v>ref else RED
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # SLIDE 1 — COVER  (dark, full-bleed)
-    # ══════════════════════════════════════════════════════════════════════════
+    # ==========================================================================
+    # SLIDE 1 - COVER  (dark, full-bleed)
+    # ==========================================================================
     pdf.add_page()
     pdf._bg(*P_BG)
 
@@ -630,7 +641,7 @@ def gen_pdf(symbol, sc, df, debate, kr,
     pdf.set_xy(12, 52)
     pdf.set_font("Helvetica","",14)
     pdf.set_text_color(*P_MGREY)
-    pdf.cell(0,8,"AI LAB  —  NSE SIGNAL INTELLIGENCE REPORT")
+    pdf.cell(0,8,"AI LAB  -  NSE SIGNAL INTELLIGENCE REPORT")
 
     # Divider
     pdf.set_draw_color(*P_ORANGE)
@@ -681,20 +692,20 @@ def gen_pdf(symbol, sc, df, debate, kr,
     pdf.set_text_color(*P_MGREY)
     pdf.cell(0,5,"1 / 5",align="R")
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # SLIDE 2 — SIGNAL COMPONENTS + PRICE CHART
-    # ══════════════════════════════════════════════════════════════════════════
+    # ==========================================================================
+    # SLIDE 2 - SIGNAL COMPONENTS + PRICE CHART
+    # ==========================================================================
     pdf.add_page()
     pdf._bg(255,255,255)
-    pdf._slide_header("02  —  SIGNAL BREAKDOWN", f"{symbol}  |  {interval}")
+    pdf._slide_header("02  -  SIGNAL BREAKDOWN", f"{symbol}  |  {interval}")
     pdf._footer_bar(symbol, interval, "2 / 5")
 
     # Left panel: 4 component metric boxes (stacked)
     comp_data = [
-        ("V — Volume",        f"{sc['v']}/5",  f"vol = {sc['vol_ratio']}x avg",  GRN if sc['v']>0 else MUT),
-        ("P — Momentum",      f"{sc['p']}/3",  f"chg = {pct_str}",              GRN if sc['p']>0 else MUT),
-        ("R — Range Pos",     f"{sc['r']}/2",  f"range = {sc['rng_pos']}",       GRN if sc['r']>0 else MUT),
-        ("T — Trend Align",   f"{sc['t']}/3",  f"ADX {r['ADX']:.0f}",           GRN if sc['t']>0 else MUT),
+        ("V - Volume",        f"{sc['v']}/5",  f"vol = {sc['vol_ratio']}x avg",  GRN if sc['v']>0 else MUT),
+        ("P - Momentum",      f"{sc['p']}/3",  f"chg = {pct_str}",              GRN if sc['p']>0 else MUT),
+        ("R - Range Pos",     f"{sc['r']}/2",  f"range = {sc['rng_pos']}",       GRN if sc['r']>0 else MUT),
+        ("T - Trend Align",   f"{sc['t']}/3",  f"ADX {r['ADX']:.0f}",           GRN if sc['t']>0 else MUT),
     ]
     bx = 8; by = 22; bw = 65; bh = 40; gap = 2
     for i,(lbl,val,sub,vc_) in enumerate(comp_data):
@@ -722,15 +733,15 @@ def gen_pdf(symbol, sc, df, debate, kr,
     pdf.cell(0,4,"PRICE CHART  |  Candlestick  EMA20  EMA50  EMA200  BB+/-")
     pdf._embed_img(price_png, chart_x, chart_y+5, chart_w, chart_h-5)
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # SLIDE 3 — TIMING QUALITY + MARKET STRUCTURE
-    # ══════════════════════════════════════════════════════════════════════════
+    # ==========================================================================
+    # SLIDE 3 - TIMING QUALITY + MARKET STRUCTURE
+    # ==========================================================================
     pdf.add_page()
     pdf._bg(255,255,255)
-    pdf._slide_header("03  —  TIMING QUALITY  &  MARKET STRUCTURE", f"{symbol}  |  {interval}")
+    pdf._slide_header("03  -  TIMING QUALITY  &  MARKET STRUCTURE", f"{symbol}  |  {interval}")
     pdf._footer_bar(symbol, interval, "3 / 5")
 
-    # Left half: Timing metrics (2×3 grid)
+    # Left half: Timing metrics (2x3 grid)
     mx = 8; my = 24; mw = 88; mh = 38; mgap = 3
     timing = [
         ("RSI 14",     f"{r['RSI']:.1f}",  "Overbought" if r['RSI']>70 else "Oversold" if r['RSI']<30 else "Neutral",
@@ -773,12 +784,12 @@ def gen_pdf(symbol, sc, df, debate, kr,
     ]
     pdf._kv_grid(struct_rows, kv_x, kv_y+6, kv_w, col_w=38)
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # SLIDE 4 — KRONOS AI FORECAST
-    # ══════════════════════════════════════════════════════════════════════════
+    # ==========================================================================
+    # SLIDE 4 - KRONOS AI FORECAST
+    # ==========================================================================
     pdf.add_page()
     pdf._bg(255,255,255)
-    pdf._slide_header("04  —  KRONOS AI FORECAST", f"{symbol}  |  {interval}")
+    pdf._slide_header("04  -  KRONOS AI FORECAST", f"{symbol}  |  {interval}")
     pdf._footer_bar(symbol, interval, "4 / 5")
 
     if kr:
@@ -792,7 +803,7 @@ def gen_pdf(symbol, sc, df, debate, kr,
         rr_v    = round(abs(k_peak-r['Close'])/max(abs(k_trgh-r['Close']),0.01),1)
         dir_col = GRN if k_up else RED
 
-        # Kronos chart — full top section
+        # Kronos chart - full top section
         pdf._embed_img(kronos_png, 8, 22, 200, 120)
 
         # 3 metric boxes below chart
@@ -812,25 +823,25 @@ def gen_pdf(symbol, sc, df, debate, kr,
 
         # Right side of slide: KV details
         pdf._kv_grid([
-            ("Direction",       kr.get("Direction","—"),               dir_col),
+            ("Direction",       kr.get("Direction","-"),               dir_col),
             ("Predicted Change",safe(k_chg),                           dir_col),
             ("Predicted Close", f"{k_pred:,.2f}",                      dir_col),
             ("Forecast Peak",   f"{k_peak:,.2f}",                      GRN),
             ("Forecast Trough", f"{k_trgh:,.2f}",                      RED),
-            ("Bull Candle %",   kr.get("Bull Candle %","—"),            MUT),
+            ("Bull Candle %",   kr.get("Bull Candle %","-"),            MUT),
         ], x=214, y=148, w=76, col_w=36)
     else:
         pdf.set_xy(50,80)
         pdf.set_font("Helvetica","",11)
         pdf.set_text_color(*P_MGREY)
-        pdf.cell(0,10,"Kronos module not loaded — AR1 mock data shown in app")
+        pdf.cell(0,10,"Kronos module not loaded - AR1 mock data shown in app")
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # SLIDE 5 — AI LAB AGENT DEBATE
-    # ══════════════════════════════════════════════════════════════════════════
+    # ==========================================================================
+    # SLIDE 5 - AI LAB AGENT DEBATE
+    # ==========================================================================
     pdf.add_page()
     pdf._bg(*P_BG)
-    pdf._slide_header("05  —  AI LAB  —  AGENT DEBATE", f"{symbol}  |  {interval}", dark=True)
+    pdf._slide_header("05  -  AI LAB  -  AGENT DEBATE", f"{symbol}  |  {interval}", dark=True)
     pdf._footer_bar(symbol, interval, "5 / 5")
 
     if debate:
@@ -840,12 +851,12 @@ def gen_pdf(symbol, sc, df, debate, kr,
             ("RISK", (59,130,246), (7,12,25), (20,30,50)),
             ("CIO",  (124,58,237),(15,7,25),  (35,20,55)),
         ]
-        names = {"BULL":"Alex — Long Desk","BEAR":"Sam — Short Desk",
-                 "RISK":"Jordan — Risk","CIO":"Morgan — CIO"}
+        names = {"BULL":"Alex - Long Desk","BEAR":"Sam - Short Desk",
+                 "RISK":"Jordan - Risk","CIO":"Morgan - CIO"}
         tags  = {"BULL":"BULL CASE","BEAR":"BEAR CASE",
                  "RISK":"RISK MANAGER","CIO":"CIO VERDICT"}
 
-        # 2×2 grid layout
+        # 2x2 grid layout
         aw=137; ah=86; agap=4
         positions = [(8,22),(149,22),(8,112),(149,112)]
 
@@ -888,13 +899,13 @@ def gen_pdf(symbol, sc, df, debate, kr,
         pdf.set_xy(50,100)
         pdf.set_font("Helvetica","",11)
         pdf.set_text_color(*P_MGREY)
-        pdf.cell(0,10,"No AI debate data — add ANTHROPIC_API_KEY to Streamlit secrets")
+        pdf.cell(0,10,"No AI debate data - add ANTHROPIC_API_KEY to Streamlit secrets")
 
     return bytes(pdf.output())
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 # APP
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 st.markdown(f"""<div class="ns-hero">
   <div class="ns-hero-eye">&#9675; NSE Signal Intelligence</div>
   <div class="ns-hero-title">NiftySniper <span style="color:{ACCENT}">AI Lab</span></div>
@@ -932,8 +943,8 @@ with st.spinner(f"Loading {symbol}..."):
         df=None
 
 if df is None or len(df)<30:
-    st.warning(f"Could not load data for **{symbol}** right now. Yahoo Finance may be throttling — wait 30 seconds and try again, or try another symbol.")
-    st.info("Tip: If this keeps happening, NSE/BSE data feeds occasionally go offline between 3:30PM–9:15AM IST.")
+    st.warning(f"Could not load data for **{symbol}** right now. Yahoo Finance may be throttling - wait 30 seconds and try again, or try another symbol.")
+    st.info("Tip: If this keeps happening, NSE/BSE data feeds occasionally go offline between 3:30PM-9:15AM IST.")
     st.stop()
 
 sc=calc_score(df); r=df.iloc[-1]; r1=df.iloc[-2]; ctx=build_ctx(symbol,sc,df)
@@ -981,7 +992,7 @@ st.markdown('<div class="ns-chart-wrap">',unsafe_allow_html=True)
 st.plotly_chart(price_chart(df,symbol,chart_bars),use_container_width=True,config=pcfg())
 st.markdown('</div>',unsafe_allow_html=True)
 
-# 04 Timing Quality — 3x2 metric cards
+# 04 Timing Quality - 3x2 metric cards
 st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 04 &mdash; TIMING QUALITY <span class="ns-dot">&#9679;</span></div>',unsafe_allow_html=True)
 rsi_cls="m-red" if r['RSI']>70 else "m-green" if r['RSI']<30 else "m-white"
 rsi_sub="Overbought" if r['RSI']>70 else "Oversold" if r['RSI']<30 else "NEUTRAL"
@@ -1078,7 +1089,7 @@ st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 07 &mdash;
 try:
     _pfig = price_chart(df, symbol, chart_bars)
     _kfig = kronos_chart(df, kr)
-    # Keep dark theme for PDF — matches the dark slide backgrounds
+    # Keep dark theme for PDF - matches the dark slide backgrounds
     _pfig.update_layout(paper_bgcolor="#060a0f", plot_bgcolor="#0a0f14",
                         margin=dict(l=8,r=8,t=8,b=8))
     _kfig.update_layout(paper_bgcolor="#060a0f", plot_bgcolor="#0a0f14",
