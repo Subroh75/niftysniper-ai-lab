@@ -179,7 +179,7 @@ SYMBOLS = {
     "HINDALCO":"HINDALCO.NS","BEL":"BEL.NS","HAL":"HAL.NS","BHEL":"BHEL.NS",
     "COALINDIA":"COALINDIA.NS","VEDL":"VEDL.NS","DRREDDY":"DRREDDY.NS","CIPLA":"CIPLA.NS",
     "DIVISLAB":"DIVISLAB.NS","APOLLOHOSP":"APOLLOHOSP.NS","EICHERMOT":"EICHERMOT.NS",
-    "BAJAJ-AUTO":"BAJAJ-AUTO.NS","HEROMOTOCO":"HEROMOTOCO.NS","M&M":"M&M.NS",
+    "BAJAJ-AUTO":"BAJAJ-AUTO.NS","HEROMOTOCO":"HEROMOTOCO.NS","M&M":"MM.NS",
     "TATACONSUM":"TATACONSUM.NS","ITC":"ITC.NS","HCLTECH":"HCLTECH.NS","TECHM":"TECHM.NS",
     "LTIM":"LTIM.NS","BAJAJFINSV":"BAJAJFINSV.NS","HDFCLIFE":"HDFCLIFE.NS",
     "SBILIFE":"SBILIFE.NS","DLF":"DLF.NS","INDUSINDBK":"INDUSINDBK.NS",
@@ -240,9 +240,28 @@ INTERVAL_MAP = {
 
 @st.cache_data(ttl=300,show_spinner=False)
 def fetch(ticker, period="6mo"):
-    tk=yf.Ticker(ticker)
-    df=tk.history(period=period,auto_adjust=True)
-    if df.empty: return None
+    # Try the primary ticker first, then fallback strategies
+    candidates = [ticker]
+    # If .NS suffix, also try .BO (BSE) as fallback
+    if ticker.endswith(".NS"):
+        candidates.append(ticker.replace(".NS", ".BO"))
+    # If period is very short and might return empty, also try longer period
+    fallback_periods = [period, "1y", "6mo"] if period in ("5d","1mo") else [period, "6mo"]
+
+    df = None
+    for t in candidates:
+        for p in fallback_periods:
+            try:
+                tk = yf.Ticker(t)
+                _df = tk.history(period=p, auto_adjust=True)
+                if not _df.empty and len(_df) >= 5:
+                    df = _df
+                    break
+            except Exception:
+                continue
+        if df is not None:
+            break
+    if df is None or df.empty: return None
     df=df[["Open","High","Low","Close","Volume"]].dropna()
     df["EMA20"]=df["Close"].ewm(span=20,adjust=False).mean()
     df["EMA50"]=df["Close"].ewm(span=50,adjust=False).mean()
@@ -654,10 +673,14 @@ if not symbol:
 
 ticker=SYMBOLS.get(symbol,f"{symbol}.NS")
 with st.spinner(f"Loading {symbol}..."):
-    df=fetch(ticker,period)
+    try:
+        df=fetch(ticker,period)
+    except Exception as _e:
+        df=None
 
 if df is None or len(df)<30:
-    st.error(f"Could not load data for **{symbol}**. Try another symbol.")
+    st.warning(f"Could not load data for **{symbol}** right now. Yahoo Finance may be throttling — wait 30 seconds and try again, or try another symbol.")
+    st.info("Tip: If this keeps happening, NSE/BSE data feeds occasionally go offline between 3:30PM–9:15AM IST.")
     st.stop()
 
 sc=calc_score(df); r=df.iloc[-1]; r1=df.iloc[-2]; ctx=build_ctx(symbol,sc,df)
