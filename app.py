@@ -506,7 +506,7 @@ def build_ctx(sym,sc,df):
     return f"""SYMBOL:{sym} SIGNAL:{sc['tier']} ({sc['total']}/13)
 V={sc['v']}/5 vol={sc['vol_ratio']}x  P={sc['p']}/3 chg={sc['pct_chg']}%  R={sc['r']}/2 rng={sc['rng_pos']}  T={sc['t']}/3
 Close:{r['Close']:.2f} EMA20:{r['EMA20']:.2f} EMA50:{r['EMA50']:.2f} EMA200:{r['EMA200']:.2f}
-BB:{r['BB_upper']:.2f}/{r['BB_lower']:.2f} RSI:{r['RSI']:.1f} ADX:{r['ADX']:.1f}
+RSI:{r['RSI']:.1f} ADX:{r['ADX']:.1f}
 ATR:{r['ATR']:.4f}({r['ATR']/r['Close']*100:.2f}%) Stop:{r['Close']-1.5*r['ATR']:.2f} {ema_ok}""".strip()
 
 def price_chart(df,symbol,chart_bars=90):
@@ -1020,8 +1020,6 @@ def gen_pdf(symbol,sc,df,debate,kr,price_png=None,kronos_png=None,interval="1D")
         ("EMA 50",f"{r['EMA50']:.2f}  {'ABOVE' if r['Close']>r['EMA50'] else 'BELOW'}",vc(r['Close'],r['EMA50'])),
         ("EMA 200",f"{r['EMA200']:.2f}  {'ABOVE' if r['Close']>r['EMA200'] else 'BELOW'}",vc(r['Close'],r['EMA200'])),
         ("VWAP",f"{r['VWAP']:.2f}  {'ABOVE' if r['Close']>r['VWAP'] else 'BELOW'}",vc(r['Close'],r['VWAP'])),
-        ("BB Upper",f"{r['BB_upper']:.2f}",DGR),
-        ("BB Lower",f"{r['BB_lower']:.2f}",DGR),
     ]:
         pdf._kv(lbl,val,vc_)
 
@@ -1272,8 +1270,106 @@ st.markdown('<div class="ns-chart-wrap">',unsafe_allow_html=True)
 st.plotly_chart(price_chart(df,symbol,chart_bars),use_container_width=True,config=pcfg())
 st.markdown('</div>',unsafe_allow_html=True)
 
-# 04 Timing Quality - 3x2 metric cards
-st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 04 &mdash; TIMING QUALITY <span class="ns-dot">&#9679;</span></div>',unsafe_allow_html=True)
+# 04 Market Structure
+st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 04 &mdash; MARKET STRUCTURE <span class="ns-dot">&#9679;</span></div>',unsafe_allow_html=True)
+
+# --- compute structure values ---
+_hi20  = df["High"].rolling(20).max().iloc[-1]
+_lo20  = df["Low"].rolling(20).min().iloc[-1]
+_hi52  = df["High"].rolling(min(252, len(df))).max().iloc[-1]
+_lo52  = df["Low"].rolling(min(252, len(df))).min().iloc[-1]
+_pivot = round((r["High"] + r["Low"] + r["Close"]) / 3, 2)
+_r1    = round(2 * _pivot - r["Low"], 2)
+_s1    = round(2 * _pivot - r["High"], 2)
+_r2    = round(_pivot + (r["High"] - r["Low"]), 2)
+_s2    = round(_pivot - (r["High"] - r["Low"]), 2)
+_vwap_pos  = "ABOVE" if r["Close"] > r["VWAP"] else "BELOW"
+_ema20_pos = "ABOVE" if r["Close"] > r["EMA20"] else "BELOW"
+_ema50_pos = "ABOVE" if r["Close"] > r["EMA50"] else "BELOW"
+_ema200_pos= "ABOVE" if r["Close"] > r["EMA200"] else "BELOW"
+_52rng_pct = round((r["Close"] - _lo52) / max(_hi52 - _lo52, 0.01) * 100, 1)
+_ema_stack = "BULLISH STACK ▲" if r["Close"] > r["EMA20"] > r["EMA50"] > r["EMA200"] else \
+             "BEARISH STACK ▼" if r["Close"] < r["EMA20"] < r["EMA50"] < r["EMA200"] else "MIXED"
+_stack_cls = "m-green" if "BULLISH" in _ema_stack else "m-red" if "BEARISH" in _ema_stack else "m-amber"
+_52cls     = "m-green" if _52rng_pct >= 70 else "m-amber" if _52rng_pct >= 30 else "m-red"
+_vwap_cls  = "m-green" if _vwap_pos == "ABOVE" else "m-red"
+_ema20_cls = "m-green" if _ema20_pos == "ABOVE" else "m-red"
+_ema50_cls = "m-green" if _ema50_pos == "ABOVE" else "m-red"
+_ema200_cls= "m-green" if _ema200_pos == "ABOVE" else "m-red"
+
+# Row 1: EMA stack + 52-week range + VWAP
+ms1, ms2, ms3 = st.columns(3)
+with ms1:
+    st.markdown(f'''<div class="ns-metric">
+      <div class="ns-metric-lbl">EMA Stack</div>
+      <div class="ns-metric-val {_stack_cls}" style="font-size:16px;letter-spacing:.02em">{_ema_stack}</div>
+      <div class="ns-metric-sub m-muted">20 / 50 / 200 alignment</div>
+    </div>''', unsafe_allow_html=True)
+with ms2:
+    st.markdown(f'''<div class="ns-metric">
+      <div class="ns-metric-lbl">52-Week Range</div>
+      <div class="ns-metric-val {_52cls}">{_52rng_pct}%</div>
+      <div class="ns-metric-sub m-muted">Lo {_lo52:,.0f} — Hi {_hi52:,.0f}</div>
+    </div>''', unsafe_allow_html=True)
+with ms3:
+    st.markdown(f'''<div class="ns-metric">
+      <div class="ns-metric-lbl">VWAP</div>
+      <div class="ns-metric-val {_vwap_cls}">{_vwap_pos}</div>
+      <div class="ns-metric-sub m-muted">{r["VWAP"]:,.2f} VWAP</div>
+    </div>''', unsafe_allow_html=True)
+
+# Row 2: detailed key levels table
+st.markdown(f'''<div class="ns-comp-wrap" style="margin-top:.5rem">
+  <div style="font-size:9px;font-weight:700;letter-spacing:.18em;color:{MUTED};text-transform:uppercase;margin-bottom:.5rem">KEY LEVELS</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0">
+
+    <div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px">
+      <div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">RESISTANCE R2</div>
+      <div style="font-size:15px;font-weight:700;color:{RED};font-family:'JetBrains Mono',monospace">{_r2:,.2f}</div>
+    </div>
+    <div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px">
+      <div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">RESISTANCE R1</div>
+      <div style="font-size:15px;font-weight:700;color:{RED};font-family:'JetBrains Mono',monospace">{_r1:,.2f}</div>
+    </div>
+    <div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px">
+      <div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">PIVOT</div>
+      <div style="font-size:15px;font-weight:700;color:{AMBER};font-family:'JetBrains Mono',monospace">{_pivot:,.2f}</div>
+    </div>
+    <div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px">
+      <div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">20-DAY HIGH</div>
+      <div style="font-size:15px;font-weight:700;color:{GREEN};font-family:'JetBrains Mono',monospace">{_hi20:,.2f}</div>
+    </div>
+
+    <div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px;border-bottom:none">
+      <div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">SUPPORT S2</div>
+      <div style="font-size:15px;font-weight:700;color:{GREEN};font-family:'JetBrains Mono',monospace">{_s2:,.2f}</div>
+    </div>
+    <div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px;border-bottom:none">
+      <div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">SUPPORT S1</div>
+      <div style="font-size:15px;font-weight:700;color:{GREEN};font-family:'JetBrains Mono',monospace">{_s1:,.2f}</div>
+    </div>
+    <div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px;border-bottom:none">
+      <div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">EMA 20 / 50</div>
+      <div style="font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace">
+        <span class="{_ema20_cls}">{r["EMA20"]:,.2f}</span>
+        <span style="color:{MUTED}"> / </span>
+        <span class="{_ema50_cls}">{r["EMA50"]:,.2f}</span>
+      </div>
+    </div>
+    <div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px;border-bottom:none">
+      <div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">20-DAY LOW</div>
+      <div style="font-size:15px;font-weight:700;color:{RED};font-family:'JetBrains Mono',monospace">{_lo20:,.2f}</div>
+    </div>
+
+  </div>
+  <div style="border-top:1px solid {BORDER};padding:8px 12px;display:flex;gap:24px;flex-wrap:wrap">
+    <span style="font-size:11px;color:{MUTED}">EMA 200 <span class="{_ema200_cls}" style="font-weight:700">{_ema200_pos} @ {r["EMA200"]:,.2f}</span></span>
+    <span style="font-size:11px;color:{MUTED}">Stop Loss <span style="color:{RED};font-weight:700">{r["Close"]-1.5*r["ATR"]:,.2f}</span> (1.5×ATR)</span>
+  </div>
+</div>''', unsafe_allow_html=True)
+
+# 05 Timing Quality - 3x2 metric cards
+st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 05 &mdash; TIMING QUALITY <span class="ns-dot">&#9679;</span></div>',unsafe_allow_html=True)
 rsi_cls="m-red" if r['RSI']>70 else "m-green" if r['RSI']<30 else "m-white"
 rsi_sub="Overbought" if r['RSI']>70 else "Oversold" if r['RSI']<30 else "NEUTRAL"
 adx_cls="m-green" if r['ADX']>25 else "m-muted"
@@ -1294,8 +1390,8 @@ with c4: st.markdown(f'<div class="ns-metric"><div class="ns-metric-lbl">+DI / -
 with c5: st.markdown(f'<div class="ns-metric"><div class="ns-metric-lbl">Rel. Volume</div><div class="ns-metric-val {rv_cls}">{sc["vol_ratio"]}x</div><div class="ns-metric-sub m-muted">{rv_sub}</div></div>',unsafe_allow_html=True)
 with c6: st.markdown(f'<div class="ns-metric"><div class="ns-metric-lbl">ATR Move</div><div class="ns-metric-val {atm_cls}">{sc["atr_sigma"]}&sigma;</div><div class="ns-metric-sub m-muted">{atm_sub}</div></div>',unsafe_allow_html=True)
 
-# 05 Kronos AI Forecast
-st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 05 &mdash; KRONOS AI FORECAST <span class="ns-dot">&#9679;</span></div>',unsafe_allow_html=True)
+# 06 Kronos AI Forecast
+st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 06 &mdash; KRONOS AI FORECAST <span class="ns-dot">&#9679;</span></div>',unsafe_allow_html=True)
 kkey=f"kronos_{ticker}"; kr=None
 if KRONOS_AVAILABLE:
     if kkey not in st.session_state:
@@ -1380,8 +1476,8 @@ if api_key:
     with col_s:
         st.markdown(f'<div class="card-bear"><div class="ns-agent-tag tag-bear">▼ KRONOS BEAR</div><div class="ns-agent-name">Cipher — Forecast Bear</div><div class="ns-agent-body">{ks.get("body","")}</div><span class="ns-verdict {ks.get("vc","vd-wait")}">{ks.get("verdict","WAIT")}</span></div>', unsafe_allow_html=True)
 
-# 06 AI Lab
-st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 06 &mdash; AI LAB <span class="ns-dot">&#9679;</span></div>',unsafe_allow_html=True)
+# 07 AI Lab
+st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 07 &mdash; AI LAB <span class="ns-dot">&#9679;</span></div>',unsafe_allow_html=True)
 dkey=f"debate_{ticker}_{interval}"; debate={}
 if not api_key:
     st.markdown(f'<div style="color:{MUTED};font-size:13px;padding:.75rem 0;text-align:center">Add ANTHROPIC_API_KEY to Streamlit secrets to enable AI Lab.</div>',unsafe_allow_html=True)
@@ -1400,8 +1496,8 @@ else:
     st.session_state[dkey]=debate
     st.rerun()
 
-# 07 Export
-st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 07 &mdash; EXPORT <span class="ns-dot">&#9679;</span></div>',unsafe_allow_html=True)
+# 08 Export
+st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 08 &mdash; EXPORT <span class="ns-dot">&#9679;</span></div>',unsafe_allow_html=True)
 try:
     _pfig = price_chart(df, symbol, chart_bars)
     _kfig = kronos_chart(df, kr)
