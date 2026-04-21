@@ -1274,104 +1274,45 @@ st.markdown('</div>',unsafe_allow_html=True)
 st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 04 &mdash; MARKET STRUCTURE <span class="ns-dot">&#9679;</span></div>',unsafe_allow_html=True)
 
 # --- compute structure values ---
-_hi20  = df["High"].rolling(20).max().iloc[-1]
-_lo20  = df["Low"].rolling(20).min().iloc[-1]
-_hi52  = df["High"].rolling(min(252, len(df))).max().iloc[-1]
-_lo52  = df["Low"].rolling(min(252, len(df))).min().iloc[-1]
-_pivot = round((r["High"] + r["Low"] + r["Close"]) / 3, 2)
-_r1    = round(2 * _pivot - r["Low"], 2)
-_s1    = round(2 * _pivot - r["High"], 2)
-_r2    = round(_pivot + (r["High"] - r["Low"]), 2)
-_s2    = round(_pivot - (r["High"] - r["Low"]), 2)
-_vwap_pos  = "ABOVE" if r["Close"] > r["VWAP"] else "BELOW"
-_ema20_pos = "ABOVE" if r["Close"] > r["EMA20"] else "BELOW"
-_ema50_pos = "ABOVE" if r["Close"] > r["EMA50"] else "BELOW"
-_ema200_pos= "ABOVE" if r["Close"] > r["EMA200"] else "BELOW"
-_52rng_pct = round((r["Close"] - _lo52) / max(_hi52 - _lo52, 0.01) * 100, 1)
-_ema_stack = "BULLISH STACK ▲" if r["Close"] > r["EMA20"] > r["EMA50"] > r["EMA200"] else \
-             "BEARISH STACK ▼" if r["Close"] < r["EMA20"] < r["EMA50"] < r["EMA200"] else "MIXED"
-_stack_cls = "m-green" if "BULLISH" in _ema_stack else "m-red" if "BEARISH" in _ema_stack else "m-amber"
-_52cls     = "m-green" if _52rng_pct >= 70 else "m-amber" if _52rng_pct >= 30 else "m-red"
-_vwap_cls  = "m-green" if _vwap_pos == "ABOVE" else "m-red"
-_ema20_cls = "m-green" if _ema20_pos == "ABOVE" else "m-red"
-_ema50_cls = "m-green" if _ema50_pos == "ABOVE" else "m-red"
-_ema200_cls= "m-green" if _ema200_pos == "ABOVE" else "m-red"
+_vwap_pos   = "above" if r["Close"] > r["VWAP"] else "below"
+_ema20_pos  = "above" if r["Close"] > r["EMA20"] else "below"
+_ema50_pos  = "above" if r["Close"] > r["EMA50"] else "below"
+_ema200_pos = "above" if r["Close"] > r["EMA200"] else "below"
+_vwap_cls   = "m-green" if _vwap_pos == "above" else "m-red"
+_ema20_cls  = "m-green" if _ema20_pos == "above" else "m-red"
+_ema50_cls  = "m-green" if _ema50_pos == "above" else "m-red"
+_ema200_cls = "m-green" if _ema200_pos == "above" else "m-red"
+_pct_cls    = "m-green" if sc["pct_chg"] >= 0 else "m-red"
+_pct_str    = f"+{sc['pct_chg']:.2f}%" if sc["pct_chg"] >= 0 else f"{sc['pct_chg']:.2f}%"
+_close_str  = f"{r['Close']:,.4f}" if r['Close'] < 100 else f"{r['Close']:,.2f}"
+_e20_str    = f"{r['EMA20']:,.4f}" if r['EMA20'] < 100 else f"{r['EMA20']:,.2f}"
+_e50_str    = f"{r['EMA50']:,.4f}" if r['EMA50'] < 100 else f"{r['EMA50']:,.2f}"
+_e200_str   = f"{r['EMA200']:,.4f}" if r['EMA200'] < 100 else f"{r['EMA200']:,.2f}"
+_vwap_str   = f"{r['VWAP']:,.4f}" if r['VWAP'] < 100 else f"{r['VWAP']:,.2f}"
 
-# Row 1: EMA stack + 52-week range + VWAP
-ms1, ms2, ms3 = st.columns(3)
-with ms1:
-    st.markdown(f'''<div class="ns-metric">
-      <div class="ns-metric-lbl">EMA Stack</div>
-      <div class="ns-metric-val {_stack_cls}" style="font-size:16px;letter-spacing:.02em">{_ema_stack}</div>
-      <div class="ns-metric-sub m-muted">20 / 50 / 200 alignment</div>
-    </div>''', unsafe_allow_html=True)
-with ms2:
-    st.markdown(f'''<div class="ns-metric">
-      <div class="ns-metric-lbl">52-Week Range</div>
-      <div class="ns-metric-val {_52cls}">{_52rng_pct}%</div>
-      <div class="ns-metric-sub m-muted">Lo {_lo52:,.0f} — Hi {_hi52:,.0f}</div>
-    </div>''', unsafe_allow_html=True)
-with ms3:
-    st.markdown(f'''<div class="ns-metric">
-      <div class="ns-metric-lbl">VWAP</div>
-      <div class="ns-metric-val {_vwap_cls}">{_vwap_pos}</div>
-      <div class="ns-metric-sub m-muted">{r["VWAP"]:,.2f} VWAP</div>
-    </div>''', unsafe_allow_html=True)
+def _ms_row(label, value, badge_cls="", badge_txt="", last=False):
+    border = "" if last else f"border-bottom:1px solid {BORDER};"
+    badge = (f'<span class="{badge_cls}" style="font-size:11px;font-weight:600;margin-left:8px">'
+             f'{"&#9650;" if "above" in badge_txt else "&#9660;"} {badge_txt}</span>') if badge_txt else ""
+    return (
+        f'<div style="display:flex;justify-content:space-between;align-items:center;'
+        f'padding:10px 0;{border}">'
+        f'<span style="font-size:13px;color:{MUTED}">{label}</span>'
+        f'<span style="font-size:14px;font-weight:700;font-family:JetBrains Mono,monospace;color:{TEXT}">'
+        f'{value}{badge}</span></div>'
+    )
 
-# Row 2: detailed key levels table — pre-compute to avoid nested-quote issues
-_ema20_val  = f"{r['EMA20']:,.2f}"
-_ema50_val  = f"{r['EMA50']:,.2f}"
-_ema200_val = f"{r['EMA200']:,.2f}"
-_close_val  = r['Close']
-_atr_val    = r['ATR']
-_stop_val   = f"{_close_val - 1.5*_atr_val:,.2f}"
-st.markdown(
-    f'<div class="ns-comp-wrap" style="margin-top:.5rem">'
-    f'<div style="font-size:9px;font-weight:700;letter-spacing:.18em;color:{MUTED};text-transform:uppercase;margin-bottom:.5rem">KEY LEVELS</div>'
-    f'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0">'
-
-    f'<div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px">'
-    f'<div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">RESISTANCE R2</div>'
-    f'<div style="font-size:15px;font-weight:700;color:{RED};font-family:JetBrains Mono,monospace">{_r2:,.2f}</div></div>'
-
-    f'<div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px">'
-    f'<div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">RESISTANCE R1</div>'
-    f'<div style="font-size:15px;font-weight:700;color:{RED};font-family:JetBrains Mono,monospace">{_r1:,.2f}</div></div>'
-
-    f'<div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px">'
-    f'<div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">PIVOT</div>'
-    f'<div style="font-size:15px;font-weight:700;color:{AMBER};font-family:JetBrains Mono,monospace">{_pivot:,.2f}</div></div>'
-
-    f'<div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px">'
-    f'<div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">20-DAY HIGH</div>'
-    f'<div style="font-size:15px;font-weight:700;color:{GREEN};font-family:JetBrains Mono,monospace">{_hi20:,.2f}</div></div>'
-
-    f'<div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px;border-bottom:none">'
-    f'<div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">SUPPORT S2</div>'
-    f'<div style="font-size:15px;font-weight:700;color:{GREEN};font-family:JetBrains Mono,monospace">{_s2:,.2f}</div></div>'
-
-    f'<div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px;border-bottom:none">'
-    f'<div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">SUPPORT S1</div>'
-    f'<div style="font-size:15px;font-weight:700;color:{GREEN};font-family:JetBrains Mono,monospace">{_s1:,.2f}</div></div>'
-
-    f'<div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px;border-bottom:none">'
-    f'<div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">EMA 20 / 50</div>'
-    f'<div style="font-size:13px;font-weight:700;font-family:JetBrains Mono,monospace">'
-    f'<span class="{_ema20_cls}">{_ema20_val}</span>'
-    f'<span style="color:{MUTED}"> / </span>'
-    f'<span class="{_ema50_cls}">{_ema50_val}</span></div></div>'
-
-    f'<div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px;border-bottom:none">'
-    f'<div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">20-DAY LOW</div>'
-    f'<div style="font-size:15px;font-weight:700;color:{RED};font-family:JetBrains Mono,monospace">{_lo20:,.2f}</div></div>'
-
-    f'</div>'
-    f'<div style="border-top:1px solid {BORDER};padding:8px 12px;display:flex;gap:24px;flex-wrap:wrap">'
-    f'<span style="font-size:11px;color:{MUTED}">EMA 200 <span class="{_ema200_cls}" style="font-weight:700">{_ema200_pos} @ {_ema200_val}</span></span>'
-    f'<span style="font-size:11px;color:{MUTED}">Stop Loss <span style="color:{RED};font-weight:700">{_stop_val}</span> (1.5&#215;ATR)</span>'
-    f'</div></div>',
-    unsafe_allow_html=True
+ms_html = (
+    f'<div class="ns-comp-wrap">'
+    + _ms_row("Close", _close_str)
+    + _ms_row("EMA 20",  _e20_str,  _ema20_cls,  _ema20_pos)
+    + _ms_row("EMA 50",  _e50_str,  _ema50_cls,  _ema50_pos)
+    + _ms_row("EMA 200", _e200_str, _ema200_cls, _ema200_pos)
+    + _ms_row("VWAP",    _vwap_str, _vwap_cls,   _vwap_pos)
+    + _ms_row("24h Change", f'<span class="{_pct_cls}">{_pct_str}</span>', last=True)
+    + f'</div>'
 )
+st.markdown(ms_html, unsafe_allow_html=True)
 
 # 05 Timing Quality - 3x2 metric cards
 st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 05 &mdash; TIMING QUALITY <span class="ns-dot">&#9679;</span></div>',unsafe_allow_html=True)
