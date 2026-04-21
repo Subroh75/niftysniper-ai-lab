@@ -22,7 +22,7 @@ st.set_page_config(page_title="NiftySniper AI Lab", page_icon="127919",
 
 BG="#060a0f"; CARD="#0d1117"; ACCENT="#ff6600"; AMBER="#ffaa00"
 GREEN="#00ff6e"; RED="#ff2d55"; PURPLE="#7c3aed"; BLUE="#3b82f6"
-TEXT="#e8e8e8"; MUTED="#6b7280"; BORDER="#1f2937"; PLOT_BG="#0a0f14"
+TEXT="#e8e8e8"; MUTED="#a0aabb"; BORDER="#1f2937"; PLOT_BG="#0a0f14"
 
 st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap');
@@ -358,13 +358,14 @@ def calc_score(df):
 
 def kronos_confidence(kr, sc):
     """
-    Compute a 0-100 confidence score for the Kronos forecast.
-    Based on 4 factors, each contributing up to 25 points:
-      A) Bull candle % alignment with direction
-      B) Risk/reward ratio quality
-      C) Miro signal score agreement with direction
-      D) Expected move magnitude (decisive vs wishy-washy)
-    Returns dict: {score, grade, label, color_cls, explanation}
+    Pure Kronos confidence score — 0 to 100.
+    Entirely based on the AR1 forecast internals; NO Miro/signal dependency.
+
+    Four components (25 pts each):
+      A) Bull candle % alignment with predicted direction
+      B) Risk/reward ratio quality (peak vs trough vs predicted close)
+      C) Forecast cone tightness (narrow cone = high model certainty)
+      D) Predicted move magnitude (decisive vs flat/wishy-washy)
     """
     k_up   = kr.get("Direction","DOWN").upper() == "UP"
     k_chg  = float(str(kr.get("Predicted Change","0%")).replace("%","").replace("+",""))
@@ -373,51 +374,60 @@ def kronos_confidence(kr, sc):
     k_trgh = float(str(kr.get("Forecast Trough",k_pred*0.98)).replace(",",""))
     k_bull = float(str(kr.get("Bull Candle %","50%")).replace("%",""))
 
-    # A: Bull candle % vs direction (0-25)
+    # A: Bull candle % alignment with forecast direction (0-25)
+    # How consistently do individual forecast candles agree with the called direction?
     if k_up:
-        a = round((k_bull - 50) / 50 * 25) if k_bull > 50 else 0
+        align_pct = k_bull          # want high bull %
     else:
-        bear_pct = 100 - k_bull
-        a = round((bear_pct - 50) / 50 * 25) if bear_pct > 50 else 0
+        align_pct = 100 - k_bull    # want high bear %
+    a = round(max(0, (align_pct - 50) / 50) * 25)
     a = max(0, min(25, a))
 
-    # B: Risk/reward ratio (0-25)
-    rr = abs(k_peak - k_pred) / max(abs(k_trgh - k_pred), 0.01)
-    if   rr >= 3:  b = 25
-    elif rr >= 2:  b = 20
-    elif rr >= 1.5:b = 15
-    elif rr >= 1:  b = 8
-    else:          b = 2
+    # B: Risk/reward ratio — quality of the forecast cone shape (0-25)
+    # Uses peak-vs-predicted vs trough-vs-predicted (pure price geometry)
+    upside  = abs(k_peak - k_pred)
+    downside = max(abs(k_trgh - k_pred), 0.01)
+    rr = upside / downside
+    if   rr >= 3:   b = 25
+    elif rr >= 2:   b = 20
+    elif rr >= 1.5: b = 15
+    elif rr >= 1.0: b = 8
+    else:           b = 2
 
-    # C: Miro signal score agrees with direction (0-25)
-    miro_frac = sc["total"] / 13
-    if (k_up and sc["pct_chg"] >= 0) or (not k_up and sc["pct_chg"] < 0):
-        c = round(miro_frac * 25)
+    # C: Cone tightness — how narrow is the forecast band relative to predicted close?
+    # Narrow band (high model certainty) = high score
+    if k_pred > 0:
+        band_pct = (k_peak - k_trgh) / k_pred * 100  # band as % of price
+        if   band_pct <= 1:  c = 25   # very tight
+        elif band_pct <= 2:  c = 20
+        elif band_pct <= 4:  c = 14
+        elif band_pct <= 7:  c = 8
+        else:                c = 3    # wide/uncertain cone
     else:
-        c = round((1 - miro_frac) * 15)  # partial credit when disagreeing
+        c = 10
 
-    # D: Magnitude of predicted move (0-25) - bigger move = more decisive
+    # D: Magnitude of predicted move — decisive forecast vs flat (0-25)
     abs_chg = abs(k_chg)
-    if   abs_chg >= 3: d = 25
-    elif abs_chg >= 2: d = 20
-    elif abs_chg >= 1: d = 14
+    if   abs_chg >= 3:   d = 25
+    elif abs_chg >= 2:   d = 20
+    elif abs_chg >= 1:   d = 14
     elif abs_chg >= 0.5: d = 8
-    else:              d = 3
+    else:                d = 3   # near-flat forecast = low conviction
 
     score = max(0, min(100, a + b + c + d))
 
-    if   score >= 75: grade, label, cls = "A", "High Confidence",   "m-green"
+    if   score >= 75: grade, label, cls = "A", "High Conviction",    "m-green"
     elif score >= 55: grade, label, cls = "B", "Moderate Confidence","m-amber"
-    elif score >= 35: grade, label, cls = "C", "Low Confidence",    "m-red"
-    else:             grade, label, cls = "D", "Very Uncertain",     "m-muted"
+    elif score >= 35: grade, label, cls = "C", "Low Confidence",     "m-red"
+    else:             grade, label, cls = "D", "Speculative",         "m-muted"
 
     direction_word = "RISE" if k_up else "FALL"
+    band_pct_val = round((k_peak - k_trgh) / k_pred * 100, 1) if k_pred > 0 else 0
     explanation = (
-        f"Kronos expects price to {direction_word} {abs(k_chg):.1f}% "
-        f"over {kr.get('Candles Forecast',20)} candles. "
-        f"{k_bull:.0f}% of forecast candles close in the predicted direction. "
-        f"R/R ratio is {rr:.1f}. "
-        f"Miro signal score is {sc['total']}/13."
+        f"AR1 forecast: {direction_word} {abs(k_chg):.1f}% over {kr.get('Candles Forecast',20)} candles. "
+        f"Directional alignment: {align_pct:.0f}% of candles agree with direction. "
+        f"Cone tightness: {band_pct_val}% price band. "
+        f"Peak/trough R/R: {rr:.1f}."
     )
     return {"score":score,"grade":grade,"label":label,"cls":cls,"explanation":explanation,
             "rr":round(rr,1),"direction":direction_word}
@@ -436,10 +446,10 @@ def price_chart(df,symbol,chart_bars=90):
     d=df.tail(max(chart_bars,30)).copy()
     fig=go.Figure()
     fig.add_trace(go.Scatter(x=d.index,y=d["BB_upper"],
-        line=dict(color="rgba(255,255,255,0.3)",width=1,dash="dot"),name="BB+",hovertemplate="%{y:.2f}"))
+        line=dict(color="rgba(255,255,255,0.88)",width=1,dash="dot"),name="BB+",hovertemplate="%{y:.2f}"))
     fig.add_trace(go.Scatter(x=d.index,y=d["BB_lower"],
-        line=dict(color="rgba(255,255,255,0.3)",width=1,dash="dot"),
-        fill="tonexty",fillcolor="rgba(255,255,255,0.04)",name="BB-",hovertemplate="%{y:.2f}"))
+        line=dict(color="rgba(255,255,255,0.88)",width=1,dash="dot"),
+        fill="tonexty",fillcolor="rgba(255,255,255,0.88)",name="BB-",hovertemplate="%{y:.2f}"))
     fig.add_trace(go.Scatter(x=d.index,y=d["EMA200"],
         line=dict(color="#f97316",width=1.5),name="EMA200",hovertemplate="%{y:.2f}"))
     fig.add_trace(go.Scatter(x=d.index,y=d["EMA50"],
