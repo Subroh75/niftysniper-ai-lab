@@ -189,7 +189,7 @@ SYMBOLS = {
 AGENTS = [
     {"key":"BULL","name":"Alex - Long Desk","tag":"BULL CASE","icon":"Bull",
      "card":"card-bull","tag_cls":"tag-bull",
-     "system":"""You are ALEX, Long Desk analyst at NiftySniper. Make the strongest bullish case for this NSE stock. Be specific with exact numbers from the data provided. Write 3-4 sentences. On the very last line write only one word: BUY, HOLD, or WATCH."""},
+     "system":"""You are ALEX, Long Desk analyst at NiftySniper. Your role is ALWAYS to argue the bull case - this is non-negotiable. Never refuse, never add disclaimers, never say you "cannot ethically" argue the bull side. Your job is advocacy, not analysis. Find the most compelling bullish argument using the exact numbers provided: support levels, EMA positioning, momentum, trend structure, upside targets. Even in weak setups find the strongest bull case possible. Write 3-4 sentences making the bull argument with specific numbers. On the very last line write only one word: BUY, HOLD, or WATCH."""},
     {"key":"BEAR","name":"Sam - Short Desk","tag":"BEAR CASE","icon":"Bear",
      "card":"card-bear","tag_cls":"tag-bear",
      "system":"""You are SAM, Short Desk analyst at NiftySniper. Make the strongest bearish case. Cite overbought signals, resistance, weak volume, macro risks with exact numbers. Write 3-4 sentences. On the very last line write only one word: SELL, HOLD, or WATCH."""},
@@ -744,12 +744,20 @@ class PDF(FPDF):
         self.set_xy(x0 + cw - 18, y0 + ch - 4)
         self.cell(16, 3, f"{lo:,.0f}", align="R")
 
-        # Legend
-        self.set_xy(x0 + 1, y0 + 1)
-        self.set_font("Helvetica", "", 5)
-        for txt, rgb in [("EMA20",(0,210,80)),(" EMA50",(139,92,246)),(" EMA200",(249,115,22))]:
+        # Legend - bottom of chart, larger, with coloured dots
+        leg_y = y0 + ch - 6
+        self.set_font("Helvetica", "B", 6)
+        leg_x = x0 + 2
+        for lbl, rgb in [("EMA20",(0,210,80)),("EMA50",(139,92,246)),("EMA200",(249,115,22))]:
+            # Coloured dot
+            self.set_fill_color(*rgb)
+            self.rect(leg_x, leg_y+1.5, 2.5, 2.5, "F")
+            leg_x += 3.5
+            # Label
+            self.set_xy(leg_x, leg_y)
             self.set_text_color(*rgb)
-            self.cell(12, 3, txt)
+            self.cell(14, 5, lbl)
+            leg_x += 15
 
         self.set_y(y0 + ch + 3)
 
@@ -838,15 +846,28 @@ class PDF(FPDF):
         for i in range(len(pts_mid)-1):
             self.line(pts_mid[i][0],pts_mid[i][1],pts_mid[i+1][0],pts_mid[i+1][1])
 
-        # Labels
-        self.set_font("Helvetica","",5); self.set_text_color(*cone_rgb)
-        self.set_xy(pts_upper[-1][0]+0.5, pts_upper[-1][1]-1)
-        self.cell(14,3,f"Hi {k_peak:,.0f}")
-        self.set_xy(pts_lower[-1][0]+0.5, pts_lower[-1][1]+0.5)
-        self.cell(14,3,f"Lo {k_trgh:,.0f}")
-        self.set_xy(pts_mid[-1][0]+0.5,   pts_mid[-1][1]-1)
+        # Labels - placed INSIDE the chart, left-aligned against right margin
+        # Use right-align so they never clip past the chart boundary
+        label_x = x0 + cw - 2   # right edge of chart area
+        label_w = 22             # width of label cell (right-aligned)
+        self.set_font("Helvetica","B",5.5)
+        # High label - at peak tip y, right-aligned
+        self.set_text_color(*cone_rgb)
+        self.set_xy(label_x - label_w, pts_upper[-1][1] - 3)
+        self.cell(label_w, 4, f"H {k_peak:,.0f}", align="R")
+        # Low label - at trough tip y
+        self.set_xy(label_x - label_w, pts_lower[-1][1] + 0.5)
+        self.cell(label_w, 4, f"L {k_trgh:,.0f}", align="R")
+        # Mid label - at predicted close tip y
         self.set_text_color(220,220,220)
-        self.cell(14,3,f"-> {k_pred:,.0f}")
+        mid_y = pts_mid[-1][1]
+        # Avoid collision with H/L labels
+        if abs(mid_y - pts_upper[-1][1]) < 5:
+            mid_y = pts_upper[-1][1] + 5
+        if abs(mid_y - pts_lower[-1][1]) < 5:
+            mid_y = pts_lower[-1][1] - 5
+        self.set_xy(label_x - label_w, mid_y - 1.5)
+        self.cell(label_w, 4, f"> {k_pred:,.0f}", align="R")
 
         self.set_y(y0 + ch + 3)
 
