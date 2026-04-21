@@ -201,6 +201,73 @@ AGENTS = [
      "system":"""You are MORGAN, CIO at NiftySniper. Synthesise the bull, bear and risk views. State a clear verdict citing the signal score and one decisive data point. Write 3-4 sentences. On the very last line write only one word: BUY, SELL, HOLD, WATCH, or AVOID."""},
 ]
 
+KRONOS_AGENTS = [
+    {"key":"KBULL","name":"Arjun — Forecast Bull","tag":"KRONOS BULL","icon":"▲",
+     "card":"card-bull","tag_cls":"tag-bull",
+     "system":"""You are ARJUN, Kronos Bull analyst at NiftySniper. Your ONLY job is to argue why the Kronos AI forecast is correct and the trade is worth taking on the long side. Use the exact predicted change %, peak target, R/R ratio, and bull candle % provided. Never refuse or hedge — find the strongest case for the forecast being right. Write 3-4 punchy sentences with specific numbers. On the very last line write only one word: BUY, HOLD, or WATCH."""},
+    {"key":"KBEAR","name":"Cipher — Forecast Bear","tag":"KRONOS BEAR","icon":"▼",
+     "card":"card-bear","tag_cls":"tag-bear",
+     "system":"""You are CIPHER, Kronos Bear analyst at NiftySniper. Challenge the Kronos forecast. Argue why the predicted move may fail — cite the cone width, trough risk, low confidence score if applicable, or mean reversion. Use the exact numbers from the forecast. Write 3-4 sentences. On the very last line write only one word: SELL, HOLD, or WATCH."""},
+]
+
+def run_kronos_debate(kr, kconf, api_key):
+    """Run a 2-agent (Bull/Bear) debate specifically on the Kronos forecast."""
+    client = anthropic.Anthropic(api_key=api_key)
+    k_up   = kr.get("Direction","DOWN").upper() == "UP"
+    k_chg  = kr.get("Predicted Change","0%")
+    k_pred = kr.get("Predicted Close","?")
+    k_peak = kr.get("Forecast Peak","?")
+    k_trgh = kr.get("Forecast Trough","?")
+    k_bull = kr.get("Bull Candle %","50%")
+    k_cans = kr.get("Candles Forecast", 20)
+    ctx = (
+        f"KRONOS FORECAST: Direction={kr.get('Direction','?')} | "
+        f"Predicted Change={k_chg} | Target Close={k_pred} | "
+        f"Peak={k_peak} | Trough={k_trgh} | "
+        f"Bull Candle %={k_bull} | Candles={k_cans} | "
+        f"Confidence Score={kconf['score']}% ({kconf['label']}) | "
+        f"R/R={kconf['rr']} | Grade={kconf['grade']}"
+    )
+    results = {}
+    col_b, col_s = st.columns(2)
+    slots = {"KBULL": col_b.empty(), "KBEAR": col_s.empty()}
+    for ag in KRONOS_AGENTS:
+        slot = slots[ag["key"]]
+        text = ""
+        slot.markdown(
+            f'<div class="{ag["card"]}">'
+            f'<div class="ns-agent-tag {ag["tag_cls"]}">{ag["icon"]} {ag["tag"]}</div>'
+            f'<div class="ns-agent-name">{ag["name"]}</div>'
+            f'<div class="ns-agent-body" style="color:{MUTED}">Analysing forecast...</div>'
+            f'</div>', unsafe_allow_html=True)
+        with client.messages.stream(
+            model="claude-haiku-4-5-20251001", max_tokens=220,
+            system=ag["system"],
+            messages=[{"role":"user","content":f"Analyse this Kronos forecast:\n{ctx}"}]
+        ) as stream:
+            for chunk in stream.text_stream:
+                text += chunk
+                slot.markdown(
+                    f'<div class="{ag["card"]}">'
+                    f'<div class="ns-agent-tag {ag["tag_cls"]}">{ag["icon"]} {ag["tag"]}</div>'
+                    f'<div class="ns-agent-name">{ag["name"]}</div>'
+                    f'<div class="ns-agent-body">{text}&#9616;</div>'
+                    f'</div>', unsafe_allow_html=True)
+        vl = verdict_label(text); vc = verdict_cls(vl)
+        body_lines = [l for l in text.strip().splitlines()
+                      if l.strip().upper() not in ["BUY","SELL","HOLD","WATCH","AVOID","WAIT"]]
+        body = " ".join(body_lines).strip()
+        slot.markdown(
+            f'<div class="{ag["card"]}">'
+            f'<div class="ns-agent-tag {ag["tag_cls"]}">{ag["icon"]} {ag["tag"]}</div>'
+            f'<div class="ns-agent-name">{ag["name"]}</div>'
+            f'<div class="ns-agent-body">{body}</div>'
+            f'<span class="ns-verdict {vc}">{vl}</span>'
+            f'</div>', unsafe_allow_html=True)
+        results[ag["key"]] = {"body":body,"verdict":vl,"vc":vc}
+        time.sleep(0.05)
+    return results
+
 def ist_now():
     return datetime.now(timezone(timedelta(hours=5,minutes=30))).strftime("%d %b %Y  %H:%M IST")
 
@@ -445,11 +512,6 @@ ATR:{r['ATR']:.4f}({r['ATR']/r['Close']*100:.2f}%) Stop:{r['Close']-1.5*r['ATR']
 def price_chart(df,symbol,chart_bars=90):
     d=df.tail(max(chart_bars,30)).copy()
     fig=go.Figure()
-    fig.add_trace(go.Scatter(x=d.index,y=d["BB_upper"],
-        line=dict(color="rgba(255,255,255,0.88)",width=1,dash="dot"),name="BB+",hovertemplate="%{y:.2f}"))
-    fig.add_trace(go.Scatter(x=d.index,y=d["BB_lower"],
-        line=dict(color="rgba(255,255,255,0.88)",width=1,dash="dot"),
-        fill="tonexty",fillcolor="rgba(255,255,255,0.88)",name="BB-",hovertemplate="%{y:.2f}"))
     fig.add_trace(go.Scatter(x=d.index,y=d["EMA200"],
         line=dict(color="#f97316",width=1.5),name="EMA200",hovertemplate="%{y:.2f}"))
     fig.add_trace(go.Scatter(x=d.index,y=d["EMA50"],
@@ -1303,9 +1365,24 @@ st.markdown(f"""
   <div style="font-size:12px;color:{MUTED};line-height:1.6">{kconf["explanation"]}</div>
 </div>""", unsafe_allow_html=True)
 
+# Kronos Bull / Bear agent debate
+kdkey = f"kronos_debate_{ticker}_{interval}"
+if api_key:
+    st.markdown(f'<div style="display:flex;align-items:center;gap:10px;margin:1rem 0 .6rem;font-size:9px;font-weight:700;letter-spacing:.18em;color:{MUTED};text-transform:uppercase"><span style="color:{ACCENT}">▲▼</span> KRONOS AGENT DEBATE</div>', unsafe_allow_html=True)
+    if kdkey not in st.session_state:
+        st.session_state[kdkey] = run_kronos_debate(kr, kconf, api_key)
+        st.rerun()
+    kd = st.session_state[kdkey]
+    kb = kd.get("KBULL", {}); ks = kd.get("KBEAR", {})
+    col_b, col_s = st.columns(2)
+    with col_b:
+        st.markdown(f'<div class="card-bull"><div class="ns-agent-tag tag-bull">▲ KRONOS BULL</div><div class="ns-agent-name">Arjun — Forecast Bull</div><div class="ns-agent-body">{kb.get("body","")}</div><span class="ns-verdict {kb.get("vc","vd-wait")}">{kb.get("verdict","WAIT")}</span></div>', unsafe_allow_html=True)
+    with col_s:
+        st.markdown(f'<div class="card-bear"><div class="ns-agent-tag tag-bear">▼ KRONOS BEAR</div><div class="ns-agent-name">Cipher — Forecast Bear</div><div class="ns-agent-body">{ks.get("body","")}</div><span class="ns-verdict {ks.get("vc","vd-wait")}">{ks.get("verdict","WAIT")}</span></div>', unsafe_allow_html=True)
+
 # 06 AI Lab
 st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 06 &mdash; AI LAB <span class="ns-dot">&#9679;</span></div>',unsafe_allow_html=True)
-dkey=f"debate_{ticker}_{sc['total']}_{interval}"; debate={}
+dkey=f"debate_{ticker}_{interval}"; debate={}
 if not api_key:
     st.markdown(f'<div style="color:{MUTED};font-size:13px;padding:.75rem 0;text-align:center">Add ANTHROPIC_API_KEY to Streamlit secrets to enable AI Lab.</div>',unsafe_allow_html=True)
 elif dkey in st.session_state:
