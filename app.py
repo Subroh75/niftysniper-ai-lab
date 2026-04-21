@@ -1318,55 +1318,60 @@ with ms3:
       <div class="ns-metric-sub m-muted">{r["VWAP"]:,.2f} VWAP</div>
     </div>''', unsafe_allow_html=True)
 
-# Row 2: detailed key levels table
-st.markdown(f'''<div class="ns-comp-wrap" style="margin-top:.5rem">
-  <div style="font-size:9px;font-weight:700;letter-spacing:.18em;color:{MUTED};text-transform:uppercase;margin-bottom:.5rem">KEY LEVELS</div>
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0">
+# Row 2: detailed key levels table — pre-compute to avoid nested-quote issues
+_ema20_val  = f"{r['EMA20']:,.2f}"
+_ema50_val  = f"{r['EMA50']:,.2f}"
+_ema200_val = f"{r['EMA200']:,.2f}"
+_close_val  = r['Close']
+_atr_val    = r['ATR']
+_stop_val   = f"{_close_val - 1.5*_atr_val:,.2f}"
+st.markdown(
+    f'<div class="ns-comp-wrap" style="margin-top:.5rem">'
+    f'<div style="font-size:9px;font-weight:700;letter-spacing:.18em;color:{MUTED};text-transform:uppercase;margin-bottom:.5rem">KEY LEVELS</div>'
+    f'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0">'
 
-    <div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px">
-      <div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">RESISTANCE R2</div>
-      <div style="font-size:15px;font-weight:700;color:{RED};font-family:'JetBrains Mono',monospace">{_r2:,.2f}</div>
-    </div>
-    <div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px">
-      <div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">RESISTANCE R1</div>
-      <div style="font-size:15px;font-weight:700;color:{RED};font-family:'JetBrains Mono',monospace">{_r1:,.2f}</div>
-    </div>
-    <div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px">
-      <div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">PIVOT</div>
-      <div style="font-size:15px;font-weight:700;color:{AMBER};font-family:'JetBrains Mono',monospace">{_pivot:,.2f}</div>
-    </div>
-    <div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px">
-      <div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">20-DAY HIGH</div>
-      <div style="font-size:15px;font-weight:700;color:{GREEN};font-family:'JetBrains Mono',monospace">{_hi20:,.2f}</div>
-    </div>
+    f'<div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px">'
+    f'<div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">RESISTANCE R2</div>'
+    f'<div style="font-size:15px;font-weight:700;color:{RED};font-family:JetBrains Mono,monospace">{_r2:,.2f}</div></div>'
 
-    <div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px;border-bottom:none">
-      <div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">SUPPORT S2</div>
-      <div style="font-size:15px;font-weight:700;color:{GREEN};font-family:'JetBrains Mono',monospace">{_s2:,.2f}</div>
-    </div>
-    <div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px;border-bottom:none">
-      <div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">SUPPORT S1</div>
-      <div style="font-size:15px;font-weight:700;color:{GREEN};font-family:'JetBrains Mono',monospace">{_s1:,.2f}</div>
-    </div>
-    <div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px;border-bottom:none">
-      <div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">EMA 20 / 50</div>
-      <div style="font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace">
-        <span class="{_ema20_cls}">{r["EMA20"]:,.2f}</span>
-        <span style="color:{MUTED}"> / </span>
-        <span class="{_ema50_cls}">{r["EMA50"]:,.2f}</span>
-      </div>
-    </div>
-    <div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px;border-bottom:none">
-      <div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">20-DAY LOW</div>
-      <div style="font-size:15px;font-weight:700;color:{RED};font-family:'JetBrains Mono',monospace">{_lo20:,.2f}</div>
-    </div>
+    f'<div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px">'
+    f'<div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">RESISTANCE R1</div>'
+    f'<div style="font-size:15px;font-weight:700;color:{RED};font-family:JetBrains Mono,monospace">{_r1:,.2f}</div></div>'
 
-  </div>
-  <div style="border-top:1px solid {BORDER};padding:8px 12px;display:flex;gap:24px;flex-wrap:wrap">
-    <span style="font-size:11px;color:{MUTED}">EMA 200 <span class="{_ema200_cls}" style="font-weight:700">{_ema200_pos} @ {r["EMA200"]:,.2f}</span></span>
-    <span style="font-size:11px;color:{MUTED}">Stop Loss <span style="color:{RED};font-weight:700">{r["Close"]-1.5*r["ATR"]:,.2f}</span> (1.5×ATR)</span>
-  </div>
-</div>''', unsafe_allow_html=True)
+    f'<div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px">'
+    f'<div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">PIVOT</div>'
+    f'<div style="font-size:15px;font-weight:700;color:{AMBER};font-family:JetBrains Mono,monospace">{_pivot:,.2f}</div></div>'
+
+    f'<div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px">'
+    f'<div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">20-DAY HIGH</div>'
+    f'<div style="font-size:15px;font-weight:700;color:{GREEN};font-family:JetBrains Mono,monospace">{_hi20:,.2f}</div></div>'
+
+    f'<div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px;border-bottom:none">'
+    f'<div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">SUPPORT S2</div>'
+    f'<div style="font-size:15px;font-weight:700;color:{GREEN};font-family:JetBrains Mono,monospace">{_s2:,.2f}</div></div>'
+
+    f'<div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px;border-bottom:none">'
+    f'<div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">SUPPORT S1</div>'
+    f'<div style="font-size:15px;font-weight:700;color:{GREEN};font-family:JetBrains Mono,monospace">{_s1:,.2f}</div></div>'
+
+    f'<div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px;border-bottom:none">'
+    f'<div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">EMA 20 / 50</div>'
+    f'<div style="font-size:13px;font-weight:700;font-family:JetBrains Mono,monospace">'
+    f'<span class="{_ema20_cls}">{_ema20_val}</span>'
+    f'<span style="color:{MUTED}"> / </span>'
+    f'<span class="{_ema50_cls}">{_ema50_val}</span></div></div>'
+
+    f'<div class="ns-comp-row" style="flex-direction:column;align-items:flex-start;padding:8px 12px;border-bottom:none">'
+    f'<div style="font-size:9px;color:{MUTED};letter-spacing:.12em;margin-bottom:3px">20-DAY LOW</div>'
+    f'<div style="font-size:15px;font-weight:700;color:{RED};font-family:JetBrains Mono,monospace">{_lo20:,.2f}</div></div>'
+
+    f'</div>'
+    f'<div style="border-top:1px solid {BORDER};padding:8px 12px;display:flex;gap:24px;flex-wrap:wrap">'
+    f'<span style="font-size:11px;color:{MUTED}">EMA 200 <span class="{_ema200_cls}" style="font-weight:700">{_ema200_pos} @ {_ema200_val}</span></span>'
+    f'<span style="font-size:11px;color:{MUTED}">Stop Loss <span style="color:{RED};font-weight:700">{_stop_val}</span> (1.5&#215;ATR)</span>'
+    f'</div></div>',
+    unsafe_allow_html=True
+)
 
 # 05 Timing Quality - 3x2 metric cards
 st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 05 &mdash; TIMING QUALITY <span class="ns-dot">&#9679;</span></div>',unsafe_allow_html=True)
