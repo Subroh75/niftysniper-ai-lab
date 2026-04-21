@@ -251,37 +251,53 @@ def chart_to_png(fig, width=780, height=320):
         except Exception:
             return None
 
-# INTERVAL_MAP: label -> (fetch_period, chart_bars_to_display)
-# fetch_period is always >= 2y so EMA200 (needs 200 bars) always has enough data
-# chart_bars controls how many candles are shown in the price chart
+# INTERVAL_MAP: label -> (yf_period, yf_interval, chart_bars)
+# yf_period  = how far back to fetch (yfinance period string)
+# yf_interval = candle size (yfinance interval string; None = default daily)
+# chart_bars  = how many candles to show in the price chart
+# Note: yfinance intraday limits: 5m/15m/30m max 60 days, 1h max 730 days
 INTERVAL_MAP = {
-    "1D": ("2y",   1),    # show last 1 day = most recent candle context
-    "1W": ("2y",   5),    # show last 5 trading days
-    "1M": ("2y",  22),    # ~22 trading days
-    "3M": ("2y",  66),    # ~66 trading days
-    "6M": ("2y", 130),    # ~130 trading days
-    "1Y": ("2y", 252),    # ~252 trading days
+    "5m":  ("60d",  "5m",   200),   # 5-minute candles, last 200 bars
+    "15m": ("60d",  "15m",  200),   # 15-minute candles
+    "30m": ("60d",  "30m",  200),   # 30-minute candles
+    "1H":  ("730d", "1h",   200),   # 1-hour candles
+    "4H":  ("730d", "4H_rs", 200),   # 4H = resample from 1H
+    "1D":  ("2y",   None,    90),   # Daily candles, 90 bars
+    "1W":  ("5y",   "1wk",  104),   # Weekly candles, ~2 years
+    "1M":  ("10y",  "1mo",   60),   # Monthly candles, 5 years
 }
 
 @st.cache_data(ttl=300,show_spinner=False)
-def fetch(ticker, period="6mo"):
-    # Try the primary ticker first, then fallback strategies
+def fetch(ticker, period="2y", yf_interval=None):
+    """Fetch OHLCV data. yf_interval=None means daily (default yfinance)."""
     candidates = [ticker]
-    # If .NS suffix, also try .BO (BSE) as fallback
     if ticker.endswith(".NS"):
         candidates.append(ticker.replace(".NS", ".BO"))
-    # If period is very short and might return empty, also try longer period
-    # Always fetch at least 2y so EMA200/ATR/ADX have enough bars to compute
-    primary = period if period in ("2y","1y") else "2y"
-    fallback_periods = [primary, "2y", "1y", "6mo"]
+
+    # For intraday we cannot fall back to longer intervals (different candle size)
+    intraday = yf_interval is not None
+    # Handle 4H pseudo-interval: fetch 1H then resample
+    resample_4h = (yf_interval == "4H_rs")
+    if resample_4h:
+        yf_interval = "1h"
+
+    if intraday:
+        fetch_attempts = [(period, yf_interval)]
+    else:
+        # Daily - always pull 2y minimum so indicators have enough data
+        p0 = period if period in ("2y","5y","10y","730d","60d") else "2y"
+        fetch_attempts = [(p0, None), ("2y", None), ("1y", None)]
 
     df = None
     for t in candidates:
-        for p in fallback_periods:
+        for p, iv in fetch_attempts:
             try:
                 tk = yf.Ticker(t)
-                _df = tk.history(period=p, auto_adjust=True)
-                if not _df.empty and len(_df) >= 5:
+                kwargs = dict(period=p, auto_adjust=True)
+                if iv:
+                    kwargs["interval"] = iv
+                _df = tk.history(**kwargs)
+                if not _df.empty and len(_df) >= 10:
                     df = _df
                     break
             except Exception:
@@ -289,6 +305,13 @@ def fetch(ticker, period="6mo"):
         if df is not None:
             break
     if df is None or df.empty: return None
+
+    # For 4H: resample 1H into 4H candles
+    if resample_4h and df is not None:
+        df = df.resample("4h").agg({
+            "Open":"first","High":"max","Low":"min",
+            "Close":"last","Volume":"sum"
+        }).dropna()
     df=df[["Open","High","Low","Close","Volume"]].dropna()
     df["EMA20"]=df["Close"].ewm(span=20,adjust=False).mean()
     df["EMA50"]=df["Close"].ewm(span=50,adjust=False).mean()
@@ -332,6 +355,73 @@ def calc_score(df):
     return {"total":tot,"v":v,"p":p,"r":rng,"t":t,"tier":tier,"cls":cls,
             "vol_ratio":round(vol_ratio,2),"pct_chg":round(pct_chg,2),
             "rng_pos":round(rng_pos,2),"atr_sigma":round(atr_sigma,2)}
+
+def kronos_confidence(kr, sc):
+    """
+    Compute a 0-100 confidence score for the Kronos forecast.
+    Based on 4 factors, each contributing up to 25 points:
+      A) Bull candle % alignment with direction
+      B) Risk/reward ratio quality
+      C) Miro signal score agreement with direction
+      D) Expected move magnitude (decisive vs wishy-washy)
+    Returns dict: {score, grade, label, color_cls, explanation}
+    """
+    k_up   = kr.get("Direction","DOWN").upper() == "UP"
+    k_chg  = float(str(kr.get("Predicted Change","0%")).replace("%","").replace("+",""))
+    k_pred = float(str(kr.get("Predicted Close",0)).replace(",",""))
+    k_peak = float(str(kr.get("Forecast Peak", k_pred*1.02)).replace(",",""))
+    k_trgh = float(str(kr.get("Forecast Trough",k_pred*0.98)).replace(",",""))
+    k_bull = float(str(kr.get("Bull Candle %","50%")).replace("%",""))
+
+    # A: Bull candle % vs direction (0-25)
+    if k_up:
+        a = round((k_bull - 50) / 50 * 25) if k_bull > 50 else 0
+    else:
+        bear_pct = 100 - k_bull
+        a = round((bear_pct - 50) / 50 * 25) if bear_pct > 50 else 0
+    a = max(0, min(25, a))
+
+    # B: Risk/reward ratio (0-25)
+    rr = abs(k_peak - k_pred) / max(abs(k_trgh - k_pred), 0.01)
+    if   rr >= 3:  b = 25
+    elif rr >= 2:  b = 20
+    elif rr >= 1.5:b = 15
+    elif rr >= 1:  b = 8
+    else:          b = 2
+
+    # C: Miro signal score agrees with direction (0-25)
+    miro_frac = sc["total"] / 13
+    if (k_up and sc["pct_chg"] >= 0) or (not k_up and sc["pct_chg"] < 0):
+        c = round(miro_frac * 25)
+    else:
+        c = round((1 - miro_frac) * 15)  # partial credit when disagreeing
+
+    # D: Magnitude of predicted move (0-25) - bigger move = more decisive
+    abs_chg = abs(k_chg)
+    if   abs_chg >= 3: d = 25
+    elif abs_chg >= 2: d = 20
+    elif abs_chg >= 1: d = 14
+    elif abs_chg >= 0.5: d = 8
+    else:              d = 3
+
+    score = max(0, min(100, a + b + c + d))
+
+    if   score >= 75: grade, label, cls = "A", "High Confidence",   "m-green"
+    elif score >= 55: grade, label, cls = "B", "Moderate Confidence","m-amber"
+    elif score >= 35: grade, label, cls = "C", "Low Confidence",    "m-red"
+    else:             grade, label, cls = "D", "Very Uncertain",     "m-muted"
+
+    direction_word = "RISE" if k_up else "FALL"
+    explanation = (
+        f"Kronos expects price to {direction_word} {abs(k_chg):.1f}% "
+        f"over {kr.get('Candles Forecast',20)} candles. "
+        f"{k_bull:.0f}% of forecast candles close in the predicted direction. "
+        f"R/R ratio is {rr:.1f}. "
+        f"Miro signal score is {sc['total']}/13."
+    )
+    return {"score":score,"grade":grade,"label":label,"cls":cls,"explanation":explanation,
+            "rr":round(rr,1),"direction":direction_word}
+
 
 def build_ctx(sym,sc,df):
     r=df.iloc[-1]
@@ -593,6 +683,173 @@ class PDF(FPDF):
         self.set_draw_color(*self.P_LGREY); self.set_line_width(0.15)
         self.line(self.RX+self.RM,cy+7,self.PW-self.RM,cy+7); self.set_y(cy+7)
 
+    def _price_chart_native(self, df, chart_bars=60):
+        """Draw a simplified candlestick chart using fpdf2 geometry. No kaleido needed."""
+        d = df.tail(chart_bars).copy()
+        if len(d) < 2:
+            return
+        x0 = self.RX + self.RM
+        y0 = self.get_y() + 2
+        cw = self.PW - self.RX - self.RM * 2   # chart width
+        ch = 52                                  # chart height mm
+
+        # Background
+        self.set_fill_color(13, 17, 23)
+        self.rect(x0, y0, cw, ch, "F")
+
+        lo = float(d["Low"].min()); hi = float(d["High"].max())
+        rng = hi - lo or 1
+        n = len(d)
+        bar_w = cw / n
+
+        def py(price):  # price to y-coordinate
+            return y0 + ch - (price - lo) / rng * ch
+
+        # EMA lines
+        for col, rgb in [("EMA20",(0,210,80)),("EMA50",(139,92,246)),("EMA200",(249,115,22))]:
+            if col not in d.columns:
+                continue
+            pts = [(x0 + i * bar_w + bar_w/2, py(float(d[col].iloc[i])))
+                   for i in range(n) if not d[col].iloc[i] != d[col].iloc[i]]
+            if len(pts) < 2:
+                continue
+            self.set_draw_color(*rgb)
+            self.set_line_width(0.3)
+            for j in range(len(pts)-1):
+                self.line(pts[j][0], pts[j][1], pts[j+1][0], pts[j+1][1])
+
+        # Candlesticks
+        for i in range(n):
+            o = float(d["Open"].iloc[i]); c = float(d["Close"].iloc[i])
+            h = float(d["High"].iloc[i]); l = float(d["Low"].iloc[i])
+            bx = x0 + i * bar_w
+            bull = c >= o
+            rgb = (0, 210, 80) if bull else (255, 45, 85)
+            self.set_fill_color(*rgb)
+            self.set_draw_color(*rgb)
+            self.set_line_width(0.15)
+            # Wick
+            cx = bx + bar_w / 2
+            self.line(cx, py(h), cx, py(l))
+            # Body
+            body_top = py(max(o, c)); body_h = abs(py(o) - py(c)) or 0.3
+            bw = max(bar_w * 0.6, 0.4)
+            self.rect(bx + bar_w * 0.2, body_top, bw, body_h, "F")
+
+        # Price labels
+        self.set_font("Helvetica", "", 5.5)
+        self.set_text_color(107, 114, 128)
+        self.set_xy(x0 + cw - 18, y0 + 0.5)
+        self.cell(16, 3, f"{hi:,.0f}", align="R")
+        self.set_xy(x0 + cw - 18, y0 + ch - 4)
+        self.cell(16, 3, f"{lo:,.0f}", align="R")
+
+        # Legend
+        self.set_xy(x0 + 1, y0 + 1)
+        self.set_font("Helvetica", "", 5)
+        for txt, rgb in [("EMA20",(0,210,80)),(" EMA50",(139,92,246)),(" EMA200",(249,115,22))]:
+            self.set_text_color(*rgb)
+            self.cell(12, 3, txt)
+
+        self.set_y(y0 + ch + 3)
+
+    def _kronos_chart_native(self, df, kr):
+        """Draw the Kronos forecast cone using fpdf2 geometry."""
+        hist = df.tail(20)
+        if len(hist) < 2:
+            return
+        x0 = self.RX + self.RM
+        y0 = self.get_y() + 2
+        cw = self.PW - self.RX - self.RM * 2
+        ch = 42
+
+        lc  = float(hist["Close"].iloc[-1])
+        k_pred = float(str(kr.get("Predicted Close", lc)).replace(",",""))
+        k_peak = float(str(kr.get("Forecast Peak",  lc*1.02)).replace(",",""))
+        k_trgh = float(str(kr.get("Forecast Trough",lc*0.98)).replace(",",""))
+        k_up   = kr.get("Direction","DOWN").upper() == "UP"
+        cone_rgb = (0,210,80) if k_up else (255,45,85)
+
+        lo = min(hist["Low"].min(), k_trgh) * 0.999
+        hi = max(hist["High"].max(), k_peak) * 1.001
+        rng = hi - lo or 1
+        n_hist = len(hist)
+        n_fore = 10
+        n_total = n_hist + n_fore
+        bar_w = cw / n_total
+
+        def py(price): return y0 + ch - (price - lo) / rng * ch
+
+        # Background
+        self.set_fill_color(13, 17, 23)
+        self.rect(x0, y0, cw, ch, "F")
+
+        # Historical close line
+        self.set_draw_color(220, 220, 220)
+        self.set_line_width(0.4)
+        for i in range(n_hist - 1):
+            x1 = x0 + i * bar_w + bar_w/2
+            x2 = x0 + (i+1) * bar_w + bar_w/2
+            self.line(x1, py(float(hist["Close"].iloc[i])),
+                      x2, py(float(hist["Close"].iloc[i+1])))
+
+        # "Now" divider
+        now_x = x0 + n_hist * bar_w
+        self.set_draw_color(107, 114, 128)
+        self.set_line_width(0.2)
+        self.line(now_x, y0, now_x, y0 + ch)
+        self.set_xy(now_x + 0.5, y0 + 0.5)
+        self.set_font("Helvetica","",4.5)
+        self.set_text_color(107,114,128)
+        self.cell(6,3,"NOW")
+
+        # Cone: fill between upper and lower
+        import math
+        pts_upper = [(x0 + (n_hist + i) * bar_w + bar_w/2,
+                      py(lc + (k_peak - lc) * i / n_fore))
+                     for i in range(n_fore+1)]
+        pts_lower = [(x0 + (n_hist + i) * bar_w + bar_w/2,
+                      py(lc + (k_trgh - lc) * i / n_fore))
+                     for i in range(n_fore+1)]
+
+        # Shade cone area with thin bars
+        r2,g2,b2 = cone_rgb
+        self.set_fill_color(r2,g2,b2)
+        for i in range(n_fore):
+            xl = pts_lower[i][0]; xr = pts_lower[i+1][0]
+            yt = min(pts_upper[i][1], pts_upper[i+1][1])
+            yb = max(pts_lower[i][1], pts_lower[i+1][1])
+            if yb > yt:
+                self.set_fill_color(r2//6, g2//6, b2//6)
+                self.rect(xl, yt, xr-xl, yb-yt, "F")
+
+        # Upper / lower edges
+        self.set_draw_color(*cone_rgb)
+        self.set_line_width(0.3)
+        for pts in [pts_upper, pts_lower]:
+            for i in range(len(pts)-1):
+                self.line(pts[i][0],pts[i][1],pts[i+1][0],pts[i+1][1])
+
+        # Predicted close mid line
+        self.set_line_width(0.5)
+        pts_mid = [(x0 + (n_hist + i) * bar_w + bar_w/2,
+                    py(lc + (k_pred - lc) * i / n_fore))
+                   for i in range(n_fore+1)]
+        for i in range(len(pts_mid)-1):
+            self.line(pts_mid[i][0],pts_mid[i][1],pts_mid[i+1][0],pts_mid[i+1][1])
+
+        # Labels
+        self.set_font("Helvetica","",5); self.set_text_color(*cone_rgb)
+        self.set_xy(pts_upper[-1][0]+0.5, pts_upper[-1][1]-1)
+        self.cell(14,3,f"Hi {k_peak:,.0f}")
+        self.set_xy(pts_lower[-1][0]+0.5, pts_lower[-1][1]+0.5)
+        self.cell(14,3,f"Lo {k_trgh:,.0f}")
+        self.set_xy(pts_mid[-1][0]+0.5,   pts_mid[-1][1]-1)
+        self.set_text_color(220,220,220)
+        self.cell(14,3,f"-> {k_pred:,.0f}")
+
+        self.set_y(y0 + ch + 3)
+
     def _agent_block(self,tag,tag_color,name,body,verdict,bg_color,border_color):
         cy=self.get_y()+1
         lines_est=max(len(body)//65,3); bh=min(22+lines_est*4.5,65)
@@ -659,6 +916,10 @@ def gen_pdf(symbol,sc,df,debate,kr,price_png=None,kronos_png=None,interval="1D")
         ("T Trend",sc['t'],3,f"ADX {r['ADX']:.0f}",PUR),
     ]:
         pdf._comp_bar(lbl,s,mx,raw,bc)
+    # Native price chart
+    pdf._sec("Price Chart  (last 60 candles  |  EMA20  EMA50  EMA200)")
+    pdf._price_chart_native(df, chart_bars=60)
+
     pdf._sec("Market Structure")
     for lbl,val,vc_ in [
         ("Close",f"{r['Close']:,.2f}",BLK),
@@ -715,7 +976,44 @@ def gen_pdf(symbol,sc,df,debate,kr,price_png=None,kronos_png=None,interval="1D")
              "Good" if rr_v>=1.5 else "Fair" if rr_v>=1 else "Avoid",
              f"signal {sc['total']}/13",tq_col),
         ],y=pdf.get_y(),cols=3)
-        pdf._sec("Kronos Detail",y=pdf.get_y()+2*24+6)
+        # Kronos native chart
+        pdf._sec("Kronos Forecast Chart",y=pdf.get_y()+2*24+6)
+        pdf._kronos_chart_native(df, kr)
+
+        # Confidence score
+        kconf = kronos_confidence(kr, sc)
+        conf_col = GRN if kconf["cls"]=="m-green" else AMB if kconf["cls"]=="m-amber" else RED
+        pdf._sec("Kronos Prediction Confidence")
+        # Big score
+        pdf.set_xy(pdf.RX+pdf.RM, pdf.get_y())
+        pdf.set_font("Helvetica","B",28)
+        pdf.set_text_color(*conf_col)
+        pdf.cell(35, 14, f"{kconf['score']}%")
+        # Grade + label beside it
+        pdf.set_xy(pdf.RX+pdf.RM+37, pdf.get_y()-12)
+        pdf.set_font("Helvetica","B",10)
+        pdf.set_text_color(*conf_col)
+        pdf.cell(0,6,safe(kconf["label"]))
+        pdf.set_xy(pdf.RX+pdf.RM+37, pdf.get_y()+6)
+        pdf.set_font("Helvetica","",7.5)
+        pdf.set_text_color(*MUT)
+        pdf.cell(0,5,safe(f"Grade {kconf['grade']}  |  {kconf['direction']}  |  R/R {kconf['rr']}"))
+        # Progress bar
+        bar_y = pdf.get_y()+6
+        pdf.set_fill_color(229,231,235)
+        pdf.rect(pdf.RX+pdf.RM, bar_y, pdf.PW-pdf.RX-pdf.RM*2, 3, "F")
+        bar_fill = (pdf.PW-pdf.RX-pdf.RM*2) * kconf["score"] / 100
+        pdf.set_fill_color(*conf_col)
+        pdf.rect(pdf.RX+pdf.RM, bar_y, bar_fill, 3, "F")
+        pdf.set_y(bar_y+5)
+        # Explanation
+        pdf.set_xy(pdf.RX+pdf.RM, pdf.get_y())
+        pdf.set_font("Helvetica","",7.5)
+        pdf.set_text_color(*DGR)
+        pdf.multi_cell(pdf.PW-pdf.RX-pdf.RM*2, 4, safe(kconf["explanation"]))
+        pdf.ln(2)
+
+        pdf._sec("Kronos Detail")
         for lbl,val,vc_ in [
             ("Direction",kr.get("Direction","--"),d_col),
             ("Predicted Change",safe(k_chg),d_col),
@@ -803,8 +1101,8 @@ with sc2:
 
 # Interval selector
 interval=st.radio("interval",list(INTERVAL_MAP.keys()),
-    index=3,horizontal=True,label_visibility="collapsed")
-fetch_period, chart_bars = INTERVAL_MAP[interval]
+    index=4,horizontal=True,label_visibility="collapsed")
+fetch_period, yf_interval, chart_bars = INTERVAL_MAP[interval]
 
 api_key=st.secrets.get("ANTHROPIC_API_KEY","") if hasattr(st,"secrets") else ""
 
@@ -819,7 +1117,7 @@ if not symbol:
 ticker=SYMBOLS.get(symbol,f"{symbol}.NS")
 with st.spinner(f"Loading {symbol}..."):
     try:
-        df=fetch(ticker,fetch_period)
+        df=fetch(ticker,fetch_period,yf_interval)
     except Exception as _e:
         df=None
 
@@ -944,6 +1242,27 @@ k4,k5,k6=st.columns(3)
 with k4: st.markdown(f'<div class="ns-kron-card"><div class="ns-kron-lbl">Momentum</div><div class="ns-kron-val {mom_cls}">{mom_lbl}</div><div class="ns-kron-sub">{k_bull:.0f}% of forecast candles close green - {"no clear" if k_bull<55 else "bullish"} direction</div></div>',unsafe_allow_html=True)
 with k5: st.markdown(f'<div class="ns-kron-card"><div class="ns-kron-lbl">Target Price</div><div class="ns-kron-val m-white">{float(str(k_pred).replace(",","")):,.2f}</div><div class="ns-kron-sub">Where AI thinks price lands after {kr.get("Candles Forecast",20)} candles</div></div>',unsafe_allow_html=True)
 with k6: st.markdown(f'<div class="ns-kron-card"><div class="ns-kron-lbl">Trade Quality</div><div class="ns-kron-val {tq_cls}">{tq_lbl}</div><div class="ns-kron-sub">For every $1 downside risk, {"$"+str(rr)+" upside" if rr>=1 else "only $"+str(rr)+" upside"}</div></div>',unsafe_allow_html=True)
+
+# Kronos confidence score
+kconf = kronos_confidence(kr, sc)
+conf_bar_pct = kconf["score"]
+conf_bar_color = {"m-green":GREEN,"m-amber":AMBER,"m-red":RED,"m-muted":MUTED}.get(kconf["cls"],MUTED)
+st.markdown(f"""
+<div class="ns-card" style="margin-bottom:1rem">
+  <div class="ns-card-title">Kronos Prediction Confidence</div>
+  <div style="display:flex;align-items:center;gap:16px;margin-bottom:10px">
+    <div style="font-size:52px;font-weight:700;font-family:'JetBrains Mono',monospace;
+         color:{conf_bar_color};line-height:1">{kconf["score"]}%</div>
+    <div>
+      <div style="font-size:16px;font-weight:600;color:{conf_bar_color};margin-bottom:2px">{kconf["label"]}</div>
+      <div style="font-size:12px;color:{MUTED}">Grade {kconf["grade"]}  &middot;  {kconf["direction"]}  &middot;  R/R {kconf["rr"]}</div>
+    </div>
+  </div>
+  <div style="background:{BORDER};border-radius:4px;height:8px;margin-bottom:10px">
+    <div style="width:{conf_bar_pct}%;height:8px;border-radius:4px;background:{conf_bar_color};transition:width .4s"></div>
+  </div>
+  <div style="font-size:12px;color:{MUTED};line-height:1.6">{kconf["explanation"]}</div>
+</div>""", unsafe_allow_html=True)
 
 # 06 AI Lab
 st.markdown(f'<div class="ns-sec"><span class="ns-dot">&#9679;</span> 06 &mdash; AI LAB <span class="ns-dot">&#9679;</span></div>',unsafe_allow_html=True)
