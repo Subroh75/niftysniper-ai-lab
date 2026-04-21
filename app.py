@@ -984,34 +984,42 @@ def gen_pdf(symbol,sc,df,debate,kr,price_png=None,kronos_png=None,interval="1D")
         kconf = kronos_confidence(kr, sc)
         conf_col = GRN if kconf["cls"]=="m-green" else AMB if kconf["cls"]=="m-amber" else RED
         pdf._sec("Kronos Prediction Confidence")
-        # Big score
-        pdf.set_xy(pdf.RX+pdf.RM, pdf.get_y())
-        pdf.set_font("Helvetica","B",28)
+        # Use fixed Y anchors - never rely on get_y() after cell() for side-by-side layout
+        cy = pdf.get_y()
+        card_h = 32
+        # Card background
+        pdf.set_fill_color(248, 249, 250)
+        pdf.rect(pdf.RX+pdf.RM, cy, pdf.PW-pdf.RX-pdf.RM*2, card_h, "F")
+        pdf.set_fill_color(*conf_col)
+        pdf.rect(pdf.RX+pdf.RM, cy, 2, card_h, "F")
+        # Big score - left side, fixed position
+        pdf.set_xy(pdf.RX+pdf.RM+5, cy+2)
+        pdf.set_font("Helvetica","B",30)
         pdf.set_text_color(*conf_col)
-        pdf.cell(35, 14, f"{kconf['score']}%")
-        # Grade + label beside it
-        pdf.set_xy(pdf.RX+pdf.RM+37, pdf.get_y()-12)
-        pdf.set_font("Helvetica","B",10)
+        pdf.cell(38, 14, f"{kconf['score']}%")
+        # Label - right of score, top row
+        pdf.set_xy(pdf.RX+pdf.RM+46, cy+3)
+        pdf.set_font("Helvetica","B",11)
         pdf.set_text_color(*conf_col)
-        pdf.cell(0,6,safe(kconf["label"]))
-        pdf.set_xy(pdf.RX+pdf.RM+37, pdf.get_y()+6)
+        pdf.cell(0, 6, safe(kconf["label"]))
+        # Grade line - right of score, second row
+        pdf.set_xy(pdf.RX+pdf.RM+46, cy+11)
         pdf.set_font("Helvetica","",7.5)
         pdf.set_text_color(*MUT)
-        pdf.cell(0,5,safe(f"Grade {kconf['grade']}  |  {kconf['direction']}  |  R/R {kconf['rr']}"))
-        # Progress bar
-        bar_y = pdf.get_y()+6
-        pdf.set_fill_color(229,231,235)
-        pdf.rect(pdf.RX+pdf.RM, bar_y, pdf.PW-pdf.RX-pdf.RM*2, 3, "F")
-        bar_fill = (pdf.PW-pdf.RX-pdf.RM*2) * kconf["score"] / 100
+        pdf.cell(0, 5, safe(f"Grade {kconf['grade']}   Direction: {kconf['direction']}   R/R: {kconf['rr']}"))
+        # Progress bar - spans full width, below the score row
+        pdf.set_fill_color(220, 222, 226)
+        pdf.rect(pdf.RX+pdf.RM+5, cy+18, pdf.PW-pdf.RX-pdf.RM*2-10, 3, "F")
+        bar_w = (pdf.PW-pdf.RX-pdf.RM*2-10) * kconf["score"] / 100
         pdf.set_fill_color(*conf_col)
-        pdf.rect(pdf.RX+pdf.RM, bar_y, bar_fill, 3, "F")
-        pdf.set_y(bar_y+5)
-        # Explanation
-        pdf.set_xy(pdf.RX+pdf.RM, pdf.get_y())
-        pdf.set_font("Helvetica","",7.5)
+        pdf.rect(pdf.RX+pdf.RM+5, cy+18, bar_w, 3, "F")
+        # Explanation text below bar
+        pdf.set_xy(pdf.RX+pdf.RM+5, cy+23)
+        pdf.set_font("Helvetica","",7)
         pdf.set_text_color(*DGR)
-        pdf.multi_cell(pdf.PW-pdf.RX-pdf.RM*2, 4, safe(kconf["explanation"]))
-        pdf.ln(2)
+        pdf.multi_cell(pdf.PW-pdf.RX-pdf.RM*2-10, 3.8, safe(kconf["explanation"]))
+        # Move cursor cleanly past the card
+        pdf.set_y(cy + card_h + 3)
 
         pdf._sec("Kronos Detail")
         for lbl,val,vc_ in [
