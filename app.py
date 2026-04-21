@@ -484,6 +484,306 @@ P_DGREY   = (55,  60,  65)
 P_BLACK   = (15,  18,  25)
 
 
+
+class PDF(FPDF):
+    PW=210; PH=297; LC=60; RX=60; RM=5
+    P_DARK=(10,14,20); P_CARD=(18,24,36); P_ORANGE=(255,102,0); P_AMBER=(255,170,0)
+    P_GREEN=(0,200,80); P_RED=(255,45,85); P_WHITE=(255,255,255); P_OFF=(248,249,250)
+    P_LGREY=(229,231,235); P_MGREY=(107,114,128); P_DGREY=(55,65,81); P_BLACK=(17,24,39)
+
+    def __init__(self):
+        super().__init__(orientation="P",unit="mm",format="A4")
+        self.set_auto_page_break(auto=False)
+        self.set_margins(0,0,0)
+    def header(self): pass
+    def footer(self): pass
+
+    def _left_col(self,symbol,interval,page_n,total_n=4,score_val=None,tier=None):
+        self.set_fill_color(*self.P_DARK); self.rect(0,0,self.LC,self.PH,"F")
+        self.set_fill_color(*self.P_ORANGE); self.rect(self.LC-2,0,2,self.PH,"F")
+        self.set_xy(self.RM,14); self.set_font("Helvetica","B",11)
+        self.set_text_color(*self.P_ORANGE); self.cell(self.LC-self.RM*2,7,"NIFTYSNIPER")
+        self.set_xy(self.RM,21); self.set_font("Helvetica","",7)
+        self.set_text_color(*self.P_MGREY); self.cell(self.LC-self.RM*2,5,"AI LAB")
+        self.set_draw_color(*self.P_ORANGE); self.set_line_width(0.4)
+        self.line(self.RM,29,self.LC-self.RM,29)
+        self.set_xy(self.RM,34); self.set_font("Helvetica","B",16)
+        self.set_text_color(*self.P_WHITE); self.multi_cell(self.LC-self.RM*2,9,safe(symbol))
+        self.set_fill_color(*self.P_ORANGE); self.rect(self.RM,70,20,7,"F")
+        self.set_xy(self.RM,70); self.set_font("Helvetica","B",7)
+        self.set_text_color(0,0,0); self.cell(20,7,safe(interval),align="C")
+        self.set_xy(self.RM,81); self.set_font("Helvetica","",6.5)
+        self.set_text_color(*self.P_MGREY); self.cell(self.LC-self.RM*2,4,safe(ist_now()))
+        if score_val is not None and tier is not None:
+            self.set_fill_color(*self.P_CARD); self.rect(self.RM,95,self.LC-self.RM*2,44,"F")
+            self.set_xy(self.RM,98); self.set_font("Helvetica","",6.5)
+            self.set_text_color(*self.P_MGREY); self.cell(self.LC-self.RM*2,4,"MIRO SCORE",align="C")
+            tc=self.P_ORANGE if "STRONG" in tier else self.P_AMBER if "BUILD" in tier else self.P_MGREY
+            self.set_xy(self.RM,104); self.set_font("Helvetica","B",30)
+            self.set_text_color(*tc); self.cell(self.LC-self.RM*2,18,safe(str(score_val)),align="C")
+            self.set_xy(self.RM,122); self.set_font("Helvetica","",7)
+            self.set_text_color(*self.P_MGREY); self.cell(self.LC-self.RM*2,4,"/ 13",align="C")
+            self.set_xy(self.RM,129); self.set_font("Helvetica","B",7)
+            self.set_text_color(*tc); self.multi_cell(self.LC-self.RM*2,4,safe(tier),align="C")
+        self.set_xy(self.RM,self.PH-14); self.set_font("Helvetica","",7)
+        self.set_text_color(*self.P_MGREY)
+        self.cell(self.LC-self.RM*2,5,f"Page {page_n} of {total_n}",align="C")
+
+    def _right_bg(self):
+        self.set_fill_color(*self.P_WHITE); self.rect(self.RX,0,self.PW-self.RX,self.PH,"F")
+
+    def _right_header(self,title,subtitle=""):
+        self.set_fill_color(*self.P_ORANGE); self.rect(self.RX,0,self.PW-self.RX,3,"F")
+        self.set_xy(self.RX+self.RM,7); self.set_font("Helvetica","B",13)
+        self.set_text_color(*self.P_BLACK); self.cell(0,8,safe(title))
+        if subtitle:
+            self.set_xy(self.RX+self.RM,16); self.set_font("Helvetica","",8)
+            self.set_text_color(*self.P_MGREY); self.cell(0,5,safe(subtitle))
+        self.set_draw_color(*self.P_LGREY); self.set_line_width(0.3)
+        self.line(self.RX+self.RM,24,self.PW-self.RM,24)
+
+    def _sec(self,title,y=None):
+        if y is not None: self.set_y(y)
+        cy=self.get_y()+2
+        self.set_fill_color(*self.P_OFF); self.rect(self.RX,cy,self.PW-self.RX,7,"F")
+        self.set_fill_color(*self.P_ORANGE); self.rect(self.RX,cy,2,7,"F")
+        self.set_xy(self.RX+self.RM+2,cy+0.8); self.set_font("Helvetica","B",7.5)
+        self.set_text_color(*self.P_DGREY); self.cell(0,5.5,safe(title).upper())
+        self.set_y(cy+9)
+
+    def _kv(self,label,value,val_color=None):
+        vc=val_color or self.P_BLACK; cy=self.get_y()
+        self.set_xy(self.RX+self.RM,cy); self.set_font("Helvetica","",8)
+        self.set_text_color(*self.P_MGREY); self.cell(45,6,safe(label))
+        self.set_xy(self.RX+self.RM+45,cy); self.set_font("Courier","B",8)
+        self.set_text_color(*vc); self.cell(0,6,safe(str(value)))
+        self.set_draw_color(*self.P_LGREY); self.set_line_width(0.15)
+        self.line(self.RX+self.RM,cy+6,self.PW-self.RM,cy+6); self.set_y(cy+6)
+
+    def _stat_grid(self,stats,y,cols=3):
+        col_w=(self.PW-self.RX-self.RM*2)/cols; row_h=22
+        for i,(lbl,val,sub,vc) in enumerate(stats):
+            col=i%cols; row=i//cols
+            cx=self.RX+self.RM+col*col_w; cy=y+row*(row_h+2)
+            self.set_fill_color(*self.P_OFF); self.rect(cx,cy,col_w-2,row_h,"F")
+            self.set_fill_color(*self.P_ORANGE); self.rect(cx,cy,1.5,row_h,"F")
+            self.set_xy(cx+4,cy+2); self.set_font("Helvetica","",6.5)
+            self.set_text_color(*self.P_MGREY); self.cell(col_w-8,4,safe(str(lbl)).upper())
+            self.set_xy(cx+4,cy+6); fsz=16 if len(str(val))<=8 else 12
+            self.set_font("Helvetica","B",fsz); self.set_text_color(*vc)
+            self.cell(col_w-8,9,safe(str(val)))
+            if sub:
+                self.set_xy(cx+4,cy+15); self.set_font("Helvetica","",6.5)
+                self.set_text_color(*self.P_MGREY); self.cell(col_w-8,4,safe(str(sub)))
+
+    def _comp_bar(self,label,score,mx,raw,bar_color):
+        cy=self.get_y(); rw=self.PW-self.RX-self.RM*2
+        self.set_xy(self.RX+self.RM,cy); self.set_font("Helvetica","",8)
+        self.set_text_color(*self.P_BLACK); self.cell(30,7,safe(label))
+        bar_x=self.RX+self.RM+30; bar_w=rw-60
+        self.set_fill_color(*self.P_LGREY); self.rect(bar_x,cy+2.5,bar_w,3,"F")
+        pct=score/mx if mx else 0
+        if pct>0:
+            self.set_fill_color(*bar_color); self.rect(bar_x,cy+2.5,bar_w*pct,3,"F")
+        sc_col=bar_color if score>0 else self.P_MGREY
+        self.set_xy(bar_x+bar_w+3,cy); self.set_font("Courier","B",8)
+        self.set_text_color(*sc_col); self.cell(12,7,f"{score}/{mx}")
+        self.set_xy(bar_x+bar_w+17,cy); self.set_font("Helvetica","",7)
+        self.set_text_color(*self.P_MGREY); self.cell(0,7,safe(raw))
+        self.set_draw_color(*self.P_LGREY); self.set_line_width(0.15)
+        self.line(self.RX+self.RM,cy+7,self.PW-self.RM,cy+7); self.set_y(cy+7)
+
+    def _agent_block(self,tag,tag_color,name,body,verdict,bg_color,border_color):
+        cy=self.get_y()+1
+        lines_est=max(len(body)//65,3); bh=min(22+lines_est*4.5,65)
+        self.set_fill_color(*bg_color)
+        self.rect(self.RX+self.RM,cy,self.PW-self.RX-self.RM*2,bh,"F")
+        self.set_fill_color(*border_color)
+        self.rect(self.RX+self.RM,cy,2,bh,"F")
+        self.set_xy(self.RX+self.RM+5,cy+2); self.set_font("Helvetica","B",6.5)
+        self.set_text_color(*tag_color); self.cell(0,4,safe(tag).upper())
+        self.set_xy(self.RX+self.RM+5,cy+7); self.set_font("Helvetica","B",10)
+        self.set_text_color(*self.P_BLACK); self.cell(0,6,safe(name))
+        self.set_xy(self.RX+self.RM+5,cy+14); self.set_font("Helvetica","",7.5)
+        self.set_text_color(*self.P_DGREY)
+        self.multi_cell(self.PW-self.RX-self.RM*2-10,4,safe(body))
+        pill_y=cy+bh-9
+        pc={"BUY":self.P_GREEN,"SELL":self.P_RED,"HOLD":(59,130,246),
+            "WATCH":self.P_AMBER,"AVOID":self.P_RED}.get(verdict.upper(),self.P_MGREY)
+        self.set_fill_color(*pc); self.rect(self.RX+self.RM+5,pill_y,24,7,"F")
+        self.set_xy(self.RX+self.RM+5,pill_y); self.set_font("Helvetica","B",6.5)
+        ptc=(0,0,0) if verdict.upper() in ("WATCH","BUY") else (255,255,255)
+        self.set_text_color(*ptc); self.cell(24,7,safe(verdict.upper()),align="C")
+        self.set_y(cy+bh+2)
+
+
+def gen_pdf(symbol,sc,df,debate,kr,price_png=None,kronos_png=None,interval="1D"):
+    r=df.iloc[-1]; pdf=PDF()
+    GRN=pdf.P_GREEN; RED=pdf.P_RED; ORN=pdf.P_ORANGE; AMB=pdf.P_AMBER
+    BLK=pdf.P_BLACK; MUT=pdf.P_MGREY; DGR=pdf.P_DGREY
+    BLU=(59,130,246); PUR=(124,58,237)
+    pct=sc["pct_chg"]; pct_str=f"+{pct:.2f}%" if pct>=0 else f"{pct:.2f}%"
+    pct_col=GRN if pct>=0 else RED
+    def vc(v,ref): return GRN if v>ref else RED
+
+    # PAGE 1 - SIGNAL OUTPUT
+    pdf.add_page()
+    pdf._left_col(symbol,interval,1,4,sc["total"],sc["tier"])
+    pdf._right_bg()
+    pdf._right_header("Signal Intelligence Report",safe(f"NSE  |  {interval} Timeframe"))
+    sig_col=ORN if "STRONG" in sc["tier"] else AMB if "BUILD" in sc["tier"] else MUT
+    pdf.set_fill_color(255,248,240); pdf.rect(pdf.RX+pdf.RM,27,pdf.PW-pdf.RX-pdf.RM*2,28,"F")
+    pdf.set_fill_color(*sig_col); pdf.rect(pdf.RX+pdf.RM,27,3,28,"F")
+    pdf.set_xy(pdf.RX+pdf.RM+7,30); pdf.set_font("Helvetica","",7)
+    pdf.set_text_color(*MUT); pdf.cell(0,4,"SIGNAL OUTPUT")
+    pdf.set_xy(pdf.RX+pdf.RM+7,35); pdf.set_font("Helvetica","B",20)
+    pdf.set_text_color(*sig_col); pdf.cell(0,11,safe(sc["tier"]))
+    pdf.set_xy(pdf.RX+pdf.RM+7,47); pdf.set_font("Courier","B",10)
+    pdf.set_text_color(*MUT); pdf.cell(0,5,f"{sc['total']} / 13  |  {ist_now()}")
+    pdf._stat_grid([
+        ("Close",f"{r['Close']:,.2f}","",BLK),
+        ("Change",pct_str,"vs prev close",pct_col),
+        ("Vol Ratio",f"{sc['vol_ratio']}x","vs 20-bar avg",GRN if sc['vol_ratio']>=2 else MUT),
+        ("RSI 14",f"{r['RSI']:.1f}",
+         "Overbought" if r['RSI']>70 else "Oversold" if r['RSI']<30 else "Neutral",
+         RED if r['RSI']>70 else GRN if r['RSI']<30 else BLK),
+        ("ADX 14",f"{r['ADX']:.1f}","Trending" if r['ADX']>25 else "Ranging",
+         GRN if r['ADX']>25 else MUT),
+        ("Stop Loss",f"{r['Close']-1.5*r['ATR']:.2f}","1.5x ATR",RED),
+    ],y=60,cols=3)
+    pdf._sec("Signal Components",y=60+2*24+8)
+    for lbl,s,mx,raw,bc in [
+        ("V Volume",sc['v'],5,f"vol = {sc['vol_ratio']}x",ORN),
+        ("P Momentum",sc['p'],3,f"chg = {pct_str}",ORN),
+        ("R Range",sc['r'],2,f"range_pos = {sc['rng_pos']}",GRN),
+        ("T Trend",sc['t'],3,f"ADX {r['ADX']:.0f}",PUR),
+    ]:
+        pdf._comp_bar(lbl,s,mx,raw,bc)
+    pdf._sec("Market Structure")
+    for lbl,val,vc_ in [
+        ("Close",f"{r['Close']:,.2f}",BLK),
+        ("EMA 20",f"{r['EMA20']:.2f}  {'ABOVE' if r['Close']>r['EMA20'] else 'BELOW'}",vc(r['Close'],r['EMA20'])),
+        ("EMA 50",f"{r['EMA50']:.2f}  {'ABOVE' if r['Close']>r['EMA50'] else 'BELOW'}",vc(r['Close'],r['EMA50'])),
+        ("EMA 200",f"{r['EMA200']:.2f}  {'ABOVE' if r['Close']>r['EMA200'] else 'BELOW'}",vc(r['Close'],r['EMA200'])),
+        ("VWAP",f"{r['VWAP']:.2f}  {'ABOVE' if r['Close']>r['VWAP'] else 'BELOW'}",vc(r['Close'],r['VWAP'])),
+        ("BB Upper",f"{r['BB_upper']:.2f}",DGR),
+        ("BB Lower",f"{r['BB_lower']:.2f}",DGR),
+    ]:
+        pdf._kv(lbl,val,vc_)
+
+    # PAGE 2 - TIMING + KRONOS
+    pdf.add_page()
+    pdf._left_col(symbol,interval,2,4)
+    pdf._right_bg()
+    pdf._right_header("Timing Quality  &  Kronos AI Forecast")
+    pdf._stat_grid([
+        ("RSI 14",f"{r['RSI']:.1f}",
+         "Overbought" if r['RSI']>70 else "Oversold" if r['RSI']<30 else "Neutral",
+         RED if r['RSI']>70 else GRN if r['RSI']<30 else BLK),
+        ("ADX 14",f"{r['ADX']:.1f}","Trending" if r['ADX']>25 else "Ranging",
+         GRN if r['ADX']>25 else MUT),
+        ("ATR 14",f"{r['ATR']:.2f}",f"{r['ATR']/r['Close']*100:.2f}% of price",BLK),
+        ("+DI / -DI",f"{r['DI_pos']:.1f}/{r['DI_neg']:.1f}",
+         "Bulls" if r['DI_pos']>r['DI_neg'] else "Bears",
+         GRN if r['DI_pos']>r['DI_neg'] else RED),
+        ("Rel Volume",f"{sc['vol_ratio']}x","Elevated" if sc['vol_ratio']>=2 else "Normal",
+         GRN if sc['vol_ratio']>=2 else MUT),
+        ("ATR Move",f"{sc['atr_sigma']}sigma",
+         "Strong" if sc['atr_sigma']>1.5 else "Weak",
+         GRN if sc['atr_sigma']>1.5 else MUT),
+    ],y=28,cols=3)
+    if kr:
+        k_up=kr.get("Direction","DOWN").upper()=="UP"
+        k_chg=kr.get("Predicted Change","0%")
+        k_pred=float(str(kr.get("Predicted Close",r['Close'])).replace(",",""))
+        k_peak=float(str(kr.get("Forecast Peak",k_pred*1.02)).replace(",",""))
+        k_trgh=float(str(kr.get("Forecast Trough",k_pred*0.98)).replace(",",""))
+        k_bull=float(str(kr.get("Bull Candle %","50%")).replace("%",""))
+        k_cans=kr.get("Candles Forecast",20)
+        rr_v=round(abs(k_peak-r['Close'])/max(abs(k_trgh-r['Close']),0.01),1)
+        d_col=GRN if k_up else RED
+        tq_col=GRN if rr_v>=1.5 else RED if rr_v<1 else AMB
+        pdf._sec("Kronos AI Forecast",y=28+2*24+10)
+        pdf._stat_grid([
+            ("Direction","RISING" if k_up else "FALLING",f"{k_chg} expected",d_col),
+            ("Target",f"{k_pred:,.2f}",f"in {k_cans} candles",d_col),
+            ("Peak/Trough",f"{k_peak:.2f}/{k_trgh:.2f}","forecast range",MUT),
+            ("Momentum",f"{k_bull:.0f}% bull","forecast candles",
+             GRN if k_bull>=55 else RED),
+            ("R/R Ratio",f"{rr_v}","upside vs downside",tq_col),
+            ("Trade Quality",
+             "Good" if rr_v>=1.5 else "Fair" if rr_v>=1 else "Avoid",
+             f"signal {sc['total']}/13",tq_col),
+        ],y=pdf.get_y(),cols=3)
+        pdf._sec("Kronos Detail",y=pdf.get_y()+2*24+6)
+        for lbl,val,vc_ in [
+            ("Direction",kr.get("Direction","--"),d_col),
+            ("Predicted Change",safe(k_chg),d_col),
+            ("Predicted Close",f"{k_pred:,.2f}",d_col),
+            ("Forecast Peak",f"{k_peak:,.2f}",GRN),
+            ("Forecast Trough",f"{k_trgh:,.2f}",RED),
+            ("Bull Candle %",kr.get("Bull Candle %","--"),MUT),
+        ]:
+            pdf._kv(lbl,val,vc_)
+
+    # PAGE 3 - BULL + BEAR
+    pdf.add_page()
+    pdf._left_col(symbol,interval,3,4)
+    pdf._right_bg()
+    pdf._right_header("AI Lab  -  Agent Debate","Bull Case  &  Bear Case")
+    pdf.set_y(28)
+    if debate:
+        bull=debate.get("BULL",{})
+        if bull:
+            pdf._agent_block("BULL CASE",GRN,"Alex - Long Desk",
+                bull.get("body",""),bull.get("verdict","WATCH"),
+                (240,252,245),GRN)
+        bear=debate.get("BEAR",{})
+        if bear:
+            pdf._agent_block("BEAR CASE",RED,"Sam - Short Desk",
+                bear.get("body",""),bear.get("verdict","WATCH"),
+                (255,242,242),RED)
+
+    # PAGE 4 - RISK + CIO
+    pdf.add_page()
+    pdf._left_col(symbol,interval,4,4)
+    pdf._right_bg()
+    pdf._right_header("AI Lab  -  Agent Debate","Risk Manager  &  CIO Verdict")
+    pdf.set_y(28)
+    if debate:
+        risk=debate.get("RISK",{})
+        if risk:
+            pdf._agent_block("RISK MANAGER",(59,130,246),"Jordan - Risk",
+                risk.get("body",""),risk.get("verdict","HOLD"),
+                (239,246,255),(59,130,246))
+        cio=debate.get("CIO",{})
+        if cio:
+            pdf._agent_block("CIO VERDICT",(124,58,237),"Morgan - CIO",
+                cio.get("body",""),cio.get("verdict","HOLD"),
+                (245,243,255),(124,58,237))
+        final_v=(cio.get("verdict","WAIT") if cio else "WAIT")
+        v_col={"BUY":GRN,"SELL":RED,"HOLD":(59,130,246),
+               "WATCH":AMB,"AVOID":RED}.get(final_v.upper(),MUT)
+        by=pdf.get_y()+8
+        pdf.set_fill_color(*v_col)
+        pdf.rect(pdf.RX+pdf.RM,by,pdf.PW-pdf.RX-pdf.RM*2,18,"F")
+        pdf.set_xy(pdf.RX+pdf.RM,by+2); pdf.set_font("Helvetica","",8)
+        ptc=(0,0,0) if final_v.upper() in ("WATCH","BUY") else (255,255,255)
+        pdf.set_text_color(*ptc); pdf.cell(0,5,"FINAL VERDICT",align="C")
+        pdf.set_xy(pdf.RX+pdf.RM,by+8); pdf.set_font("Helvetica","B",18)
+        pdf.cell(0,8,safe(final_v.upper()),align="C")
+    dy=pdf.PH-16
+    pdf.set_draw_color(*pdf.P_LGREY); pdf.set_line_width(0.3)
+    pdf.line(pdf.RX+pdf.RM,dy,pdf.PW-pdf.RM,dy)
+    pdf.set_xy(pdf.RX+pdf.RM,dy+2); pdf.set_font("Helvetica","I",6.5)
+    pdf.set_text_color(*pdf.P_MGREY)
+    pdf.multi_cell(pdf.PW-pdf.RX-pdf.RM*2,4,
+        "Data via Yahoo Finance / NSE. Signals are not financial advice. "
+        "Past performance does not guarantee future results.")
+
+    return bytes(pdf.output())
+
+
 # ==============================================================================
 # APP
 # ==============================================================================
